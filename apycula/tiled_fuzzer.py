@@ -34,7 +34,10 @@ if not gowinhome:
 def recode_idx_0(idx):
     return idx
 def recode_idx_gw1ns_2(idx):
-    return (idx + 1)
+    new_idx = idx + 1
+    if idx >= 70:
+        new_idx += 4
+    return new_idx
 
 # device = os.getenv("DEVICE")
 device = sys.argv[1]
@@ -200,23 +203,13 @@ iostd_open_drain = {
             "PCI33"       : [],
         }
 iostd_histeresis = {
-            ""            : ["NONE", "H2L", "L2H", "HIGH"],
-            "LVCMOS33"    : ["NONE", "H2L", "L2H", "HIGH"],
-            "LVCMOS25"    : ["NONE", "H2L", "L2H", "HIGH"],
-            "LVCMOS18"    : ["NONE", "H2L", "L2H", "HIGH"],
-            "LVCMOS15"    : ["NONE", "H2L", "L2H", "HIGH"],
-            "LVCMOS12"    : ["NONE", "H2L", "L2H", "HIGH"],
-            "SSTL25_I"    : [],
-            "SSTL25_II"   : [],
-            "SSTL33_I"    : [],
-            "SSTL33_II"   : [],
-            "SSTL18_I"    : [],
-            "SSTL18_II"   : [],
-            "SSTL15"      : [],
-            "HSTL18_I"    : [],
-            "HSTL18_II"   : [],
-            "HSTL15_I"    : [],
-            "PCI33"       : ["NONE", "H2L", "L2H", "HIGH"],
+            ""        ,
+            "LVCMOS33",
+            "LVCMOS25",
+            "LVCMOS18",
+            "LVCMOS15",
+            "LVCMOS12",
+            "PCI33"   ,
         }
 iostd_pull_mode = {
             ""        ,
@@ -225,11 +218,11 @@ iostd_pull_mode = {
             "LVCMOS18",
             "LVCMOS15",
             "LVCMOS12",
+            "PCI33"   ,
         }
 
-iostandards = ["", "LVCMOS18", "LVCMOS33"]
-#iostandards = ["", "LVCMOS18", "LVCMOS33", "LVCMOS25", "LVCMOS15", "LVCMOS12",
-#      "SSTL25_I", "SSTL33_I", "SSTL15", "HSTL18_I", "PCI33"]
+iostandards = ["", "LVCMOS18", "LVCMOS33", "LVCMOS25", "LVCMOS15", "LVCMOS12",
+      "SSTL25_I", "SSTL33_I", "SSTL15", "HSTL18_I", "PCI33"]
 
 AttrValues = namedtuple('ModeAttr', [
     'allowed_modes',    # allowed modes for the attribute
@@ -240,7 +233,7 @@ AttrValues = namedtuple('ModeAttr', [
 iobattrs = {
  "IO_TYPE"    : AttrValues(["IBUF", "OBUF", "IOBUF"], [""], None),
  "OPEN_DRAIN" : AttrValues([        "OBUF", "IOBUF"], None, iostd_open_drain),
- "HYSTERESIS" : AttrValues(["IBUF",         "IOBUF"], None, iostd_histeresis),
+ #"HYSTERESIS" : AttrValues(["IBUF",         "IOBUF"], None, iostd_histeresis),
  #"PULL_MODE"  : AttrValues(["IBUF", "OBUF", "IOBUF"], None, iostd_pull_mode),
  #"SLEW_RATE"  : AttrValues([        "OBUF", "IOBUF"], ["SLOW", "FAST"], None),
  "DRIVE"      : AttrValues([        "OBUF", "IOBUF"], None, iostd_drive),
@@ -263,17 +256,24 @@ def tbrl2rc(fse, side, num):
     return (row, col)
 
 # get fuse bits from longval table
-def get_longval(fse, ttyp, table, key):
+# the key is automatically sorted and appended with zeros.
+# If ignore_key_elem is set, the initial elements in the table record keys
+# is ignored when searching.
+def get_longval(fse, ttyp, table, key, ignore_key_elem = 0):
     bits = set()
+    sorted_key = (sorted(key) + [0] * 16)[:16 - ignore_key_elem]
     for rec in fse[ttyp]['longval'][table]:
-        k = rec[0:16]
-        if k == key:
+        k = rec[ignore_key_elem:16]
+        if k == sorted_key:
             fuses = [f for f in rec[16:] if f != -1]
             for fuse in fuses:
                 bits.update({fuse_h4x.fuse_lookup(fse, ttyp, fuse)})
             break
     return bits
 
+# diff boards have diff key indexes
+def recode_key(key):
+    return set(map(params['recode_idx'], key))
 
 # IOB from tables
 _pin_mode_longval = {'A':23, 'B':24, 'C':40, 'D':41, 'E':42, 'F':43, 'G':44, 'H':45, 'I':46, 'J':47}
@@ -299,9 +299,7 @@ def fse_pull_mode(fse, db, pin_locations):
                         if val == -1:
                             loc = set()
                         else:
-                            key = params['recode_idx'](val)
-                            loc_key = [key, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                            loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx], loc_key)
+                            loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx], recode_key({val}))
                         b_attr = b_mode.flags.setdefault('PULL_MODE', chipdb.IOBFlag())
                         b_attr.options[opt_name] = loc
 
@@ -325,10 +323,36 @@ def fse_slew_rate(fse, db, pin_locations):
                         if val == -1:
                             loc = set()
                         else:
-                            key = params['recode_idx'](val)
-                            loc_key = [key, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                            loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx], loc_key)
+                            loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx], recode_key({val}))
                         b_attr = b_mode.flags.setdefault('SLEW_RATE', chipdb.IOBFlag())
+                        b_attr.options[opt_name] = loc
+
+_hysteresis_iob = [ "IBUF",          "IOBUF"]
+_hysteresis_idx = { 'NONE': {-1}, 'HIGH': {57, 85}, 'H2L': {58, 85}, 'L2H': {59, 85}}
+def fse_hysteresis(fse, db, pin_locations):
+    for ttyp, tiles in pin_locations.items():
+        pin_loc = list(tiles.keys())[0]
+        side, num = _tbrlre.match(pin_loc).groups()
+        row, col = tbrl2rc(fse, side, num)
+        bels = {name[-1] for loc in tiles.values() for name in loc}
+        for bel_idx in bels:
+            bel = db.grid[row][col].bels.setdefault(f"IOB{bel_idx}", chipdb.Bel())
+            for iostd in iostd_histeresis:
+                # XXX
+                if iostd not in iostandards:
+                    continue
+                b_iostd  = bel.iob_flags.setdefault(iostd, {})
+                for io_mode in _hysteresis_iob:
+                    b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
+                    if io_mode not in _hysteresis_iob:
+                        continue
+                    for opt_name, val in _hysteresis_idx.items():
+                        if val == {-1}:
+                            loc = set()
+                        else:
+                            loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
+                                    recode_key(val), 1)
+                        b_attr = b_mode.flags.setdefault('HYSTERESIS', chipdb.IOBFlag())
                         b_attr.options[opt_name] = loc
 
 # IOB fuzzer
@@ -732,6 +756,7 @@ if __name__ == "__main__":
     # Fill the IOB encodings from fse tables
     fse_pull_mode(fse, db, pin_locations)
     fse_slew_rate(fse, db, pin_locations)
+    fse_hysteresis(fse, db, pin_locations)
 
     chipdb.dat_portmap(dat, db)
     chipdb.dat_aliases(dat, db)

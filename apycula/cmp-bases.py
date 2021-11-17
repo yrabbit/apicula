@@ -69,11 +69,30 @@ def get_fuse_num(ttyp, bits):
             return i
     return -1
 
-def print_longval(ttyp, num, contains = 0):
+def print_longval(ttyp, table, contains = None, must_all = False):
     "ttyp, num, contains = 0"
-    for row in fse[ttyp]['longval'][num]:
-        if contains == 0 or contains in row:
+    for row in fse[ttyp]['longval'][table]:
+        if contains == None:
             print(row)
+        else:
+            are_all = True
+            for val in contains:
+                if val in row[16:]:
+                    if not must_all:
+                        break
+                else:
+                    if must_all:
+                        are_all = False
+                        break
+            if are_all:
+                print(row)
+
+def print_longval_key(ttyp, table, key, ignore_key_elem = 0):
+    sorted_key = (sorted(key) + [0] * 16)[:16 - ignore_key_elem]
+    for rec in fse[ttyp]['longval'][table]:
+        k = rec[ignore_key_elem:16]
+        if k == sorted_key:
+            print(rec)
 
 def print_alonenode(ttyp, contains = 0):
     "ttyp, contains = 0"
@@ -220,4 +239,6 @@ if __name__ == "__main__":
                 deep_io_cmp(db.grid[row][col].bels[bel], ref_db.grid[row][col].bels[bel])
 
     import ipdb; ipdb.set_trace()
+    print_longval_key(86, 23, {57, 85}, 1)
+
 
