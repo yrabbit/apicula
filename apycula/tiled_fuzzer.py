@@ -31,12 +31,27 @@ if not gowinhome:
 # XXX
 # The indexes of the flag values depend on the device.
 # So far I have not found where it is described in the tables
-def recode_idx_0(idx):
+def recode_idx_gw1n1(idx):
     return idx
+
 def recode_idx_gw1ns_2(idx):
     new_idx = idx + 1
     if idx >= 70:
         new_idx += 4
+    return new_idx
+
+def recode_idx_gw1n9(idx):
+    new_idx = idx
+    if idx >= 70:
+        new_idx += 3
+    return new_idx
+
+def recode_idx_gw1n4(idx):
+    new_idx  = idx
+    if idx >= 50:
+        new_idx -= 2
+    if idx >= 70:
+        new_idx -= 2
     return new_idx
 
 # device = os.getenv("DEVICE")
@@ -52,19 +67,19 @@ params = {
         "package": "PBGA256",
         "device": "GW1N-9-PBGA256-6",
         "partnumber": "GW1N-LV9PG256C6/I5",
-        "recode_idx": recode_idx_0,
+        "recode_idx": recode_idx_gw1n9,
     },
     "GW1N-4": {
         "package": "PBGA256",
         "device": "GW1N-4-PBGA256-6",
         "partnumber": "GW1N-LV4PG256C6/I5",
-        "recode_idx": recode_idx_0,
+        "recode_idx": recode_idx_gw1n4,
     },
     "GW1N-1": {
         "package": "LQFP144",
         "device": "GW1N-1-LQFP144-6",
         "partnumber": "GW1N-LV1LQ144C6/I5",
-        "recode_idx": recode_idx_0,
+        "recode_idx": recode_idx_gw1n1,
     },
 }[device]
 
