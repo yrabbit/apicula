@@ -75,9 +75,10 @@ def print_longval(ttyp, table, contains = None, must_all = False):
         if contains == None:
             print(row)
         else:
-            are_all = True
+            are_all = must_all
             for val in contains:
                 if val in row[16:]:
+                    are_all = True
                     if not must_all:
                         break
                 else:
@@ -87,10 +88,15 @@ def print_longval(ttyp, table, contains = None, must_all = False):
             if are_all:
                 print(row)
 
-def print_longval_key(ttyp, table, key, ignore_key_elem = 0):
-    sorted_key = (sorted(key) + [0] * 16)[:16 - ignore_key_elem]
+def print_longval_key(ttyp, table, key, ignore_key_elem = 0, zeros = True):
+    if zeros:
+        sorted_key = (sorted(key) + [0] * 16)[:16 - ignore_key_elem]
+        end = 16
+    else:
+        sorted_key = sorted(key)
+        end = ignore_key_elem + len(sorted_key)
     for rec in fse[ttyp]['longval'][table]:
-        k = rec[ignore_key_elem:16]
+        k = rec[ignore_key_elem:end]
         if k == sorted_key:
             print(rec)
 

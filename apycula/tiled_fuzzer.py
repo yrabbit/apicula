@@ -179,25 +179,6 @@ iobmap = {
     "IOBUF": {"wires": ["I", "O", "OEN"], "inouts": ["IO"]},
 }
 
-iostd_drive = {
-            ""            : ["4", "8", "12"],
-            "LVCMOS33"    : ["4", "8", "12", "16", "24"],
-            "LVCMOS25"    : ["4", "8", "12", "16"],
-            "LVCMOS18"    : ["4", "8", "12"],
-            "LVCMOS15"    : ["4", "8"],
-            "LVCMOS12"    : ["4", "8"],
-            "SSTL25_I"    : ["8"],
-            "SSTL25_II"   : ["8"],
-            "SSTL33_I"    : ["8"],
-            "SSTL33_II"   : ["8"],
-            "SSTL18_I"    : ["8"],
-            "SSTL18_II"   : ["8"],
-            "SSTL15"      : ["8"],
-            "HSTL18_I"    : ["8"],
-            "HSTL18_II"   : ["8"],
-            "HSTL15_I"    : ["8"],
-            "PCI33"       : [],
-        }
 iostd_open_drain = {
             ""            : ["ON", "OFF"],
             "LVCMOS33"    : ["ON", "OFF"],
@@ -251,7 +232,7 @@ iobattrs = {
  #"HYSTERESIS" : AttrValues(["IBUF",         "IOBUF"], None, iostd_histeresis),
  #"PULL_MODE"  : AttrValues(["IBUF", "OBUF", "IOBUF"], None, iostd_pull_mode),
  #"SLEW_RATE"  : AttrValues([        "OBUF", "IOBUF"], ["SLOW", "FAST"], None),
- "DRIVE"      : AttrValues([        "OBUF", "IOBUF"], None, iostd_drive),
+ #"DRIVE"      : AttrValues([        "OBUF", "IOBUF"], None, iostd_drive),
  "SINGLE_RESISTOR" : AttrValues(["IBUF", "IOBUF"], ["ON", "OFF"], None),
 }
 
@@ -291,6 +272,28 @@ def recode_key(key):
     return set(map(params['recode_idx'], key))
 
 # IOB from tables
+# (code, {option values}, is cmos-like mode)
+_iostd_codes = {
+            ""            : ( 66, {'4', '8', '12'}, True), # XXX default LVCMOS18
+            "LVCMOS33"    : ( 68, {'4', '8', '12', '16', '24'}, True),
+            "LVCMOS25"    : ( 67, {'4', '8', '12', '16'}, True),
+            "LVCMOS18"    : ( 66, {'4', '8', '12'}, True),
+            "LVCMOS15"    : ( 65, {'4', '8'}, True),
+            "LVCMOS12"    : ( 64, {'4', '8'}, True),
+            "SSTL25_I"    : ( 71, {'8'}, False),
+            "SSTL25_II"   : ( 71, {'8'}, False),
+            "SSTL33_I"    : ( -1, {'8'}, False),
+            "SSTL33_II"   : ( -1, {'8'}, False),
+            "SSTL18_I"    : ( 72, {'8'}, False),
+            "SSTL18_II"   : ( 72, {'8'}, False),
+            "SSTL15"      : ( 74, {'8'}, False),
+            "HSTL18_I"    : ( 72, {'8'}, False),
+            "HSTL18_II"   : ( 72, {'8'}, False),
+            "HSTL15_I"    : ( 74, {'8'}, False),
+            "PCI33"       : ( 69, {'4', '8'}, False),
+            }
+
+# PULL_MODE
 _pin_mode_longval = {'A':23, 'B':24, 'C':40, 'D':41, 'E':42, 'F':43, 'G':44, 'H':45, 'I':46, 'J':47}
 _pull_mode_iob = ["IBUF", "OBUF", "IOBUF"]
 _tbrlre = re.compile(r"IO([TBRL])(\d+)")
@@ -318,6 +321,7 @@ def fse_pull_mode(fse, db, pin_locations):
                         b_attr = b_mode.flags.setdefault('PULL_MODE', chipdb.IOBFlag())
                         b_attr.options[opt_name] = loc
 
+# SLEW_RATE
 _slew_rate_iob = [        "OBUF", "IOBUF"]
 _slew_rate_idx = { 'SLOW' : -1, 'FAST' : 42}
 def fse_slew_rate(fse, db, pin_locations):
@@ -332,8 +336,6 @@ def fse_slew_rate(fse, db, pin_locations):
                 b_iostd  = bel.iob_flags.setdefault(iostd, {})
                 for io_mode in _slew_rate_iob:
                     b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
-                    if io_mode not in _slew_rate_iob:
-                        continue
                     for opt_name, val in _slew_rate_idx.items():
                         if val == -1:
                             loc = set()
@@ -342,6 +344,39 @@ def fse_slew_rate(fse, db, pin_locations):
                         b_attr = b_mode.flags.setdefault('SLEW_RATE', chipdb.IOBFlag())
                         b_attr.options[opt_name] = loc
 
+# DRIVE
+_drive_iob = [        "OBUF", "IOBUF"]
+_drive_idx = {'4': {48}, '8': {50}, '12': {51}, '16': {52}, '24': {54}}
+_drive_key = {56}
+def fse_drive(fse, db, pin_locations):
+    for ttyp, tiles in pin_locations.items():
+        pin_loc = list(tiles.keys())[0]
+        side, num = _tbrlre.match(pin_loc).groups()
+        row, col = tbrl2rc(fse, side, num)
+        bels = {name[-1] for loc in tiles.values() for name in loc}
+        for bel_idx in bels:
+            bel = db.grid[row][col].bels.setdefault(f"IOB{bel_idx}", chipdb.Bel())
+            for iostd in iostandards:
+                b_iostd  = bel.iob_flags.setdefault(iostd, {})
+                for io_mode in _drive_iob:
+                    b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
+                    for opt_name, val in _drive_idx.items():
+                        iostd_key, iostd_vals, iostd_cmos = _iostd_codes[iostd]
+                        if opt_name not in iostd_vals:
+                            continue
+                        # XXX
+                        if iostd_key == -1 or (iostd == "PCI33" and opt_name == '8'):
+                            loc = set()
+                        else:
+                            val = {iostd_key}.union(_drive_key)
+                            if iostd_cmos:
+                                val = val.union(_drive_idx[opt_name])
+                            loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
+                                    recode_key(val), 1)
+                        b_attr = b_mode.flags.setdefault('DRIVE', chipdb.IOBFlag())
+                        b_attr.options[opt_name] = loc
+
+# HYSTERESIS
 _hysteresis_iob = [ "IBUF",          "IOBUF"]
 _hysteresis_idx = { 'NONE': {-1}, 'HIGH': {57, 85}, 'H2L': {58, 85}, 'L2H': {59, 85}}
 def fse_hysteresis(fse, db, pin_locations):
@@ -359,8 +394,6 @@ def fse_hysteresis(fse, db, pin_locations):
                 b_iostd  = bel.iob_flags.setdefault(iostd, {})
                 for io_mode in _hysteresis_iob:
                     b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
-                    if io_mode not in _hysteresis_iob:
-                        continue
                     for opt_name, val in _hysteresis_idx.items():
                         if val == {-1}:
                             loc = set()
@@ -614,6 +647,7 @@ if __name__ == "__main__":
         dualmode(fse['header']['grid'][61][0][0]),
     )
 
+
     # Only combine modules with the same IO standard
     pnr_data = {}
     for fuzzer in fuzzers:
@@ -772,6 +806,7 @@ if __name__ == "__main__":
     fse_pull_mode(fse, db, pin_locations)
     fse_slew_rate(fse, db, pin_locations)
     fse_hysteresis(fse, db, pin_locations)
+    fse_drive(fse, db, pin_locations)
 
     chipdb.dat_portmap(dat, db)
     chipdb.dat_aliases(dat, db)
