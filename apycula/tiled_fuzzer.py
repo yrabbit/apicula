@@ -285,8 +285,8 @@ _iostd_codes = {
     "LVCMOS12"    : ( 64, {'4', '8'}, True, {'4': 50, '8': 53}),
     "SSTL25_I"    : ( 71, {'8'}, False, {'8': 50}),
     "SSTL25_II"   : ( 71, {'8'}, False, {'8': 50}),
-    "SSTL33_I"    : ( None, {'8'}, False, {'8': None}),
-    "SSTL33_II"   : ( None, {'8'}, False, {'8': None}),
+    "SSTL33_I"    : ( -1, {'8'}, False, {'8': None}),
+    "SSTL33_II"   : ( -1, {'8'}, False, {'8': None}),
     "SSTL18_I"    : ( 72, {'8'}, False, {'8': 51}),
     "SSTL18_II"   : ( 72, {'8'}, False, {'8': 51}),
     "SSTL15"      : ( 74, {'8'}, False, {'8': 51}),
@@ -326,7 +326,7 @@ def fse_pull_mode(fse, db, pin_locations):
 
 # SLEW_RATE
 _slew_rate_iob = [        "OBUF", "IOBUF"]
-_slew_rate_idx = { 'SLOW' : None, 'FAST' : 42}
+_slew_rate_idx = { 'SLOW' : {-1}, 'FAST' : 42}
 def fse_slew_rate(fse, db, pin_locations):
     for ttyp, tiles in pin_locations.items():
         pin_loc = list(tiles.keys())[0]
@@ -390,7 +390,7 @@ def fse_drive(fse, db, pin_locations):
 
 # HYSTERESIS
 _hysteresis_iob = [ "IBUF",          "IOBUF"]
-_hysteresis_idx = { 'NONE': None, 'HIGH': {57, 85}, 'H2L': {58, 85}, 'L2H': {59, 85}}
+_hysteresis_idx = { 'NONE': {-1}, 'HIGH': {57, 85}, 'H2L': {58, 85}, 'L2H': {59, 85}}
 def fse_hysteresis(fse, db, pin_locations):
     for ttyp, tiles in pin_locations.items():
         pin_loc = list(tiles.keys())[0]
