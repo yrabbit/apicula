@@ -326,7 +326,7 @@ def fse_pull_mode(fse, db, pin_locations):
 
 # SLEW_RATE
 _slew_rate_iob = [        "OBUF", "IOBUF"]
-_slew_rate_idx = { 'SLOW' : {-1}, 'FAST' : 42}
+_slew_rate_idx = { 'SLOW' : -1, 'FAST' : 42}
 def fse_slew_rate(fse, db, pin_locations):
     for ttyp, tiles in pin_locations.items():
         pin_loc = list(tiles.keys())[0]
@@ -340,10 +340,10 @@ def fse_slew_rate(fse, db, pin_locations):
                 for io_mode in _slew_rate_iob:
                     b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
                     for opt_name, val in _slew_rate_idx.items():
-                        if val:
-                            loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx], recode_key({val}))
-                        else:
+                        if val == -1:
                             loc = set()
+                        else:
+                            loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx], recode_key({val}))
                         b_attr = b_mode.flags.setdefault('SLEW_RATE', chipdb.IOBFlag())
                         b_attr.options[opt_name] = loc
 
@@ -390,7 +390,7 @@ def fse_drive(fse, db, pin_locations):
 
 # HYSTERESIS
 _hysteresis_iob = [ "IBUF",          "IOBUF"]
-_hysteresis_idx = { 'NONE': {-1}, 'HIGH': {57, 85}, 'H2L': {58, 85}, 'L2H': {59, 85}}
+_hysteresis_idx = { 'NONE': -1, 'HIGH': {57, 85}, 'H2L': {58, 85}, 'L2H': {59, 85}}
 def fse_hysteresis(fse, db, pin_locations):
     for ttyp, tiles in pin_locations.items():
         pin_loc = list(tiles.keys())[0]
@@ -407,11 +407,11 @@ def fse_hysteresis(fse, db, pin_locations):
                 for io_mode in _hysteresis_iob:
                     b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
                     for opt_name, val in _hysteresis_idx.items():
-                        if val:
+                        if val == -1:
+                            loc = set()
+                        else:
                             loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
                                     recode_key(val), 1)
-                        else:
-                            loc = set()
                         b_attr = b_mode.flags.setdefault('HYSTERESIS', chipdb.IOBFlag())
                         b_attr.options[opt_name] = loc
 
