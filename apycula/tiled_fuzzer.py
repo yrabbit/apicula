@@ -365,7 +365,6 @@ def fse_drive(fse, db, pin_locations):
                                 opt_key = gw1n4_aliases[opt_name]
                                 if opt_key:
                                     val = _drive_key.union({opt_key})
-                                    B
                                     loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
                                             recode_key(val), 1)
                                 else:
