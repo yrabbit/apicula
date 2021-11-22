@@ -182,23 +182,12 @@ iobmap = {
 }
 
 iostd_open_drain = {
-            ""            : ["ON", "OFF"],
-            "LVCMOS33"    : ["ON", "OFF"],
-            "LVCMOS25"    : ["ON", "OFF"],
-            "LVCMOS18"    : ["ON", "OFF"],
-            "LVCMOS15"    : ["ON", "OFF"],
-            "LVCMOS12"    : ["ON", "OFF"],
-            "SSTL25_I"    : [],
-            "SSTL25_II"   : [],
-            "SSTL33_I"    : [],
-            "SSTL33_II"   : [],
-            "SSTL18_I"    : [],
-            "SSTL18_II"   : [],
-            "SSTL15"      : [],
-            "HSTL18_I"    : [],
-            "HSTL18_II"   : [],
-            "HSTL15_I"    : [],
-            "PCI33"       : [],
+            ""        ,
+            "LVCMOS33",
+            "LVCMOS25",
+            "LVCMOS18",
+            "LVCMOS15",
+            "LVCMOS12",
         }
 iostd_histeresis = {
             ""        ,
@@ -230,7 +219,7 @@ AttrValues = namedtuple('ModeAttr', [
 
 iobattrs = {
  "IO_TYPE"    : AttrValues(["IBUF", "OBUF", "IOBUF"], [""], None),
- "OPEN_DRAIN" : AttrValues([        "OBUF", "IOBUF"], None, iostd_open_drain),
+ #"OPEN_DRAIN" : AttrValues([        "OBUF", "IOBUF"], None, iostd_open_drain),
  #"HYSTERESIS" : AttrValues(["IBUF",         "IOBUF"], None, iostd_histeresis),
  #"PULL_MODE"  : AttrValues(["IBUF", "OBUF", "IOBUF"], None, iostd_pull_mode),
  #"SLEW_RATE"  : AttrValues([        "OBUF", "IOBUF"], ["SLOW", "FAST"], None),
@@ -387,6 +376,44 @@ def fse_drive(fse, db, pin_locations):
                                         recode_key(val), 1)
                         b_attr = b_mode.flags.setdefault('DRIVE', chipdb.IOBFlag())
                         b_attr.options[opt_name] = loc
+
+# OPEN_DRAIN
+_open_drain_iob = [        "OBUF", "IOBUF"]
+_open_drain_key = {"ON": {55, 70}, "NOISE": {55, 72}}
+def fse_open_drain(fse, db, pin_locations):
+    for ttyp, tiles in pin_locations.items():
+        pin_loc = list(tiles.keys())[0]
+        side, num = _tbrlre.match(pin_loc).groups()
+        row, col = tbrl2rc(fse, side, num)
+        bels = {name[-1] for loc in tiles.values() for name in loc}
+        for bel_idx in bels:
+            bel = db.grid[row][col].bels.setdefault(f"IOB{bel_idx}", chipdb.Bel())
+            for iostd in iostd_open_drain:
+                if iostd not in iostandards:
+                    continue
+                b_iostd  = bel.iob_flags.setdefault(iostd, {})
+                # XXX is a very shamanic method of determining the fuses,
+                iostd33_key, _, _, gw1n4_aliases = _iostd_codes["LVCMOS33"]
+                cur16ma_key = {iostd33_key}.union(_drive_key).union(_drive_idx["16"])
+                # ON fuse is simple
+                on_fuse = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
+                        recode_key(_open_drain_key['ON']), 1)
+                # the mask to clear is diff between 16mA fuses of LVCMOS33 standard and
+                # some key
+                cur16ma_fuse = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
+                        recode_key(cur16ma_key), 1)
+                noise_fuse = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
+                        recode_key(_open_drain_key['NOISE']), 1)
+                clear_mask = cur16ma_fuse - noise_fuse - on_fuse;
+                print("ttyp:", ttyp, "bel:", bel_idx)
+                print("iostd key:", iostd33_key)
+                print("16mA key:", cur16ma_key)
+                print("on fuse:", on_fuse)
+                print("16mA fuse", cur16ma_fuse)
+                print("noise fuse", noise_fuse)
+                print("clear mask", clear_mask)
+                for io_mode in _open_drain_iob:
+                    b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
 
 # HYSTERESIS
 _hysteresis_iob = [ "IBUF",          "IOBUF"]
@@ -658,6 +685,9 @@ if __name__ == "__main__":
         dff(locations),
         dualmode(fse['header']['grid'][61][0][0]),
     )
+
+    fse_open_drain(fse, db, pin_locations)
+    import ipdb; ipdb.set_trace()
 
     # Only combine modules with the same IO standard
     pnr_data = {}
