@@ -37,7 +37,7 @@ def recode_idx_gw1n1(idx):
 def recode_idx_gw1ns_2(idx):
     new_idx = idx + 1
     if idx >= 70:
-        new_idx += 4
+        new_idx += 3
     return new_idx
 
 def recode_idx_gw1n9(idx):
@@ -408,9 +408,9 @@ def fse_open_drain(fse, db, pin_locations):
                 print("ttyp:", ttyp, "bel:", bel_idx)
                 print("iostd key:", iostd33_key)
                 print("16mA key:", cur16ma_key)
-                print("on fuse:", on_fuse)
+                print("on fuse:", on_fuse, "on key:", recode_key(_open_drain_key['ON']))
                 print("16mA fuse", cur16ma_fuse)
-                print("noise fuse", noise_fuse)
+                print("noise fuse", noise_fuse, "noise key", recode_key(_open_drain_key['NOISE']))
                 print("clear mask", clear_mask)
                 for io_mode in _open_drain_iob:
                     b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
