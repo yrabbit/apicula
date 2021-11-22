@@ -326,9 +326,9 @@ def fse_slew_rate(fse, db, pin_locations):
             bel = db.grid[row][col].bels.setdefault(f"IOB{bel_idx}", chipdb.Bel())
             for iostd in iostandards:
                 b_iostd = bel.iob_flags.setdefault(iostd, {})
-                b_attr = b_mode.flags.setdefault('SLEW_RATE', chipdb.IOBFlag())
                 for io_mode in _slew_rate_iob:
                     b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
+                    b_attr = b_mode.flags.setdefault('SLEW_RATE', chipdb.IOBFlag())
                     for opt_name, val in _slew_rate_idx.items():
                         if val == -1:
                             loc = set()
