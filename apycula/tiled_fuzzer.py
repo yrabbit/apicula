@@ -304,13 +304,13 @@ def fse_pull_mode(fse, db, pin_locations):
                     continue
                 b_iostd  = bel.iob_flags.setdefault(iostd, {})
                 for io_mode in _pull_mode_iob:
-                    b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
+                    b_mode = b_iostd.setdefault(io_mode, chipdb.IOBMode())
+                    b_attr = b_mode.flags.setdefault('PULL_MODE', chipdb.IOBFlag())
                     for opt_name, val in _pull_mode_idx.items():
                         if val == -1:
                             loc = set()
                         else:
                             loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx], recode_key({val}))
-                        b_attr = b_mode.flags.setdefault('PULL_MODE', chipdb.IOBFlag())
                         b_attr.options[opt_name] = loc
 
 # SLEW_RATE
@@ -325,7 +325,8 @@ def fse_slew_rate(fse, db, pin_locations):
         for bel_idx in bels:
             bel = db.grid[row][col].bels.setdefault(f"IOB{bel_idx}", chipdb.Bel())
             for iostd in iostandards:
-                b_iostd  = bel.iob_flags.setdefault(iostd, {})
+                b_iostd = bel.iob_flags.setdefault(iostd, {})
+                b_attr = b_mode.flags.setdefault('SLEW_RATE', chipdb.IOBFlag())
                 for io_mode in _slew_rate_iob:
                     b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
                     for opt_name, val in _slew_rate_idx.items():
@@ -333,7 +334,6 @@ def fse_slew_rate(fse, db, pin_locations):
                             loc = set()
                         else:
                             loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx], recode_key({val}))
-                        b_attr = b_mode.flags.setdefault('SLEW_RATE', chipdb.IOBFlag())
                         b_attr.options[opt_name] = loc
 
 # DRIVE
@@ -351,7 +351,8 @@ def fse_drive(fse, db, pin_locations):
             for iostd in iostandards:
                 b_iostd  = bel.iob_flags.setdefault(iostd, {})
                 for io_mode in _drive_iob:
-                    b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
+                    b_mode = b_iostd.setdefault(io_mode, chipdb.IOBMode())
+                    b_attr = b_mode.flags.setdefault('DRIVE', chipdb.IOBFlag())
                     for opt_name, val in _drive_idx.items():
                         iostd_key, iostd_vals, iostd_cmos, gw1n4_aliases = _iostd_codes[iostd]
                         if opt_name not in iostd_vals:
@@ -364,6 +365,7 @@ def fse_drive(fse, db, pin_locations):
                                 opt_key = gw1n4_aliases[opt_name]
                                 if opt_key:
                                     val = _drive_key.union({opt_key})
+                                    B
                                     loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
                                             recode_key(val), 1)
                                 else:
@@ -374,12 +376,12 @@ def fse_drive(fse, db, pin_locations):
                                     val = val.union(_drive_idx[opt_name])
                                 loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
                                         recode_key(val), 1)
-                        b_attr = b_mode.flags.setdefault('DRIVE', chipdb.IOBFlag())
                         b_attr.options[opt_name] = loc
 
 # OPEN_DRAIN
 _open_drain_iob = [        "OBUF", "IOBUF"]
 _open_drain_key = {"ON": {55, 70}, "NOISE": {55, 72}}
+_open_drain_gw1n4_key = {"ON": {52, 54}, "NOISE": {51, 54}}
 def fse_open_drain(fse, db, pin_locations):
     for ttyp, tiles in pin_locations.items():
         pin_loc = list(tiles.keys())[0]
@@ -394,26 +396,38 @@ def fse_open_drain(fse, db, pin_locations):
                 b_iostd  = bel.iob_flags.setdefault(iostd, {})
                 # XXX is a very shamanic method of determining the fuses,
                 iostd33_key, _, _, gw1n4_aliases = _iostd_codes["LVCMOS33"]
-                cur16ma_key = {iostd33_key}.union(_drive_key).union(_drive_idx["16"])
+                if device == 'GW1N-4':
+                    cur16ma_key = _drive_key.union({gw1n4_aliases["16"]})
+                    keys = _open_drain_gw1n4_key
+                else:
+                    cur16ma_key = {iostd33_key}.union(_drive_key).union(_drive_idx["16"])
+                    keys = _open_drain_key
                 # ON fuse is simple
                 on_fuse = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
-                        recode_key(_open_drain_key['ON']), 1)
+                        recode_key(keys['ON']), 1)
                 # the mask to clear is diff between 16mA fuses of LVCMOS33 standard and
                 # some key
                 cur16ma_fuse = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
                         recode_key(cur16ma_key), 1)
                 noise_fuse = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
-                        recode_key(_open_drain_key['NOISE']), 1)
+                        recode_key(keys['NOISE']), 1)
                 clear_mask = cur16ma_fuse - noise_fuse - on_fuse;
-                print("ttyp:", ttyp, "bel:", bel_idx)
-                print("iostd key:", iostd33_key)
-                print("16mA key:", cur16ma_key)
-                print("on fuse:", on_fuse, "on key:", recode_key(_open_drain_key['ON']))
-                print("16mA fuse", cur16ma_fuse)
-                print("noise fuse", noise_fuse, "noise key", recode_key(_open_drain_key['NOISE']))
-                print("clear mask", clear_mask)
+                #print("ttyp:", ttyp, "bel:", bel_idx)
+                #print("iostd key:", iostd33_key)
+                #print("16mA key:", cur16ma_key)
+                #print("on fuse:", on_fuse, "on key:", recode_key(keys['ON']))
+                #print("16mA fuse", cur16ma_fuse)
+                #print("noise fuse", noise_fuse, "noise key", recode_key(keys['NOISE']))
+                #print("clear mask", clear_mask)
                 for io_mode in _open_drain_iob:
-                    b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
+                    b_mode = b_iostd.setdefault(io_mode, chipdb.IOBMode())
+                    b_attr = b_mode.flags.setdefault('OPEN_DRAIN', chipdb.IOBFlag())
+                    # bits of this attribute are the same as the DRIVE bits
+                    # so make a flag mask here, also never use OFF when encoding, only ON
+                    b_attr.mask = clear_mask.union(on_fuse)
+                    b_attr.options["OFF"] = set()
+                    b_attr.options["ON"] = on_fuse.copy()
+                    #print(b_attr.options)
 
 # HYSTERESIS
 _hysteresis_iob = [ "IBUF",          "IOBUF"]
@@ -433,13 +447,13 @@ def fse_hysteresis(fse, db, pin_locations):
                 b_iostd  = bel.iob_flags.setdefault(iostd, {})
                 for io_mode in _hysteresis_iob:
                     b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
+                    b_attr = b_mode.flags.setdefault('HYSTERESIS', chipdb.IOBFlag())
                     for opt_name, val in _hysteresis_idx.items():
                         if val == -1:
                             loc = set()
                         else:
                             loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
                                     recode_key(val), 1)
-                        b_attr = b_mode.flags.setdefault('HYSTERESIS', chipdb.IOBFlag())
                         b_attr.options[opt_name] = loc
 
 # IOB fuzzer
@@ -686,7 +700,6 @@ if __name__ == "__main__":
         dualmode(fse['header']['grid'][61][0][0]),
     )
 
-    fse_open_drain(fse, db, pin_locations)
     import ipdb; ipdb.set_trace()
 
     # Only combine modules with the same IO standard
@@ -851,9 +864,10 @@ if __name__ == "__main__":
     chipdb.dat_portmap(dat, db)
     chipdb.dat_aliases(dat, db)
     chipdb.diff2flag(db)
+
+    # must be after diff2flags in order to make clean mask for OPEN_DRAIN
+    fse_open_drain(fse, db, pin_locations)
     chipdb.dff_clean(db)
-    # XXX not used for IOB but...
-    #chipdb.shared2flag(db)
 
     db.grid[0][0].bels['CFG'].flags['UNK0'] = {(3, 1)}
     db.grid[0][0].bels['CFG'].flags['UNK1'] = {(3, 2)}
