@@ -700,8 +700,6 @@ if __name__ == "__main__":
         dualmode(fse['header']['grid'][61][0][0]),
     )
 
-    import ipdb; ipdb.set_trace()
-
     # Only combine modules with the same IO standard
     pnr_data = {}
     for fuzzer in fuzzers:
