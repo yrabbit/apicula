@@ -161,6 +161,10 @@ def place(db, tilemap, bels, cst, args):
                     continue
                 if flag_name_val[0] == chipdb.mode_attr_sep + "IO_TYPE":
                     continue
+                # skip OPEN_DRAIN=OFF can't clear by mask nd OFF is the default
+                if flag_name_val[0] == chipdb.mode_attr_sep + "OPEN_DRAIN" \
+                        and flag_name_val[1] == 'OFF':
+                            continue
                 # set flag
                 mode_desc = iob.iob_flags[iostd][mode]
                 try:
