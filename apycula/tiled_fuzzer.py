@@ -219,11 +219,6 @@ AttrValues = namedtuple('ModeAttr', [
 
 iobattrs = {
  "IO_TYPE"    : AttrValues(["IBUF", "OBUF", "IOBUF"], [""], None),
- #"OPEN_DRAIN" : AttrValues([        "OBUF", "IOBUF"], None, iostd_open_drain),
- #"HYSTERESIS" : AttrValues(["IBUF",         "IOBUF"], None, iostd_histeresis),
- #"PULL_MODE"  : AttrValues(["IBUF", "OBUF", "IOBUF"], None, iostd_pull_mode),
- #"SLEW_RATE"  : AttrValues([        "OBUF", "IOBUF"], ["SLOW", "FAST"], None),
- #"DRIVE"      : AttrValues([        "OBUF", "IOBUF"], None, iostd_drive),
  "SINGLE_RESISTOR" : AttrValues(["IBUF", "IOBUF"], ["ON", "OFF"], None),
 }
 
@@ -479,7 +474,6 @@ def iob(locations):
                     if iostd == "PCI33" and attr == "SINGLE_RESISTOR":
                         continue
                     attr_vals = attr_values.values
-                    # drive is special
                     if attr_vals == None:
                         attr_vals = attr_values.table[iostd]
                     for attr_val in attr_vals:   # each value of the attribute
