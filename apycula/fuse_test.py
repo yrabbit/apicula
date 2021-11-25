@@ -1,0 +1,301 @@
+import re
+import os
+import sys
+import tempfile
+import subprocess
+from collections import deque, Counter, namedtuple
+from itertools import chain, count, zip_longest
+from functools import reduce
+from random import shuffle, seed
+from warnings import warn
+from math import factorial
+import numpy as np
+from multiprocessing.dummy import Pool
+import pickle
+import json
+from shutil import copytree
+
+from apycula import codegen
+from apycula import bslib
+from apycula import pindef
+from apycula import tiled_fuzzer
+from apycula import fuse_h4x
+#TODO proper API
+#from apycula import dat19_h4x
+from apycula import tm_h4x
+from apycula import chipdb
+
+gowinhome = os.getenv("GOWINHOME")
+if not gowinhome:
+    raise Exception("GOWINHOME not set")
+
+AttrValues = namedtuple('ModeAttr', [
+    'allowed_modes',    # allowed modes for the attribute
+    'values',           # values of the attribute
+    'table',            # special values table
+    ])
+
+drive_iostd = {
+        "":          ["4", "8", "12"],
+        "LVCMOS33":  ["4", "8", "12", "16", "24"],
+        "LVCMOS25":  ["4", "8", "12", "16"],
+        "LVCMOS18":  ["4", "8", "12"],
+        "LVCMOS15":  ["4", "8"],
+        "LVCMOS12":  ["4", "8"],
+        "HSTL15_I":  ["8"],
+        "HSTL18_I":  ["8"],
+        "HSTL18_II": ["8"],
+        "SSTL15":    ["8"],
+        "SSTL18_I":  ["8"],
+        "SSTL18_II": ["8"],
+        "SSTL25_I":  ["8"],
+        "SSTL25_II": ["8"],
+        "SSTL33_I":  ["8"],
+        "SSTL33_II": ["8"],
+        "PCI33":     ["4", "8"],
+        }
+
+open_drain_iostd = {
+            "",
+            "LVCMOS12",
+            "LVCMOS15",
+            "LVCMOS18",
+            "LVCMOS25",
+            "LVCMOS33",
+        }
+
+hysteresis_iostd = {
+            "",
+            "LVCMOS12",
+            "LVCMOS15",
+            "LVCMOS18",
+            "LVCMOS25",
+            "LVCMOS33",
+            "PCI33",
+        }
+
+iobattrs_0 = ("DRIVE",      AttrValues(["OBUF", "IOBUF"], None, drive_iostd))
+iobattrs_1 = ("HYSTERESIS", AttrValues(["IBUF", "IOBUF"], ["NONE", "L2H", "H2L", "HIGH"],
+               hysteresis_iostd))
+iobattrs_2 = ("OPEN_DRAIN", AttrValues(["OBUF", "IOBUF"], ["ON", "OFF"], open_drain_iostd))
+
+def make_test(locations):
+    for iostd in tiled_fuzzer.iostandards:
+        for ttyp, tiles in locations.items(): # for each tile of this type
+            locs = tiles.copy()
+            mod = codegen.Module()
+            cst = codegen.Constraints()
+            # get bels in this ttyp
+            bels = {name[-1] for loc in tiles.values() for name in loc}
+            for pin in bels: # [A, B, C, D, ...]
+                # level 0
+                attr_0, attr_values_0 = iobattrs_0
+                if iostd not in attr_values_0.table:
+                    continue
+                attr_vals_0 = attr_values_0.values
+                if attr_vals_0 == None:
+                    attr_vals_0 = attr_values_0.table[iostd]
+                for attr_val_0 in attr_vals_0:   # each value of the attribute
+                    attr_1, attr_values_1 = iobattrs_1
+                    attr_vals_1 = [None]
+                    if iostd in attr_values_1.table:
+                        attr_vals_1 = attr_values_1.values
+                        if not attr_vals_1:
+                            attr_vals_1 = attr_values_1.table[iostd]
+                    for attr_val_1 in attr_vals_1:   # each value of the attribute
+                        attr_2, attr_values_2 = iobattrs_2
+                        attr_vals_2 = [None]
+                        if iostd in attr_values_2.table:
+                            attr_vals_2 = attr_values_2.values
+                            if not attr_vals_2:
+                                attr_vals_2 = attr_values_2.table[iostd]
+                        for attr_val_2 in attr_vals_2:   # each value of the attribute
+                            for typ, conn in tiled_fuzzer.iobmap.items():
+                                val_0 = attr_val_0
+                                val_1 = attr_val_1
+                                val_2 = attr_val_2
+
+                                # skip illegal atributesa for mode
+                                if typ not in attr_values_0.allowed_modes:
+                                    val_0 = None
+                                if typ not in attr_values_1.allowed_modes:
+                                    val_1 = None
+                                if typ not in attr_values_2.allowed_modes:
+                                    val_2 = None
+                                if not attr_val_0 and not attr_val_1 and not attr_val_2:
+                                    raise Exception("All attrs == NULL")
+                                    continue
+
+                                # find the next location that has pin
+                                # or make a new module
+                                loc = tiled_fuzzer.find_next_loc(pin, locs)
+                                if (loc == None):
+                                    yield tiled_fuzzer.Fuzzer(ttyp, mod, cst, {}, iostd)
+                                    locs = tiles.copy()
+                                    mod = codegen.Module()
+                                    cst = codegen.Constraints()
+                                    loc = tiled_fuzzer.find_next_loc(pin, locs)
+
+                                name = tiled_fuzzer.make_name("IOB", typ)
+                                iob = codegen.Primitive(typ, name)
+                                for port in chain.from_iterable(conn.values()):
+                                    iob.portmap[port] = name+"_"+port
+
+                                for direction, wires in conn.items():
+                                    wnames = [name+"_"+w for w in wires]
+                                    getattr(mod, direction).update(wnames)
+                                mod.primitives[name] = iob
+                                cst.ports[name] = loc
+                                # complex iob. connect OEN and O
+                                if typ == "IOBUF":
+                                    iob.portmap["OEN"] = name + "_O"
+                                # port attribute value
+                                cst.attrs[name] = {}
+                                if val_0:
+                                    cst.attrs[name].update({attr_0: val_0})
+                                if val_1:
+                                    cst.attrs[name].update({attr_1: val_1})
+                                if val_2:
+                                    cst.attrs[name].update({attr_2: val_2})
+                                if iostd:
+                                    cst.attrs[name].update({"IO_TYPE": iostd})
+            yield tiled_fuzzer.Fuzzer(ttyp, mod, cst, {}, iostd)
+
+# collect all routing bits of the tile
+_route_mem = {}
+def route_bits(db, row, col):
+    mem = _route_mem.get((row, col), None)
+    if mem != None:
+        return mem
+
+    bits = set()
+    for w in db.grid[row][col].pips.values():
+        for v in w.values():
+            bits.update(v)
+    _route_mem.setdefault((row, col), bits)
+    return bits
+
+# Result of the vendor router-packer run
+PnrResult = namedtuple('PnrResult', [
+    'attrs',          # port attributes
+    'dir'             # test directory
+    ])
+
+def run_pnr(mod, constr, config):
+    cfg = codegen.DeviceConfig({
+        "JTAG regular_io": config.get('jtag', "true"),
+        "SSPI regular_io": config.get('sspi', "true"),
+        "MSPI regular_io": config.get('mspi', "true"),
+        "READY regular_io": config.get('ready', "true"),
+        "DONE regular_io": config.get('done', "true"),
+        "RECONFIG_N regular_io": config.get('reconfig', "true"),
+        "MODE regular_io": config.get('mode', "true"),
+        "CRC_check": "true",
+        "compress": "false",
+        "encryption": "false",
+        "security_bit_enable": "true",
+        "bsram_init_fuse_print": "true",
+        "download_speed": "250/100",
+        "spi_flash_address": "0x00FFF000",
+        "format": "txt",
+        "background_programming": "false",
+        "secure_mode": "false"})
+
+    opt = codegen.PnrOptions(["warning_all", "oc", "reg_not_in_iob"])
+            #"sdf", "oc", "ibs", "posp", "o",
+            #"warning_all", "timing", "reg_not_in_iob"])
+
+    pnr = codegen.Pnr()
+    pnr.device = tiled_fuzzer.params['device']
+    pnr.partnumber = tiled_fuzzer.params['partnumber']
+
+    tmpdir = tempfile.mkdtemp()
+    pnr.outdir = tmpdir
+    with open(tmpdir+"/top.v", "w") as f:
+        mod.write(f)
+    pnr.netlist = tmpdir+"/top.v"
+    with open(tmpdir+"/top.cst", "w") as f:
+        constr.write(f)
+    pnr.cst = tmpdir+"/top.cst"
+    with open(tmpdir+"/device.cfg", "w") as f:
+        cfg.write(f)
+    pnr.cfg = tmpdir+"/device.cfg"
+    with open(tmpdir+"/pnr.cfg", "w") as f:
+        opt.write(f)
+    pnr.opt = tmpdir+"/pnr.cfg"
+    with open(tmpdir+"/run.tcl", "w") as f:
+        pnr.write(f)
+
+    subprocess.run([gowinhome + "/IDE/bin/gw_sh", tmpdir+"/run.tcl"])
+    try:
+        return PnrResult(constr.attrs, tmpdir)
+    except FileNotFoundError:
+        print(tmpdir)
+        input()
+        return None
+
+
+# module + constraints + config
+DataForPnr = namedtuple('DataForPnr', ['modmap', 'cstmap', 'cfgmap'])
+
+if __name__ == "__main__":
+    with open(f"{gowinhome}/IDE/share/device/{tiled_fuzzer.device}/{tiled_fuzzer.device}.fse", 'rb') as f:
+        fse = fuse_h4x.readFse(f)
+
+    with open(f"{tiled_fuzzer.device}.json") as f:
+        dat = json.load(f)
+
+    with open(f"{gowinhome}/IDE/share/device/{tiled_fuzzer.device}/{tiled_fuzzer.device}.tm", 'rb') as f:
+        tm = tm_h4x.read_tm(f, tiled_fuzzer.device)
+
+    db = chipdb.from_fse(fse)
+    db.timing = tm
+    db.packages, db.pinout, db.pin_bank = chipdb.json_pinout(tiled_fuzzer.device)
+
+    locations = {}
+    for row, row_dat in enumerate(fse['header']['grid'][61]):
+        for col, typ in enumerate(row_dat):
+            locations.setdefault(typ, []).append((row, col))
+
+    pin_names = pindef.get_locs(tiled_fuzzer.device, tiled_fuzzer.params['package'], True)
+    edges = {'T': fse['header']['grid'][61][0],
+             'B': fse['header']['grid'][61][-1],
+             'L': [row[0] for row in fse['header']['grid'][61]],
+             'R': [row[-1] for row in fse['header']['grid'][61]]}
+    pin_locations = {}
+    pin_re = re.compile(r"IO([TBRL])(\d+)([A-Z])")
+    for name in pin_names:
+        side, num, pin = pin_re.match(name).groups()
+        ttyp = edges[side][int(num)-1]
+        ttyp_pins = pin_locations.setdefault(ttyp, {})
+        ttyp_pins.setdefault(name[:-1], set()).add(name)
+
+    # Add fuzzers here
+    fuzzers = chain(
+        make_test(pin_locations),
+    )
+
+    # Only combine modules with the same IO standard
+    pnr_data = {}
+    for fuzzer in fuzzers:
+        pnr_data.setdefault(fuzzer.iostd, DataForPnr({}, {}, {}))
+        pnr_data[fuzzer.iostd].modmap.setdefault(fuzzer.ttyp, []).append(fuzzer.mod)
+        pnr_data[fuzzer.iostd].cstmap.setdefault(fuzzer.ttyp, []).append(fuzzer.cst)
+        pnr_data[fuzzer.iostd].cfgmap.setdefault(fuzzer.ttyp, []).append(fuzzer.cfg)
+
+    modules = []
+    constrs = []
+    configs = []
+    for data in pnr_data.values():
+        modules += [reduce(lambda a, b: a+b, m, codegen.Module())
+                    for m in zip_longest(*data.modmap.values(), fillvalue=codegen.Module())]
+        constrs += [reduce(lambda a, b: a+b, c, codegen.Constraints())
+                    for c in zip_longest(*data.cstmap.values(), fillvalue=codegen.Constraints())]
+        configs += [reduce(lambda a, b: {**a, **b}, c, {})
+                    for c in zip_longest(*data.cfgmap.values(), fillvalue={})]
+
+    p = Pool()
+    pnr_res = p.imap_unordered(lambda param: run_pnr(*param), zip(modules, constrs, configs), 4)
+    for pnr in pnr_res:
+        print(pnr.dir)
+
