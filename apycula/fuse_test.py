@@ -144,21 +144,23 @@ def make_test(locations):
                                 for direction, wires in conn.items():
                                     wnames = [name+"_"+w for w in wires]
                                     getattr(mod, direction).update(wnames)
+                                    if direction in ["inputs", "outputs", "inouts"]:
+                                        cst_name = wnames[0]
                                 mod.primitives[name] = iob
-                                cst.ports[name] = loc
                                 # complex iob. connect OEN and O
                                 if typ == "IOBUF":
                                     iob.portmap["OEN"] = name + "_O"
                                 # port attribute value
-                                cst.attrs[name] = {}
+                                cst.ports[cst_name] = loc
+                                cst.attrs[cst_name] = {}
                                 if val_0:
-                                    cst.attrs[name].update({attr_0: val_0})
+                                    cst.attrs[cst_name].update({attr_0: val_0})
                                 if val_1:
-                                    cst.attrs[name].update({attr_1: val_1})
+                                    cst.attrs[cst_name].update({attr_1: val_1})
                                 if val_2:
-                                    cst.attrs[name].update({attr_2: val_2})
+                                    cst.attrs[cst_name].update({attr_2: val_2})
                                 if iostd:
-                                    cst.attrs[name].update({"IO_TYPE": iostd})
+                                    cst.attrs[cst_name].update({"IO_TYPE": iostd})
             yield tiled_fuzzer.Fuzzer(ttyp, mod, cst, {}, iostd)
 
 # collect all routing bits of the tile
@@ -177,8 +179,8 @@ def route_bits(db, row, col):
 
 # Result of the vendor router-packer run
 PnrResult = namedtuple('PnrResult', [
-    'attrs',          # port attributes
-    'dir'             # test directory
+    'constrs',          # port constraints
+    'dir'               # test directory
     ])
 
 def run_pnr(mod, constr, config):
@@ -228,7 +230,7 @@ def run_pnr(mod, constr, config):
 
     subprocess.run([gowinhome + "/IDE/bin/gw_sh", tmpdir+"/run.tcl"])
     try:
-        return PnrResult(constr.attrs, tmpdir)
+        return PnrResult(constr, tmpdir)
     except FileNotFoundError:
         print(tmpdir)
         input()
@@ -297,5 +299,7 @@ if __name__ == "__main__":
     p = Pool()
     pnr_res = p.imap_unordered(lambda param: run_pnr(*param), zip(modules, constrs, configs), 4)
     for pnr in pnr_res:
-        print(pnr.dir)
+        dval = (pnr.constrs.ports, pnr.constrs.attrs)
+        with open(f'{pnr.dir}/attrs.json', 'w') as f:
+            json.dump(dval, f)
 
