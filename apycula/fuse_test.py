@@ -185,31 +185,38 @@ PnrResult = namedtuple('PnrResult', [
 
 def run_pnr(mod, constr, config):
     cfg = codegen.DeviceConfig({
-        "JTAG regular_io": config.get('jtag', "true"),
-        "SSPI regular_io": config.get('sspi', "true"),
-        "MSPI regular_io": config.get('mspi', "true"),
-        "READY regular_io": config.get('ready', "true"),
-        "DONE regular_io": config.get('done', "true"),
-        "RECONFIG_N regular_io": config.get('reconfig', "true"),
-        "MODE regular_io": config.get('mode', "true"),
-        "CRC_check": "true",
-        "compress": "false",
-        "encryption": "false",
-        "security_bit_enable": "true",
-        "bsram_init_fuse_print": "true",
-        "download_speed": "250/100",
-        "spi_flash_address": "0x00FFF000",
-        "format": "txt",
-        "background_programming": "false",
-        "secure_mode": "false"})
+        "use_jtag_as_gpio"      : "1",
+        "use_sspi_as_gpio"      : "1",
+        "use_mspi_as_gpio"      : "1",
+        "use_ready_as_gpio"     : "1",
+        "use_done_as_gpio"      : "1",
+        "use_reconfign_as_gpio" : "1",
+        "use_mode_as_gpio"      : "1",
+        "bit_crc_check"         : "1",
+        "bit_compress"          : "0",
+        "bit_encrypt"           : "0",
+        "bit_security"          : "1",
+        "bit_incl_bsram_init"   : "0",
+        "loading_rate"          : "250/100",
+        "spi_flash_addr"        : "0x00FFF000",
+        "bit_format"            : "txt",
+        "bg_programming"        : "off",
+        "secure_mode"           : "0"})
 
-    opt = codegen.PnrOptions(["warning_all", "oc", "reg_not_in_iob"])
-            #"sdf", "oc", "ibs", "posp", "o",
-            #"warning_all", "timing", "reg_not_in_iob"])
-
+    opt = codegen.PnrOptions({
+        "gen_posp"          : "1",
+        "gen_io_cst"        : "1",
+        "gen_ibis"          : "1",
+        "ireg_in_iob"       : "0",
+        "oreg_in_iob"       : "0",
+        "ioreg_in_iob"      : "0",
+        "timing_driven"     : "0",
+        "cst_warn_to_error" : "0"})
     pnr = codegen.Pnr()
     pnr.device = tiled_fuzzer.params['device']
     pnr.partnumber = tiled_fuzzer.params['partnumber']
+    pnr.opt = opt
+    pnr.cfg = cfg
 
     tmpdir = tempfile.mkdtemp()
     pnr.outdir = tmpdir
@@ -219,16 +226,10 @@ def run_pnr(mod, constr, config):
     with open(tmpdir+"/top.cst", "w") as f:
         constr.write(f)
     pnr.cst = tmpdir+"/top.cst"
-    with open(tmpdir+"/device.cfg", "w") as f:
-        cfg.write(f)
-    pnr.cfg = tmpdir+"/device.cfg"
-    with open(tmpdir+"/pnr.cfg", "w") as f:
-        opt.write(f)
-    pnr.opt = tmpdir+"/pnr.cfg"
     with open(tmpdir+"/run.tcl", "w") as f:
         pnr.write(f)
 
-    subprocess.run([gowinhome + "/IDE/bin/gw_sh", tmpdir+"/run.tcl"])
+    subprocess.run([gowinhome + "/IDE/bin/gw_sh", tmpdir+"/run.tcl"], cwd = tmpdir)
     try:
         return PnrResult(constr, tmpdir)
     except FileNotFoundError:
