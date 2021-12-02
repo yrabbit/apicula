@@ -204,9 +204,9 @@ if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{device}/{device}.tm", 'rb') as f:
         tm = tm_h4x.read_tm(f, device)
 
-    with open(f"/home/rabbit/src/apicula/apycula/{device}.pickle", "rb") as f:
+    with open(f"/home/rabbit/var/fpga/disaster/61/{device}.pickle", "rb") as f:
         db = pickle.load(f)
-    with open(f"/home/rabbit/var/fpga/io-ref-bases/{device}.pickle", "rb") as f:
+    with open(f"/home/rabbit/var/fpga/disaster/58/{device}.pickle", "rb") as f:
         ref_db = pickle.load(f)
 
     print('Compare corners...')
@@ -236,6 +236,7 @@ if __name__ == "__main__":
         ttyp_pins.setdefault(tbrl2rc(fse, side, num), set()).add(f"IOB{pin}")
 
     for ttyp, loc_bels in pin_bels.items():
+        # need only one cell per type
         row, col = list(loc_bels.keys())[0]
         bels = {name for loc in loc_bels.values() for name in loc}
         # compare
@@ -244,7 +245,33 @@ if __name__ == "__main__":
                 print(f"diff: {ttyp} ({row}, {col})[{bel}]")
                 deep_io_cmp(db.grid[row][col].bels[bel], ref_db.grid[row][col].bels[bel])
 
-    import ipdb; ipdb.set_trace()
-    print_longval_key(86, 23, {57, 85}, 1)
+    print('Compare Pin banks...')
+    pin_bank_keys = set(db.pin_bank.keys())
+    ref_pin_bank_keys = set(ref_db.pin_bank.keys())
+    if pin_bank_keys != ref_pin_bank_keys:
+        print(f' pin bank keys diff:{pin_bank_keys ^ ref_pin_bank_keys}')
+    for pin in db.pin_bank.keys():
+        pin_bank = db.pin_bank[pin]
+        ref_pin_bank = ref_db.pin_bank[pin]
+        # int() because of #57
+        if int(pin_bank) != ref_pin_bank:
+            print(f' pin bank diff:{pin}:{pin_bank} vs {ref_pin_bank}')
+
+    print('Compare Pins...')
+    pin_keys = set(db.pinout.keys())
+    ref_pin_keys = set(ref_db.pinout.keys())
+    if pin_keys != ref_pin_keys:
+        print(f' pin keys diff:{pin_keys ^ ref_pin_keys}')
+    for var in db.pinout.keys():
+        pinn_keys = set(db.pinout[var].keys())
+        ref_pinn_keys = set(ref_db.pinout[var].keys())
+        if pinn_keys != ref_pinn_keys:
+            print(f'  pin# keys diff:{var}:{pinn_keys ^ ref_pinn_keys}')
+    print('Compare old QFN88 with new QN88 packages...')
+    for num in db.pinout['GW1N-9']['QFN88'].keys():
+        name  = db.pinout['GW1N-9']['QFN88'][num]
+        ref_name  = ref_db.pinout['GW1N-9']['QN88'][int(num)]
+        if name != ref_name:
+            print(f'   pin name diff:{pkg}:{num}:{name} vs {ref_name}')
 
 
