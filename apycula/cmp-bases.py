@@ -61,6 +61,19 @@ params = {
     },
 }[device]
 
+# collect all routing bits of the tile
+_route_mem = {}
+def route_bits(db, row, col):
+    mem = _route_mem.get((row, col), None)
+    if mem != None:
+        return mem
+
+    bits = set()
+    for w in db.grid[row][col].pips.values():
+        for v in w.values():
+            bits.update(v)
+    _route_mem.setdefault((row, col), bits)
+    return bits
 
 def get_fuse_num(ttyp, bits):
     # bits YYXX
@@ -144,7 +157,7 @@ def deep_bank_cmp(bel, ref_bel):
         if val != ref_bel.bank_flags[key]:
             print(f' val diff: {key}:{val} vs {ref_bel.bank_flags[key]}')
 
-def deep_io_cmp(bel, ref_bel):
+def deep_io_cmp(bel, ref_bel, irow, icol, ibel):
     iostd_keys = set(bel.iob_flags.keys())
     ref_iostd_keys = set(ref_bel.iob_flags.keys())
     if iostd_keys != ref_iostd_keys:
@@ -159,6 +172,8 @@ def deep_io_cmp(bel, ref_bel):
         print(f' {iostd_key}')
         for typ_key, flag_rec in typ_rec.items():
             ref_flag_rec = ref_typ_rec[typ_key]
+            if flag_rec.encode_bits != ref_flag_rec.encode_bits:
+                print(f'  encode diff:({irow}, {icol})[{ibel}] {iostd_key} {typ_key} {flag_rec.encode_bits ^ ref_flag_rec.encode_bits}')
             if set(flag_rec.flags.keys()) != set(ref_flag_rec.flags.keys()):
                 print(f'  flag diff:{iostd_key} {typ_key} {set(flag_rec.flags.keys()) ^ set(ref_flag_rec.flags.keys())}')
                 continue
@@ -194,6 +209,11 @@ def tbrl2rc(fse, side, num):
         col = len(fse['header']['grid'][61][0])-1
     return (row, col)
 
+def attrs2log(attrs, pos):
+    for name, p in attrs[0].items():
+        if p == pos:
+            return f'{pos}:{attrs[1][name]}:{name}'
+
 if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{device}/{device}.fse", 'rb') as f:
         fse = fuse_h4x.readFse(f)
@@ -204,10 +224,11 @@ if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{device}/{device}.tm", 'rb') as f:
         tm = tm_h4x.read_tm(f, device)
 
-    with open(f"/home/rabbit/var/fpga/disaster/61/{device}.pickle", "rb") as f:
+    with open(f"/home/rabbit/var/fpga/bases-new-ide-iotable/{device}.pickle", "rb") as f:
         db = pickle.load(f)
-    with open(f"/home/rabbit/var/fpga/disaster/58/{device}.pickle", "rb") as f:
+    with open(f"/home/rabbit/var/fpga/bases-new-ide-site/{device}.pickle", "rb") as f:
         ref_db = pickle.load(f)
+
 
     print('Compare corners...')
     for idx in db.corners.keys():
@@ -243,35 +264,40 @@ if __name__ == "__main__":
         for bel in bels:
             if db.grid[row][col].bels[bel] != ref_db.grid[row][col].bels[bel]:
                 print(f"diff: {ttyp} ({row}, {col})[{bel}]")
-                deep_io_cmp(db.grid[row][col].bels[bel], ref_db.grid[row][col].bels[bel])
+                deep_io_cmp(db.grid[row][col].bels[bel], ref_db.grid[row][col].bels[bel], row, col ,bel)
 
-    print('Compare Pin banks...')
-    pin_bank_keys = set(db.pin_bank.keys())
-    ref_pin_bank_keys = set(ref_db.pin_bank.keys())
-    if pin_bank_keys != ref_pin_bank_keys:
-        print(f' pin bank keys diff:{pin_bank_keys ^ ref_pin_bank_keys}')
-    for pin in db.pin_bank.keys():
-        pin_bank = db.pin_bank[pin]
-        ref_pin_bank = ref_db.pin_bank[pin]
-        # int() because of #57
-        if int(pin_bank) != ref_pin_bank:
-            print(f' pin bank diff:{pin}:{pin_bank} vs {ref_pin_bank}')
+    if len(sys.argv) <= 2:
+        exit()
+    print('Compare images...')
 
-    print('Compare Pins...')
-    pin_keys = set(db.pinout.keys())
-    ref_pin_keys = set(ref_db.pinout.keys())
-    if pin_keys != ref_pin_keys:
-        print(f' pin keys diff:{pin_keys ^ ref_pin_keys}')
-    for var in db.pinout.keys():
-        pinn_keys = set(db.pinout[var].keys())
-        ref_pinn_keys = set(ref_db.pinout[var].keys())
-        if pinn_keys != ref_pinn_keys:
-            print(f'  pin# keys diff:{var}:{pinn_keys ^ ref_pinn_keys}')
-    print('Compare old QFN88 with new QN88 packages...')
-    for num in db.pinout['GW1N-9']['QFN88'].keys():
-        name  = db.pinout['GW1N-9']['QFN88'][num]
-        ref_name  = ref_db.pinout['GW1N-9']['QN88'][int(num)]
-        if name != ref_name:
-            print(f'   pin name diff:{pkg}:{num}:{name} vs {ref_name}')
+    (_, dirnames, _) = next(os.walk(sys.argv[2]))
+    total = len(dirnames)
+    for dirname in dirnames:
+        print(f'{total}\r', end = ''); total = total - 1
+        img = bslib.read_bitstream(f'{sys.argv[2]}/{dirname}/top.fs')[0]
+        bm = chipdb.tile_bitmap(ref_db, img)
+        ref_img = bslib.read_bitstream(f'{sys.argv[2]}/{dirname}/impl/pnr/top.fs')[0]
+        ref_bm = chipdb.tile_bitmap(ref_db, ref_img)
+
+        with open(f'{sys.argv[2]}/{dirname}/attrs.json') as f:
+            attrs = json.load(f)
+
+        for pos in attrs[0].values():
+            side, num, _ = pin_re.match(pos).groups()
+            row, col  = tbrl2rc(fse, side, num)
+            ttyp = fse['header']['grid'][61][row][col]
+            # bits w/o routing
+            rbits = route_bits(db, row, col)
+            r, c = np.where(ref_bm[(row, col)] == 1)
+            tile = set(zip(r, c))
+            ref_bits = tile - rbits
+            r, c = np.where(bm[(row, col)] == 1)
+            tile = set(zip(r, c))
+            bits = tile - rbits
+            if bits != ref_bits:
+                print()
+                print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
+                import ipdb; ipdb.set_trace()
+    print('\nOk')
 
 
