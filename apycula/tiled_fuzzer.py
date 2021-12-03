@@ -388,7 +388,12 @@ def fse_open_drain(fse, db, pin_locations):
                 if iostd not in iostandards:
                     continue
                 b_iostd  = bel.iob_flags.setdefault(iostd, {})
-                # XXX is a very shamanic method of determining the fuses,
+                # XXX presumably OPEN_DRAIN is another DRIVE mode, strange as it may sound.
+                # Three fuses are used: ON=100, i.e. one is set and the other two are cleared,
+                # OFF=xxx (xxx != 100)
+                # These are the same fuses that are used for DRIVE and in the future you can
+                # come up with a smarter way to find them.
+                # XXX Below is a very shamanic method of determining the fuses,
                 iostd33_key, _, _, gw1n4_aliases = _iostd_codes["LVCMOS33"]
                 if device == 'GW1N-4':
                     cur16ma_key = _drive_key.union({gw1n4_aliases["16"]})
