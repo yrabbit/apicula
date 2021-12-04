@@ -272,8 +272,9 @@ if __name__ == "__main__":
 
     (_, dirnames, _) = next(os.walk(sys.argv[2]))
     total = len(dirnames)
+    errs  = 0
     for dirname in dirnames:
-        print(f'{total}\r', end = ''); total = total - 1
+        print(f'{total} {errs}\r', end = ''); total = total - 1
         img = bslib.read_bitstream(f'{sys.argv[2]}/{dirname}/top.fs')[0]
         bm = chipdb.tile_bitmap(ref_db, img)
         ref_img = bslib.read_bitstream(f'{sys.argv[2]}/{dirname}/impl/pnr/top.fs')[0]
@@ -283,7 +284,7 @@ if __name__ == "__main__":
             attrs = json.load(f)
 
         for pos in attrs[0].values():
-            side, num, _ = pin_re.match(pos).groups()
+            side, num, pin = pin_re.match(pos).groups()
             row, col  = tbrl2rc(fse, side, num)
             ttyp = fse['header']['grid'][61][row][col]
             # bits w/o routing
@@ -295,9 +296,13 @@ if __name__ == "__main__":
             tile = set(zip(r, c))
             bits = tile - rbits
             if bits != ref_bits:
-                print()
-                print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
-                import ipdb; ipdb.set_trace()
+                # 12/15/18 modes
+                m12 = tiled_fuzzer.get_longval(fse, ttyp, tiled_fuzzer._pin_mode_longval[pin],
+                                             tiled_fuzzer.recode_key({64}))
+                if (ref_bits - bits ) != m12:
+                    errs = errs + 1
+                    print()
+                    print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
     print('\nOk')
 
 
