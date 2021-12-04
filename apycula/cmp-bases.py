@@ -172,14 +172,14 @@ def deep_io_cmp(bel, ref_bel, irow, icol, ibel):
         print(f' {iostd_key}')
         for typ_key, flag_rec in typ_rec.items():
             ref_flag_rec = ref_typ_rec[typ_key]
-            if flag_rec.encode_bits != ref_flag_rec.encode_bits:
-                print(f'  encode diff:({irow}, {icol})[{ibel}] {iostd_key} {typ_key} {flag_rec.encode_bits ^ ref_flag_rec.encode_bits}')
             if set(flag_rec.flags.keys()) != set(ref_flag_rec.flags.keys()):
                 print(f'  flag diff:{iostd_key} {typ_key} {set(flag_rec.flags.keys()) ^ set(ref_flag_rec.flags.keys())}')
                 continue
             if flag_rec == ref_flag_rec:
                 continue;
             print(f'  {typ_key}')
+            if flag_rec.encode_bits != ref_flag_rec.encode_bits:
+                print(f'  encode diff:({irow}, {icol})[{ibel}] {iostd_key} {typ_key} {flag_rec.encode_bits ^ ref_flag_rec.encode_bits}')
             for flag_key, opt_rec in flag_rec.flags.items():
                 ref_opt_rec = ref_flag_rec.flags[flag_key]
                 if set(opt_rec.options.keys()) != set(ref_opt_rec.options.keys()):
