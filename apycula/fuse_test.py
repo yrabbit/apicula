@@ -41,7 +41,6 @@ drive_iostd = {
         "LVCMOS25":  ["4", "8", "12", "16"],
         "LVCMOS18":  ["4", "8", "12"],
         "LVCMOS15":  ["4", "8"],
-        "LVCMOS12":  ["4", "8"],
         "HSTL15_I":  ["8"],
         "HSTL18_I":  ["8"],
         "HSTL18_II": ["8"],
@@ -57,7 +56,6 @@ drive_iostd = {
 
 open_drain_iostd = {
             "",
-            "LVCMOS12",
             "LVCMOS15",
             "LVCMOS18",
             "LVCMOS25",
@@ -66,7 +64,6 @@ open_drain_iostd = {
 
 hysteresis_iostd = {
             "",
-            "LVCMOS12",
             "LVCMOS15",
             "LVCMOS18",
             "LVCMOS25",
@@ -75,8 +72,8 @@ hysteresis_iostd = {
         }
 
 iobattrs_0 = ("DRIVE",      AttrValues(["OBUF", "IOBUF"], None, drive_iostd))
-iobattrs_1 = ("HYSTERESIS", AttrValues(["IBUF", "IOBUF"], [None], hysteresis_iostd))
-iobattrs_2 = ("OPEN_DRAIN", AttrValues(["OBUF", "IOBUF"], [None], open_drain_iostd))
+iobattrs_1 = ("HYSTERESIS", AttrValues([], ["NONE", "L2H", "H2L", "HIGH"], hysteresis_iostd))
+iobattrs_2 = ("OPEN_DRAIN", AttrValues([], ["ON", "OFF"], open_drain_iostd))
 """
 iobattrs_1 = ("HYSTERESIS", AttrValues(["IBUF", "IOBUF"], ["NONE", "L2H", "H2L", "HIGH"],
                hysteresis_iostd))
@@ -126,7 +123,7 @@ def make_test(locations):
                                     val_1 = None
                                 if typ not in attr_values_2.allowed_modes:
                                     val_2 = None
-                                if not attr_val_0 and not attr_val_1 and not attr_val_2:
+                                if not val_0 and not val_1 and not val_2:
                                     continue
 
                                 # find the next location that has pin
@@ -195,6 +192,7 @@ def run_pnr(mod, constr, config):
         "use_done_as_gpio"      : "1",
         "use_reconfign_as_gpio" : "1",
         "use_mode_as_gpio"      : "1",
+        "use_i2c_as_gpio"       : "1",
         "bit_crc_check"         : "1",
         "bit_compress"          : "0",
         "bit_encrypt"           : "0",
@@ -221,7 +219,11 @@ def run_pnr(mod, constr, config):
     pnr.opt = opt
     pnr.cfg = cfg
 
-    tmpdir = tempfile.mkdtemp()
+    try:
+        os.mkdir(f'/home/rabbit/tmp/bench-{tiled_fuzzer.device}')
+    except FileExistsError:
+        pass
+    tmpdir = tempfile.mkdtemp(dir = f'/home/rabbit/tmp/bench-{tiled_fuzzer.device}')
     pnr.outdir = tmpdir
     with open(tmpdir+"/top.v", "w") as f:
         mod.write(f)

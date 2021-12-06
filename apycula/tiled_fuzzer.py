@@ -208,7 +208,7 @@ iostd_pull_mode = {
             "PCI33"   ,
         }
 
-iostandards = ["", "LVCMOS18", "LVCMOS33", "LVCMOS25", "LVCMOS15", "LVCMOS12",
+iostandards = ["", "LVCMOS18", "LVCMOS33", "LVCMOS25", "LVCMOS15",
       "SSTL25_I", "SSTL33_I", "SSTL15", "HSTL18_I", "PCI33"]
 
 AttrValues = namedtuple('ModeAttr', [
