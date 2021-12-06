@@ -272,9 +272,10 @@ if __name__ == "__main__":
 
     (_, dirnames, _) = next(os.walk(sys.argv[2]))
     total = len(dirnames)
+    done  = total
     errs  = 0
     for dirname in dirnames:
-        print(f'{total} {errs}\r', end = ''); total = total - 1
+        print(f'{total} {done} {errs}', end = '    \r'); done = done - 1
         img = bslib.read_bitstream(f'{sys.argv[2]}/{dirname}/top.fs')[0]
         bm = chipdb.tile_bitmap(ref_db, img)
         ref_img = bslib.read_bitstream(f'{sys.argv[2]}/{dirname}/impl/pnr/top.fs')[0]
@@ -297,12 +298,15 @@ if __name__ == "__main__":
             bits = tile - rbits
             if bits != ref_bits:
                 # 12/15/18 modes
-                m12 = tiled_fuzzer.get_longval(fse, ttyp, tiled_fuzzer._pin_mode_longval[pin],
-                                             tiled_fuzzer.recode_key({64}))
-                if (ref_bits - bits ) != m12:
+                #m12 = tiled_fuzzer.get_longval(fse, ttyp, tiled_fuzzer._pin_mode_longval[pin],
+                #                             tiled_fuzzer.recode_key({64}))
+                if ref_bits != bits:
                     errs = errs + 1
                     print()
                     print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
+                    for df in (ref_bits ^ bits):
+                        print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
+                    import ipdb; ipdb.set_trace()
     print('\nOk')
 
 
