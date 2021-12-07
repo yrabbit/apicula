@@ -214,7 +214,7 @@ def run_pnr(mod, constr, config):
         "timing_driven"     : "0",
         "cst_warn_to_error" : "0"})
     pnr = codegen.Pnr()
-    pnr.device = tiled_fuzzer.params['device']
+    pnr.device = tiled_fuzzer.device
     pnr.partnumber = tiled_fuzzer.params['partnumber']
     pnr.opt = opt
     pnr.cfg = cfg
