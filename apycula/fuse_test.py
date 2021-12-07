@@ -73,7 +73,7 @@ hysteresis_iostd = {
 
 iobattrs_0 = ("DRIVE",      AttrValues(["OBUF", "IOBUF"], None, drive_iostd))
 iobattrs_1 = ("HYSTERESIS", AttrValues([], ["NONE", "L2H", "H2L", "HIGH"], hysteresis_iostd))
-iobattrs_2 = ("OPEN_DRAIN", AttrValues([], ["ON", "OFF"], open_drain_iostd))
+iobattrs_2 = ("OPEN_DRAIN", AttrValues(["OBUF", "IOBUF"], ["ON", "OFF"], open_drain_iostd))
 """
 iobattrs_1 = ("HYSTERESIS", AttrValues(["IBUF", "IOBUF"], ["NONE", "L2H", "H2L", "HIGH"],
                hysteresis_iostd))
