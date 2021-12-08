@@ -256,6 +256,7 @@ if __name__ == "__main__":
         ttyp_pins = pin_bels.setdefault(ttyp, {})
         ttyp_pins.setdefault(tbrl2rc(fse, side, num), set()).add(f"IOB{pin}")
 
+    """
     for ttyp, loc_bels in pin_bels.items():
         # need only one cell per type
         row, col = list(loc_bels.keys())[0]
@@ -265,7 +266,7 @@ if __name__ == "__main__":
             if db.grid[row][col].bels[bel] != ref_db.grid[row][col].bels[bel]:
                 print(f"diff: {ttyp} ({row}, {col})[{bel}]")
                 deep_io_cmp(db.grid[row][col].bels[bel], ref_db.grid[row][col].bels[bel], row, col ,bel)
-
+    """
     if len(sys.argv) <= 2:
         exit()
     print('Compare images...')

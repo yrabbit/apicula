@@ -152,7 +152,7 @@ def place(db, tilemap, bels, cst, args):
 
             cst.attrs.setdefault(cellname, {}).update({"IO_TYPE": iostd})
             # collect flag bits
-            bits = iob.iob_flags[iostd][mode].encode_bits
+            bits = iob.iob_flags[iostd][mode].encode_bits.copy()
             for flag in attrs.keys():
                 flag_name_val = flag.split("=")
                 if len(flag_name_val) < 2:
@@ -161,7 +161,7 @@ def place(db, tilemap, bels, cst, args):
                     continue
                 if flag_name_val[0] == chipdb.mode_attr_sep + "IO_TYPE":
                     continue
-                # skip OPEN_DRAIN=OFF can't clear by mask nd OFF is the default
+                # skip OPEN_DRAIN=OFF can't clear by mask and OFF is the default
                 if flag_name_val[0] == chipdb.mode_attr_sep + "OPEN_DRAIN" \
                         and flag_name_val[1] == 'OFF':
                             continue
@@ -190,7 +190,7 @@ def place(db, tilemap, bels, cst, args):
             tile = tilemap[(brow, bcol)]
             if not len(tiledata.bels) == 0:
                 bank_bel = tiledata.bels['BANK']
-                bits = bank_bel.modes['ENABLE']
+                bits = bank_bel.modes['ENABLE'].copy()
                 # iostd flag
                 bits |= bank_bel.bank_flags[iostd]
                 for row, col in bits:

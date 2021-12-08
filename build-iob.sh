@@ -8,6 +8,10 @@ ORIG_PWD=${PWD}
 for DIR in $(find ${TOP_DIR} -type d -depth 1); do
 	# extract the partnumber
 	PARTNUMBER=$(sed -n -e 's/[[:space:]]*set_device[[:space:]]*//p' <${DIR}/run.tcl)
+	PARTNUMBER_1=$(echo ${PARTNUMBER}|sed -n -e 's/-name[[:space:]].*[[:space:]]//p')
+	if [ "x${PARTNUMBER_1}" != "x" ]; then
+		PARTNUMBER=${PARTNUMBER_1}
+	fi
 	# device
 	DEVICE=$(echo ${PARTNUMBER} | sed -n -e 's/\(GW[[:digit:]]N.*-\)[[:alpha:]][[:alpha:]]\([[:digit:]]\).*/\1\2/p')
 	cd ${DIR}
