@@ -224,11 +224,12 @@ if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{device}/{device}.tm", 'rb') as f:
         tm = tm_h4x.read_tm(f, device)
 
-    with open(f"/home/rabbit/var/fpga/bases-new-ide-iotable/{device}.pickle", "rb") as f:
+    with open(f"/home/rabbit/src/apicula/apycula/{device}.pickle", "rb") as f:
         db = pickle.load(f)
-    with open(f"/home/rabbit/var/fpga/bases-new-ide-site/{device}.pickle", "rb") as f:
-        ref_db = pickle.load(f)
+    #with open(f"/home/rabbit/var/fpga/bases-new-ide-site/{device}.pickle", "rb") as f:
+    #    ref_db = pickle.load(f)
 
+    import ipdb; ipdb.set_trace()
     img = bslib.read_bitstream(f'{sys.argv[2]}')[0]
     bm = chipdb.tile_bitmap(db, img)
 

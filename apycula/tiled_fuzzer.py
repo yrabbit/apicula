@@ -38,6 +38,8 @@ def recode_idx_gw1ns_2(idx):
     new_idx = idx + 1
     if idx >= 69:
         new_idx += 3
+    if idx >= 80:
+        new_idx += 1
     return new_idx
 
 def recode_idx_gw1n9(idx):
@@ -219,7 +221,7 @@ AttrValues = namedtuple('ModeAttr', [
 
 iobattrs = {
  "IO_TYPE"    : AttrValues(["IBUF", "OBUF", "IOBUF"], [""], None),
- "SINGLE_RESISTOR" : AttrValues(["IBUF", "IOBUF"], ["ON", "OFF"], None),
+ #"SINGLE_RESISTOR" : AttrValues(["IBUF", "IOBUF"], ["ON", "OFF"], None),
 }
 
 def tbrl2rc(fse, side, num):
@@ -375,7 +377,7 @@ def fse_drive(fse, db, pin_locations):
 # OPEN_DRAIN
 _open_drain_iob = [        "OBUF", "IOBUF"]
 _open_drain_key = {"ON": {55, 70}, "NOISE": {55, 72}}
-_open_drain_gw1n4_key = {"ON": {52, 54}, "NOISE": {51, 54}}
+_open_drain_gw1n4_key = {"ON": {49, 54}, "NOISE": {51, 54}}
 def fse_open_drain(fse, db, pin_locations):
     for ttyp, tiles in pin_locations.items():
         pin_loc = list(tiles.keys())[0]
@@ -411,13 +413,6 @@ def fse_open_drain(fse, db, pin_locations):
                 noise_fuse = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
                         recode_key(keys['NOISE']), 1)
                 clear_mask = cur16ma_fuse - noise_fuse - on_fuse;
-                #print("ttyp:", ttyp, "bel:", bel_idx)
-                #print("iostd key:", iostd33_key)
-                #print("16mA key:", cur16ma_key)
-                #print("on fuse:", on_fuse, "on key:", recode_key(keys['ON']))
-                #print("16mA fuse", cur16ma_fuse)
-                #print("noise fuse", noise_fuse, "noise key", recode_key(keys['NOISE']))
-                #print("clear mask", clear_mask)
                 for io_mode in _open_drain_iob:
                     b_mode = b_iostd.setdefault(io_mode, chipdb.IOBMode())
                     b_attr = b_mode.flags.setdefault('OPEN_DRAIN', chipdb.IOBFlag())
