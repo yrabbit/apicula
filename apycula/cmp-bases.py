@@ -298,10 +298,14 @@ if __name__ == "__main__":
             tile = set(zip(r, c))
             bits = tile - rbits
             if bits != ref_bits:
-                # 12/15/18 modes
-                #m12 = tiled_fuzzer.get_longval(fse, ttyp, tiled_fuzzer._pin_mode_longval[pin],
-                #                             tiled_fuzzer.recode_key({64}))
                 if ref_bits != bits:
+                    # 12/15/18 modes
+                    m18 = tiled_fuzzer.get_longval(fse, ttyp, tiled_fuzzer._pin_mode_longval[pin],
+                                                 tiled_fuzzer.recode_key({66}))
+                    diff = ref_bits ^ bits
+                    if len(diff) == 1:
+                        if diff == m18:
+                            print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
                     errs = errs + 1
                     print()
                     print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')

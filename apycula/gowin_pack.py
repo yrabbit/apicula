@@ -2,6 +2,7 @@ import sys
 import os
 import re
 import pickle
+import itertools
 import numpy as np
 import json
 import argparse
@@ -153,6 +154,10 @@ def place(db, tilemap, bels, cst, args):
             cst.attrs.setdefault(cellname, {}).update({"IO_TYPE": iostd})
             # collect flag bits
             bits = iob.iob_flags[iostd][mode].encode_bits.copy()
+            # XXX OPEN_DRAIN must be after DRIVE
+            attrs_keys = attrs.keys()
+            if 'OPEN_DRAIN=ON' in attrs_keys:
+                attrs_keys = itertools.chain(attrs_keys, ['OPEN_DRAIN=ON'])
             for flag in attrs.keys():
                 flag_name_val = flag.split("=")
                 if len(flag_name_val) < 2:
