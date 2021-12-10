@@ -200,15 +200,6 @@ iostd_histeresis = {
             "LVCMOS12",
             "PCI33"   ,
         }
-iostd_pull_mode = {
-            ""        ,
-            "LVCMOS33",
-            "LVCMOS25",
-            "LVCMOS18",
-            "LVCMOS15",
-            "LVCMOS12",
-            "PCI33"   ,
-        }
 
 iostandards = ["", "LVCMOS18", "LVCMOS33", "LVCMOS25", "LVCMOS15",
       "SSTL25_I", "SSTL33_I", "SSTL15", "HSTL18_I", "PCI33"]
@@ -295,10 +286,7 @@ def fse_pull_mode(fse, db, pin_locations):
         bels = {name[-1] for loc in tiles.values() for name in loc}
         for bel_idx in bels:
             bel = db.grid[row][col].bels.setdefault(f"IOB{bel_idx}", chipdb.Bel())
-            for iostd in iostd_pull_mode:
-                # XXX
-                if iostd not in iostandards:
-                    continue
+            for iostd in iostandards:
                 b_iostd  = bel.iob_flags.setdefault(iostd, {})
                 for io_mode in _pull_mode_iob:
                     b_mode = b_iostd.setdefault(io_mode, chipdb.IOBMode())
@@ -309,6 +297,10 @@ def fse_pull_mode(fse, db, pin_locations):
                         else:
                             loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx], recode_key({val}))
                         b_attr.options[opt_name] = loc
+
+# mandatory LVCMOS12/15/18 fuse
+def get_12_15_18_mbits(fse, ttyp, pin):
+    return get_longval(fse, ttyp, _pin_mode_longval[pin], recode_key({66}))
 
 # SLEW_RATE
 _slew_rate_iob = [        "OBUF", "IOBUF"]
