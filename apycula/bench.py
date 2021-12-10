@@ -229,12 +229,11 @@ if __name__ == "__main__":
     #with open(f"/home/rabbit/var/fpga/bases-new-ide-site/{device}.pickle", "rb") as f:
     #    ref_db = pickle.load(f)
 
-    import ipdb; ipdb.set_trace()
     img = bslib.read_bitstream(f'{sys.argv[2]}')[0]
     bm = chipdb.tile_bitmap(db, img)
 
     row = 5
-    col = 19
+    col =0
     ttyp = fse['header']['grid'][61][row][col]
 
     rbits = route_bits(db, row, col)
