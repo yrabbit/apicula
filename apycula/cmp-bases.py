@@ -278,9 +278,9 @@ if __name__ == "__main__":
     for dirname in dirnames:
         print(f'{total} {done} {errs}', end = '    \r'); done = done - 1
         img = bslib.read_bitstream(f'{sys.argv[2]}/{dirname}/top.fs')[0]
-        bm = chipdb.tile_bitmap(ref_db, img)
+        bm = chipdb.tile_bitmap(ref_db, img, empty = True)
         ref_img = bslib.read_bitstream(f'{sys.argv[2]}/{dirname}/impl/pnr/top.fs')[0]
-        ref_bm = chipdb.tile_bitmap(ref_db, ref_img)
+        ref_bm = chipdb.tile_bitmap(ref_db, ref_img, empty = True)
 
         with open(f'{sys.argv[2]}/{dirname}/attrs.json') as f:
             attrs = json.load(f)

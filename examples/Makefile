@@ -30,7 +30,7 @@ clean:
 	gowin_pack -d GW1N-1 -o $@ $^
 
 %-tangnano.json: %-tangnano-synth.json tangnano.cst
-	$(NEXTPNR) --json $< --write $@ --device GW1N-LV1QN48C6/I5 --cst tangnano.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1N-LV1QN48C6/I5 --cst ~/var/tangnano.cst
 
 %-default-flags-tangnano.json: %-tangnano-synth.json
 	$(NEXTPNR) --json $^ --write $@ --device GW1N-LV1QN48C6/I5 \

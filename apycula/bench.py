@@ -232,16 +232,16 @@ if __name__ == "__main__":
     img = bslib.read_bitstream(f'{sys.argv[2]}')[0]
     bm = chipdb.tile_bitmap(db, img)
 
-    row = 5
-    col =0
+    row = 19
+    col = 46
     ttyp = fse['header']['grid'][61][row][col]
 
     rbits = route_bits(db, row, col)
     r, c = np.where(bm[(row, col)] == 1)
     tile = set(zip(r, c))
     bits = tile - rbits
-    for df in bits:
+    for df in sorted(bits):
         print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
-    print(bits)
+    print(sorted(bits))
 
     import ipdb; ipdb.set_trace()
