@@ -67,6 +67,12 @@ params = {
         "partnumber": "GW1NS-UX2CLQ144C5/I4",
         "recode_idx": recode_idx_gw1ns_2,
     },
+    "GW1NS-4": {
+        "package": "MBGA64",
+        "device": "GW1NS-4C-MBGA64-6",
+        "partnumber": "GW1NS-LV4CMG64C6/I5",
+        "recode_idx": recode_idx_gw1ns_4,
+    },
     "GW1N-9": {
         "package": "PBGA256",
         "device": "GW1N-9-PBGA256-6",
