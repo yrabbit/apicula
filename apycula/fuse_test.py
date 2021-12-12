@@ -71,10 +71,10 @@ hysteresis_iostd = {
             "PCI33",
         }
 
-#iobattrs_0 = ("DRIVE",      AttrValues(["OBUF", "IOBUF"], None, drive_iostd))
-#iobattrs_1 = ("HYSTERESIS", AttrValues(["IBUF", "IOBUF"], ["NONE", "L2H", "H2L", "HIGH"], hysteresis_iostd))
-iobattrs_0 = ("PULL_MODE", AttrValues(["IBUF", "OBUF", "IOBUF"], ["NONE", "UP", "KEEPER", "DOWN"], open_drain_iostd))
-iobattrs_1 = ("SLEW_RATE", AttrValues(["OBUF", "IOBUF"], ["SLOW", "FAST"], open_drain_iostd))
+iobattrs_0 = ("DRIVE",      AttrValues(["OBUF", "IOBUF"], None, drive_iostd))
+iobattrs_1 = ("HYSTERESIS", AttrValues(["IBUF", "IOBUF"], ["NONE", "L2H", "H2L", "HIGH"], hysteresis_iostd))
+#iobattrs_0 = ("PULL_MODE", AttrValues(["IBUF", "OBUF", "IOBUF"], ["NONE", "UP", "KEEPER", "DOWN"], open_drain_iostd))
+#iobattrs_1 = ("SLEW_RATE", AttrValues(["OBUF", "IOBUF"], ["SLOW", "FAST"], open_drain_iostd))
 iobattrs_2 = ("OPEN_DRAIN", AttrValues(["OBUF", "IOBUF"], ["ON", "OFF"], open_drain_iostd))
 
 def make_test(locations):
@@ -247,8 +247,8 @@ if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{tiled_fuzzer.device}/{tiled_fuzzer.device}.fse", 'rb') as f:
         fse = fuse_h4x.readFse(f)
 
-    with open(f"{tiled_fuzzer.device}.json") as f:
-        dat = json.load(f)
+    #with open(f"{tiled_fuzzer.device}.json") as f:
+    #    dat = json.load(f)
 
     with open(f"{gowinhome}/IDE/share/device/{tiled_fuzzer.device}/{tiled_fuzzer.device}.tm", 'rb') as f:
         tm = tm_h4x.read_tm(f, tiled_fuzzer.device)

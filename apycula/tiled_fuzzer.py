@@ -42,6 +42,16 @@ def recode_idx_gw1ns_2(idx):
         new_idx += 1
     return new_idx
 
+def recode_idx_gw1ns_4(idx):
+    new_idx = idx
+    if idx >= 48:
+        new_idx -= 1
+    if idx >= 55:
+        new_idx -= 1
+    if idx >= 70:
+        new_idx -= 3
+    return new_idx
+
 def recode_idx_gw1n9(idx):
     new_idx = idx
     if idx >= 69:
@@ -72,11 +82,6 @@ params = {
         "device": "GW1NS-4C-MBGA64-6",
         "partnumber": "GW1NS-LV4CMG64C6/I5",
         "recode_idx": recode_idx_gw1ns_4,
-    },
-    "GW1NS-4": {
-        "package": "MBGA64",
-        "device": "GW1NS-4C-MBGA64-6",
-        "partnumber": "GW1NS-LV4CMG64C6/I5",
     },
     "GW1N-9": {
         "package": "PBGA256",
@@ -627,7 +632,7 @@ def run_pnr(mod, constr, config):
     pnr.cfg = cfg
 
     #with tempfile.TemporaryDirectory() as tmpdir:
-    tmpdir = tempfile.mkdtemp(dir = '/home/rabbit/tmp/test-gw9')
+    tmpdir = tempfile.mkdtemp(dir = '/home/rabbit/tmp/test-gw4c')
     if True:
         with open(tmpdir+"/top.v", "w") as f:
             mod.write(f)
