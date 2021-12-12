@@ -298,8 +298,8 @@ def fse_pull_mode(fse, db, pin_locations):
                             loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx], recode_key({val}))
                         b_attr.options[opt_name] = loc
 
-# mandatory LVCMOS12/15/18 fuse
-def get_12_15_18_mbits(fse, ttyp, pin):
+# LVCMOS12/15/18 fuse
+def get_12_15_18_bits(fse, ttyp, pin):
     return get_longval(fse, ttyp, _pin_mode_longval[pin], recode_key({66}))
 
 # SLEW_RATE
@@ -615,7 +615,9 @@ def run_pnr(mod, constr, config):
     pnr.opt = opt
     pnr.cfg = cfg
 
-    with tempfile.TemporaryDirectory() as tmpdir:
+    #with tempfile.TemporaryDirectory() as tmpdir:
+    tmpdir = tempfile.mkdtemp(dir = '/home/rabbit/tmp/test-gw9')
+    if True:
         with open(tmpdir+"/top.v", "w") as f:
             mod.write(f)
         pnr.netlist = tmpdir+"/top.v"
@@ -778,8 +780,8 @@ if __name__ == "__main__":
                 }
             elif bel_type == "IOB":
                 bel = db.grid[row][col].bels.setdefault(f"IOB{pin}", chipdb.Bel())
-                if cell_type == "IOBUF":
-                    loc -= route_bits(db, row, col)
+                bel.lvcmos121518_bits = get_12_15_18_bits(fse, typ, pin)
+                loc -= route_bits(db, row, col)
                 pnr_attrs = pnr.attrs.get(name)
                 if pnr_attrs:
                     # first get iostd
@@ -799,6 +801,8 @@ if __name__ == "__main__":
                         # set mode bits
                         b_iostd  = bel.iob_flags.setdefault(iostd, {})
                         b_mode   = b_iostd.setdefault(cell_type, chipdb.IOBMode())
+                        if cell_type == "IBUF" and iostd in {'LVCMOS25', 'LVCMOS33'}:
+                            loc -= bel.lvcmos121518_bits
                         b_mode.encode_bits = loc
                     else:
                         # IO_TYPE and some attr
