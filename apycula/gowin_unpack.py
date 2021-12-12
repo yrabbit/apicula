@@ -249,7 +249,7 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cfg, cst, db):
                 cst.cells[name] = f"R{row}C{col}[{int(idx) // 2}][{_sides[int(idx) % 2]}]"
             make_muxes(row, col, idx, db, mod)
         elif typ == "ALU":
-            print(flags)
+            #print(flags)
             kind, = flags # ALU only have one flag
             idx = int(idx)
             name = f"R{row}C{col}_ALU_{idx}"
@@ -277,7 +277,7 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cfg, cst, db):
                 mod.primitives[name] = alu
 
         elif typ == "DFF":
-            print(flags)
+            #print(flags)
             kind, = flags # DFF only have one flag
             idx = int(idx)
             port = dffmap[kind]
