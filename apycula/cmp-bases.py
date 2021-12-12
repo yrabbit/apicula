@@ -306,6 +306,7 @@ if __name__ == "__main__":
                     if len(diff) == 1:
                         if diff == m18:
                             print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
+                            continue
                     errs = errs + 1
                     print()
                     print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
