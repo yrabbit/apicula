@@ -366,7 +366,7 @@ def fse_drive(fse, db, pin_locations):
                         if iostd_key == -1 or (iostd == "PCI33" and opt_name == '8'):
                             loc = set()
                         else:
-                            if device == 'GW1N-4':
+                            if device in ['GW1N-4', 'GW1NS-4']:
                                 opt_key = gw1n4_aliases[opt_name]
                                 if opt_key:
                                     val = _drive_key.union({opt_key})
@@ -405,7 +405,7 @@ def fse_open_drain(fse, db, pin_locations):
                 # come up with a smarter way to find them.
                 # XXX Below is a very shamanic method of determining the fuses,
                 iostd33_key, _, _, gw1n4_aliases = _iostd_codes["LVCMOS33"]
-                if device == 'GW1N-4':
+                if device in ['GW1N-4', 'GW1NS-4']:
                     cur16ma_key = _drive_key.union({gw1n4_aliases["16"]})
                     keys = _open_drain_gw1n4_key
                 else:
@@ -631,9 +631,7 @@ def run_pnr(mod, constr, config):
     pnr.opt = opt
     pnr.cfg = cfg
 
-    #with tempfile.TemporaryDirectory() as tmpdir:
-    tmpdir = tempfile.mkdtemp(dir = '/home/rabbit/tmp/test-gw4c')
-    if True:
+    with tempfile.TemporaryDirectory() as tmpdir:
         with open(tmpdir+"/top.v", "w") as f:
             mod.write(f)
         pnr.netlist = tmpdir+"/top.v"

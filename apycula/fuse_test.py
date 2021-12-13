@@ -71,10 +71,10 @@ hysteresis_iostd = {
             "PCI33",
         }
 
-iobattrs_0 = ("DRIVE",      AttrValues(["OBUF", "IOBUF"], None, drive_iostd))
-iobattrs_1 = ("HYSTERESIS", AttrValues(["IBUF", "IOBUF"], ["NONE", "L2H", "H2L", "HIGH"], hysteresis_iostd))
-#iobattrs_0 = ("PULL_MODE", AttrValues(["IBUF", "OBUF", "IOBUF"], ["NONE", "UP", "KEEPER", "DOWN"], open_drain_iostd))
-#iobattrs_1 = ("SLEW_RATE", AttrValues(["OBUF", "IOBUF"], ["SLOW", "FAST"], open_drain_iostd))
+#iobattrs_0 = ("DRIVE",      AttrValues(["OBUF", "IOBUF"], None, drive_iostd))
+#iobattrs_1 = ("HYSTERESIS", AttrValues(["IBUF", "IOBUF"], ["NONE", "L2H", "H2L", "HIGH"], hysteresis_iostd))
+iobattrs_0 = ("PULL_MODE", AttrValues(["IBUF", "OBUF", "IOBUF"], ["NONE", "UP", "KEEPER", "DOWN"], open_drain_iostd))
+iobattrs_1 = ("SLEW_RATE", AttrValues(["OBUF", "IOBUF"], ["SLOW", "FAST"], open_drain_iostd))
 iobattrs_2 = ("OPEN_DRAIN", AttrValues(["OBUF", "IOBUF"], ["ON", "OFF"], open_drain_iostd))
 
 def make_test(locations):
@@ -127,7 +127,8 @@ def make_test(locations):
                                 # or make a new module
                                 loc = tiled_fuzzer.find_next_loc(pin, locs)
                                 if (loc == None):
-                                    yield tiled_fuzzer.Fuzzer(ttyp, mod, cst, {}, iostd)
+                                    if len(mod.inputs) + len(mod.outputs) + len(mod.inouts) != 0:
+                                        yield tiled_fuzzer.Fuzzer(ttyp, mod, cst, {}, iostd)
                                     locs = tiles.copy()
                                     mod = codegen.Module()
                                     cst = codegen.Constraints()
