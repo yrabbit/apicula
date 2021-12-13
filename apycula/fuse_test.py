@@ -88,11 +88,11 @@ def make_test(locations):
             for pin in bels: # [A, B, C, D, ...]
                 # level 0
                 attr_0, attr_values_0 = iobattrs_0
-                if iostd not in attr_values_0.table:
-                    continue
-                attr_vals_0 = attr_values_0.values
-                if attr_vals_0 == None:
-                    attr_vals_0 = attr_values_0.table[iostd]
+                attr_vals_0 = [None]
+                if iostd in attr_values_0.table:
+                    attr_vals_0 = attr_values_0.values
+                    if not attr_vals_0:
+                        attr_vals_0 = attr_values_0.table[iostd]
                 for attr_val_0 in attr_vals_0:   # each value of the attribute
                     attr_1, attr_values_1 = iobattrs_1
                     attr_vals_1 = [None]
@@ -158,7 +158,8 @@ def make_test(locations):
                                     cst.attrs[cst_name].update({attr_2: val_2})
                                 if iostd:
                                     cst.attrs[cst_name].update({"IO_TYPE": iostd})
-            yield tiled_fuzzer.Fuzzer(ttyp, mod, cst, {}, iostd)
+            if len(mod.inputs) + len(mod.outputs) + len(mod.inouts) != 0:
+                yield tiled_fuzzer.Fuzzer(ttyp, mod, cst, {}, iostd)
 
 # collect all routing bits of the tile
 _route_mem = {}
