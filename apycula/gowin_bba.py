@@ -177,6 +177,7 @@ def write_pinout(b, db):
                     b.u32(id_string(pkg))
                     with b.block("pins") as pinblk:
                         for num, loc in pins.items():
+                            print(device, pkg, num, iob2bel(db, loc))
                             b.u16(id_string(num))
                             b.u16(id_string(iob2bel(db, loc)))
                     b.u32(len(pins))

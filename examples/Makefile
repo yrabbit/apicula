@@ -30,7 +30,7 @@ clean:
 	gowin_pack -d GW1N-1 -o $@ $^
 
 %-tangnano.json: %-tangnano-synth.json tangnano.cst
-	$(NEXTPNR) --json $< --write $@ --device GW1N-LV1QN48C6/I5 --cst ~/var/tangnano.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1N-LV1QN48C6/I5 --cst tangnano.cst
 
 %-default-flags-tangnano.json: %-tangnano-synth.json
 	$(NEXTPNR) --json $^ --write $@ --device GW1N-LV1QN48C6/I5 \
@@ -67,7 +67,7 @@ nanolcd-tangnano-synth.json: nanolcd/TOP.v nanolcd/VGAMod.v
 	$(YOSYS) -D LEDS_NR=3 -p "read_verilog $^; synth_gowin -json $@"
 
 %-tangnano4k-synth.json: %.v
-	$(YOSYS) -D LEDS_NR=1 -p "read_verilog $^; synth_gowin -json $@"
+	$(YOSYS) -D LEDS_NR=8 -p "read_verilog $^; synth_gowin -nodffe -json $@"
 
 %-honeycomb-synth.json: %.v
 	$(YOSYS) -D LEDS_NR=3 -p "read_verilog $^; synth_gowin -json $@"

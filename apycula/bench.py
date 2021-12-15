@@ -231,6 +231,7 @@ if __name__ == "__main__":
 
     with open(f"/home/rabbit/src/apicula/apycula/{device}.pickle", "rb") as f:
         db = pickle.load(f)
+    import ipdb; ipdb.set_trace()
     #with open(f"/home/rabbit/var/fpga/bases-new-ide-site/{device}.pickle", "rb") as f:
     #    ref_db = pickle.load(f)
 
