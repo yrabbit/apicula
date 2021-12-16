@@ -44,6 +44,11 @@ params = {
         "device": "GW1NS-2C-LQ144-5",
         "partnumber": "GW1NS-UX2CLQ144C5/I4",
     },
+        "GW1NS-4": {
+        "package": "MBGA64",
+        "device": "GW1NS-4C-MBGA64-6",
+        "partnumber": "GW1NS-LV4CMG64C6/I5",
+    },
     "GW1N-9": {
         "package": "PBGA256",
         "device": "GW1N-9-PBGA256-6",
@@ -298,21 +303,20 @@ if __name__ == "__main__":
             tile = set(zip(r, c))
             bits = tile - rbits
             if bits != ref_bits:
-                if ref_bits != bits:
-                    # 12/15/18 modes
-                    m18 = tiled_fuzzer.get_longval(fse, ttyp, tiled_fuzzer._pin_mode_longval[pin],
-                                                 tiled_fuzzer.recode_key({66}))
-                    diff = ref_bits ^ bits
-                    if len(diff) == 1:
-                        if diff == m18:
-                            print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
-                            continue
-                    errs = errs + 1
-                    print()
-                    print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
-                    for df in (ref_bits ^ bits):
-                        print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
-                    import ipdb; ipdb.set_trace()
+                # 12/15/18 modes
+                m18 = tiled_fuzzer.get_longval(fse, ttyp, tiled_fuzzer._pin_mode_longval[pin],
+                                             tiled_fuzzer.recode_key({66}))
+                diff = ref_bits ^ bits
+                if len(diff) == 1:
+                    if diff == m18:
+                        print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
+                        continue
+                errs = errs + 1
+                print()
+                print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
+                for df in (ref_bits ^ bits):
+                    print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
+                import ipdb; ipdb.set_trace()
     print('\nOk')
 
 
