@@ -478,9 +478,6 @@ def main():
     with importlib.resources.open_binary("apycula", f"{device}.pickle") as f:
         db = pickle.load(f)
 
-    with open(f"/home/rabbit/var/fpga/bases-new-ide-site/{device}.pickle", 'rb') as f:
-        old_db = pickle.load(f)
-
     bitmap = read_bitstream(args.bitstream)[0]
     bm = chipdb.tile_bitmap(db, bitmap)
     gw_bitmap = read_bitstream(args.bitstream_gowin)[0]
@@ -527,6 +524,7 @@ def main():
             removeLUTs(bels)
         tile2verilog(row, col, bels, pips, clock_pips, mod, cfg, cst, db)
 
+<<<<<<< HEAD
     row = 0
     col = 0
     ttyp = fse['header']['grid'][61][row][col]
