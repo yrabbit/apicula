@@ -30,6 +30,14 @@ def zero_bits(mode, all_modes):
         m_mask.update(flag.mask)
     return res.difference(all_modes[mode].decode_bits).difference(m_mask)
 
+# If the length of the bit pattern is equal, start the comparison with IOBUF
+def _io_mode_sort_func(mode):
+    l = len(mode[1].decode_bits) * 10
+    if mode[0] == 'IOBUF':
+        l += 2
+    elif mode[1] == 'OBUF':
+        l += 1
+    return l
 # noiostd --- this is the case when the function is called
 # with iostd by default, e.g. from the clock fuzzer
 # With normal gowun_unpack io standard is determined first and it is known.
@@ -39,6 +47,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
     bels = {}
     for name, bel in tiledata.bels.items():
         if name[0:3] == "IOB":
+            #print(name)
             if noiostd:
                 iostd = ''
             else:
@@ -49,7 +58,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             # Here we don't use a mask common to all modes (it didn't work),
             # instead we try the longest bit sequence first.
             for mode, mode_rec in sorted(bel.iob_flags[iostd].items(),
-                    key = lambda m: len(m[1].decode_bits), reverse = True):
+                    key = _io_mode_sort_func, reverse = True):
                 # print(mode, mode_rec.decode_bits)
                 mode_bits = {(row, col)
                              for row, col in mode_rec.decode_bits
@@ -379,9 +388,11 @@ def main():
     device = args.device
     # For tool integration it is allowed to pass a full part number
     m = re.match("GW1N([A-Z]*)-(LV|UV|UX)([0-9])C?([A-Z]{2}[0-9]+)(C[0-9]/I[0-9])", device)
+    m = re.match("GW1N(S?)[A-Z]*-(LV|UV|UX)([0-9])C?([A-Z]{2}[0-9]+P?)(C[0-9]/I[0-9])", device)
     if m:
+        mods = m.group(1)
         luts = m.group(3)
-        device = f"GW1N-{luts}"
+        device = f"GW1N{mods}-{luts}"
 
     with importlib.resources.open_binary("apycula", f"{device}.pickle") as f:
         db = pickle.load(f)

@@ -78,9 +78,9 @@ params = {
         "recode_idx": recode_idx_gw1ns_2,
     },
     "GW1NS-4": {
-        "package": "MBGA64",
-        "device": "GW1NS-4C-MBGA64-6",
-        "partnumber": "GW1NS-LV4CMG64C6/I5",
+        "package": "QFN48",
+        "device": "GW1NSR-4C-QFN48-7",
+        "partnumber": "GW1NSR-LV4CQN48PC7/I6",
         "recode_idx": recode_idx_gw1ns_4,
     },
     "GW1N-9": {
@@ -184,12 +184,16 @@ def dff(locations):
 _illegal_combo = { ("IOR6A", "SLEW_RATE") : "GW1NS-2",
                    ("IOR6B", "SLEW_RATE") : "GW1NS-2"}
 
-def is_illegal(pin, attr):
+def is_illegal(iostd, pin, attr):
     if _illegal_combo.get((pin, attr)) == device:
         return True
     # GW1N-1, GW1NS-2, GW1N-4 and GW1N-9 allow single resisor only in banks 1/3
     if (attr == "SINGLE_RESISTOR") and (pin[2] in "BT"):
         return True
+    # bottom pins GW1NS-4 (bank 3) support LVCMOS only
+    if iostd != '' and device == 'GW1NS-4':
+        if pin.startswith('IOB'):
+            return not iostd.startswith('LVCMOS')
     return False
 
 # take TBUF == IOBUF - O
@@ -302,8 +306,7 @@ def fse_pull_mode(fse, db, pin_locations):
         bels = {name[-1] for loc in tiles.values() for name in loc}
         for bel_idx in bels:
             bel = db.grid[row][col].bels.setdefault(f"IOB{bel_idx}", chipdb.Bel())
-            for iostd in iostandards:
-                b_iostd  = bel.iob_flags.setdefault(iostd, {})
+            for iostd, b_iostd in bel.iob_flags.items():
                 for io_mode in _pull_mode_iob:
                     b_mode = b_iostd.setdefault(io_mode, chipdb.IOBMode())
                     b_attr = b_mode.flags.setdefault('PULL_MODE', chipdb.IOBFlag())
@@ -329,8 +332,7 @@ def fse_slew_rate(fse, db, pin_locations):
         bels = {name[-1] for loc in tiles.values() for name in loc}
         for bel_idx in bels:
             bel = db.grid[row][col].bels.setdefault(f"IOB{bel_idx}", chipdb.Bel())
-            for iostd in iostandards:
-                b_iostd = bel.iob_flags.setdefault(iostd, {})
+            for iostd, b_iostd in bel.iob_flags.items():
                 for io_mode in _slew_rate_iob:
                     b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
                     b_attr = b_mode.flags.setdefault('SLEW_RATE', chipdb.IOBFlag())
@@ -353,8 +355,7 @@ def fse_drive(fse, db, pin_locations):
         bels = {name[-1] for loc in tiles.values() for name in loc}
         for bel_idx in bels:
             bel = db.grid[row][col].bels.setdefault(f"IOB{bel_idx}", chipdb.Bel())
-            for iostd in iostandards:
-                b_iostd  = bel.iob_flags.setdefault(iostd, {})
+            for iostd, b_iostd in bel.iob_flags.items():
                 for io_mode in _drive_iob:
                     b_mode = b_iostd.setdefault(io_mode, chipdb.IOBMode())
                     b_attr = b_mode.flags.setdefault('DRIVE', chipdb.IOBFlag())
@@ -394,10 +395,9 @@ def fse_open_drain(fse, db, pin_locations):
         bels = {name[-1] for loc in tiles.values() for name in loc}
         for bel_idx in bels:
             bel = db.grid[row][col].bels.setdefault(f"IOB{bel_idx}", chipdb.Bel())
-            for iostd in iostd_open_drain:
-                if iostd not in iostandards:
+            for iostd, b_iostd in bel.iob_flags.items():
+                if iostd not in iostd_open_drain:
                     continue
-                b_iostd  = bel.iob_flags.setdefault(iostd, {})
                 # XXX presumably OPEN_DRAIN is another DRIVE mode, strange as it may sound.
                 # Three fuses are used: ON=100, i.e. one is set and the other two are cleared,
                 # OFF=xxx (xxx != 100)
@@ -442,11 +442,9 @@ def fse_hysteresis(fse, db, pin_locations):
         bels = {name[-1] for loc in tiles.values() for name in loc}
         for bel_idx in bels:
             bel = db.grid[row][col].bels.setdefault(f"IOB{bel_idx}", chipdb.Bel())
-            for iostd in iostd_histeresis:
-                # XXX
-                if iostd not in iostandards:
+            for iostd, b_iostd in bel.iob_flags.items():
+                if iostd not in iostd_histeresis:
                     continue
-                b_iostd  = bel.iob_flags.setdefault(iostd, {})
                 for io_mode in _hysteresis_iob:
                     b_mode  = b_iostd.setdefault(io_mode, chipdb.IOBMode())
                     b_attr = b_mode.flags.setdefault('HYSTERESIS', chipdb.IOBFlag())
@@ -479,6 +477,7 @@ def iob(locations):
             bels = {name[-1] for loc in tiles.values() for name in loc}
             for pin in bels: # [A, B, C, D, ...]
                 for attr, attr_values in iobattrs.items():  # each IOB attribute
+                    # XXX remove
                     if iostd == "PCI33" and attr == "SINGLE_RESISTOR":
                         continue
                     attr_vals = attr_values.values
@@ -500,7 +499,7 @@ def iob(locations):
                                 loc = find_next_loc(pin, locs)
 
                             # special pins
-                            if is_illegal(loc, attr):
+                            if is_illegal(iostd, loc, attr):
                                 continue
                             name = make_name("IOB", typ)
                             iob = codegen.Primitive(typ, name)
@@ -795,7 +794,6 @@ if __name__ == "__main__":
             elif bel_type == "IOB":
                 bel = db.grid[row][col].bels.setdefault(f"IOB{pin}", chipdb.Bel())
                 bel.lvcmos121518_bits = get_12_15_18_bits(fse, typ, pin)
-                loc -= route_bits(db, row, col)
                 pnr_attrs = pnr.attrs.get(name)
                 if pnr_attrs:
                     # first get iostd
