@@ -94,6 +94,21 @@ Perhaps the most difficult attribute at the moment. It uses the same fuses as `D
 |:-----:|:-----------:|
 |   ON  |  {55, 70}   |
 
-(An example will come later)
+We use the following key to determine which fuses cannot be cleared.
+
+| Value | Code        |
+|:-----:|:-----------:|
+| NOISE |  {55, 72}   |
+
+The LVCMOS33 mode with 16mA is remarkable in that all six fuses are set and now we can determine which fuses should be cleared by subtracting the previous two keys from it. 
+
+example: `OPEN_DRAIN=ON`:
+ON: [10, 55, 70, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3273, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
+NOISE: [10, 55, 72, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3238, 3263, 3273, 3281, -1, -1, -1, -1, -1, -1, -1, -1]
+16ma: [12, 52, 56, 68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3210, 3238, 3245, 3263, 3273, 3281, -1, -1, -1, -1, -1, -1]
+
+Thus we have to set fuse 3273 and clear fuses 3210 and 3245.
+
+
 
 
