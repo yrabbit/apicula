@@ -4,16 +4,16 @@ NEXTPNR ?= nextpnr-gowin
 all: attosoc-tec0117.fs nanolcd-tangnano.fs blinky-tec0117.fs blinky-runber.fs \
 	blinky-tangnano.fs blinky-honeycomb.fs shift-tec0117.fs shift-runber.fs \
 	shift-tangnano.fs shift-honeycomb.fs iob-tangnano.fs iob-default-flags-tangnano.fs \
-	tonegen-tec0117.fs
+	tonegen-tec0117.fs blinky-tangnano9k.fs
 
 unpacked: attosoc-tec0117-unpacked.v nanolcd-tangnano-unpacked.v blinky-tec0117-unpacked.v blinky-runber-unpacked.v \
 	blinky-tangnano-unpacked.v blinky-honeycomb-unpacked.v shift-tec0117-unpacked.v shift-runber-unpacked.v \
 	shift-tangnano-unpacked.v shift-honeycomb-unpacked.v iob-tangnano-unpacked.v iob-default-flags-tangnano-unpacked.v \
 	tonegen-tec0117-unpacked.v
-	
+
 clean:
 	rm -f *.json *.fs *-unpacked.v
-	
+
 .PHONY: all clean
 
 %-tec0117.fs: %-tec0117.json
@@ -44,6 +44,12 @@ clean:
 %-tangnano4k.json: %-tangnano4k-synth.json tangnano4k.cst
 	$(NEXTPNR) --json $< --write $@ --device GW1NSR-LV4CQN48PC7/I6 --cst tangnano4k.cst
 
+%-tangnano9k.fs: %-tangnano9k.json
+	gowin_pack -d GW1N-9C -o $@ $^
+
+%-tangnano9k.json: %-tangnano9k-synth.json tangnano9k.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1NR-LV9QN88PC6/I5 --family GW1N-9C --cst tangnano9k.cst
+
 %-honeycomb.fs: %-honeycomb.json
 	gowin_pack -d GW1NS-2 -o $@ $<
 
@@ -71,6 +77,9 @@ nanolcd-tangnano-synth.json: nanolcd/TOP.v nanolcd/VGAMod.v
 %-tangnano4k-synth.json: %.v
 	$(YOSYS) -D LEDS_NR=8 -p "read_verilog $^; synth_gowin -json $@"
 
+%-tangnano9k-synth.json: %.v
+	$(YOSYS) -D LEDS_NR=6 -p "read_verilog $^; synth_gowin -json $@"
+
 %-honeycomb-synth.json: %.v
 	$(YOSYS) -D LEDS_NR=3 -p "read_verilog $^; synth_gowin -json $@"
 
@@ -85,7 +94,7 @@ nanolcd-tangnano-synth.json: nanolcd/TOP.v nanolcd/VGAMod.v
 
 %-tangnano-prog: %-tangnano.fs
 	openFPGALoader -b tangnano $^
-	
+
 %-tangnano4k-prog: %-tangnano4k.fs
 	openFPGALoader -b tangnano4k $^
 
@@ -94,6 +103,9 @@ nanolcd-tangnano-synth.json: nanolcd/TOP.v nanolcd/VGAMod.v
 
 %-tangnano4k-unpacked.v: %-tangnano4k.fs
 	gowin_unpack -d GW1NS-4 -o $@ $^
+
+%-tangnano9k-unpacked.v: %-tangnano9k.fs
+	gowin_unpack -d GW1N-9C -o $@ $^
 
 %-runber-unpacked.v: %-runber.fs
 	gowin_unpack -d GW1N-4 -o $@ $^
