@@ -14,19 +14,17 @@ for DIR in $(find ${TOP_DIR} -type d -depth 1); do
 	# extract the partnumber
 	PNUMBER=$(sed -n -e 's/[[:space:]]*set_device[[:space:]]*//p' <${DIR}/run.tcl)
 	PNUMBER_1=$(echo ${PNUMBER}|sed -n -e 's/-name[[:space:]].*[[:space:]]//p')
-	echo ${PNUMBER_1}
 	if [ "x${PNUMBER_1}" != "x" ]; then
 		DEVICE=$(echo ${PNUMBER}|sed -n -e 's/.*-name[[:space:]]\(.*\)[[:space:]].*/\1/p')
 		PNUMBER=${PNUMBER_1}
 	else
 		DEVICE=$(echo ${PNUMBER} | sed -n -e 's/\(GW[[:digit:]]N.*-\)[[:alpha:]][[:alpha:]]\([[:digit:]]\).*/\1\2/p')
 	fi
-	echo ${DEVICE}
 	cd ${DIR}
 	if [ ! -r pnr.json -o ${FORCE_REBUILD} -eq 1 ]; then
 		${YOSYS=yosys} -p "read_verilog top.v; synth_gowin -json synth.json"
+	    ${NEXTPNR=nextpnr-gowin} --json synth.json --write pnr.json --family ${DEVICE} --device ${PNUMBER} --cst top.cst
 	fi
-	${NEXTPNR=nextpnr-gowin} --json synth.json --write pnr.json --family ${DEVICE} --device ${PNUMBER} --cst top.cst
 	gowin_pack -d ${DEVICE} -o top.fs pnr.json
 	if [ ! -f top.fs ]; then
 		exit 3
