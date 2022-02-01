@@ -100,6 +100,6 @@ def get_diff_cap_info(device, package, special_pins=False):
     for pin in df:
         is_diff = 'DIFF' in pin.keys()
         is_true_lvds = 'TRUELVDS' in pin.keys()
-        res[str(pin['INDEX'])] = (is_diff, is_true_lvds)
+        res[str(pin['NAME'])] = (is_diff, is_true_lvds)
     return res
 
