@@ -702,6 +702,8 @@ if __name__ == "__main__":
         ttyp_pins = pin_locations.setdefault(ttyp, {})
         ttyp_pins.setdefault(name[:-1], set()).add(name)
 
+    diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
+    import ipdb; ipdb.set_trace()
     # Add fuzzers here
     fuzzers = chain(
         iob(pin_locations),
@@ -873,6 +875,9 @@ if __name__ == "__main__":
     fse_slew_rate(fse, db, pin_locations)
     fse_hysteresis(fse, db, pin_locations)
     fse_drive(fse, db, pin_locations)
+
+    # diff IOB
+    diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
 
     chipdb.dat_portmap(dat, db)
     chipdb.dat_aliases(dat, db)

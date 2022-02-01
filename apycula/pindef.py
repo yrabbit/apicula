@@ -93,4 +93,13 @@ def get_clock_locs(device, package):
     return [(pin['NAME'], *pin['CFG'].split('/')) for pin in df
             if 'CFG' in pin.keys() and pin['CFG'].startswith("GCLK")]
 
+# { name : (is_diff, is_true_lvds)}
+def get_diff_cap_info(device, package, special_pins=False):
+    df = get_package(device, package, special_pins)
+    res = {}
+    for pin in df:
+        is_diff = 'DIFF' in pin.keys()
+        is_true_lvds = 'TRUELVDS' in pin.keys()
+        res[str(pin['INDEX'])] = (is_diff, is_true_lvds)
+    return res
 
