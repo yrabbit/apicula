@@ -152,6 +152,15 @@ def pict(bm, name):
     im_scaled = im.resize((im.width * 10, im.height * 10), Image.NEAREST)
     im_scaled.save(f"/home/rabbit/tmp/{name}")
 
+def get_bits(bm):
+    bits = set()
+    rows, cols = bm.shape
+    for row in range(rows):
+        for col in range(cols):
+            if bm[row][col] == 1:
+                bits.update({(row, col)})
+    return bits
+
 def deep_bank_cmp(bel, ref_bel):
     keys = set(bel.bank_flags.keys())
     ref_keys = set(ref_bel.bank_flags.keys())
@@ -231,23 +240,41 @@ if __name__ == "__main__":
 
     with open(f"/home/rabbit/src/apicula/apycula/{device}.pickle", "rb") as f:
         db = pickle.load(f)
-    import ipdb; ipdb.set_trace()
-    #with open(f"/home/rabbit/var/fpga/bases-new-ide-site/{device}.pickle", "rb") as f:
-    #    ref_db = pickle.load(f)
 
-    img = bslib.read_bitstream(f'{sys.argv[2]}')[0]
-    bm = chipdb.tile_bitmap(db, img)
+    if len(sys.argv) > 2:
+        img = bslib.read_bitstream(f'{sys.argv[2]}')[0]
+        bm = chipdb.tile_bitmap(db, img)
+    else:
+        import ipdb; ipdb.set_trace()
 
-    row = 0
-    col = 0
+    # cmp images
+    if len(sys.argv) > 3:
+        sec_img = bslib.read_bitstream(f'{sys.argv[3]}')[0]
+        sec_bm = chipdb.tile_bitmap(db, sec_img)
+        diff = img ^ sec_img
+        diff_tiles = fuse_h4x.tile_bitmap(fse, diff)
+        print(diff_tiles.keys())
+        #print(fuse_h4x.parse_tile(fse, 49, fuse_h4x.tile_bitmap(fse, img)[(19, 37, 49)]))
+        #print(fuse_h4x.parse_tile(fse, 49, fuse_h4x.tile_bitmap(fse, sec_img)[(19, 37, 49)]))
+        print(sorted(get_bits(fuse_h4x.tile_bitmap(fse, img)[(16, 37, 58)])))
+        bits = get_bits(fuse_h4x.tile_bitmap(fse, img)[(16, 37, 58)])
+        import ipdb; ipdb.set_trace()
+        print(sorted(get_bits(fuse_h4x.tile_bitmap(fse, sec_img)[(16, 37, 58)])))
+        print(sorted(get_bits(diff_tiles[(16, 37, 58)])))
+
+    row = 16
+    col = 46
     ttyp = fse['header']['grid'][61][row][col]
 
     rbits = route_bits(db, row, col)
     r, c = np.where(bm[(row, col)] == 1)
     tile = set(zip(r, c))
-    bits = tile - rbits
+    bits = tile# - rbits
+    fuses = set()
     for df in sorted(bits):
+        fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
         print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
     print(sorted(bits))
+    print(sorted(fuses))
 
     import ipdb; ipdb.set_trace()
