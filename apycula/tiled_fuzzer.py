@@ -54,6 +54,9 @@ def recode_idx_gw1ns_4(idx):
 
 def recode_idx_gw1n9(idx):
     new_idx = idx
+    if idx == 75 or idx == 81:
+        new_idx += 4
+        return new_idx
     if idx >= 69:
         new_idx += 3
     return new_idx
@@ -273,8 +276,13 @@ def get_longval(fse, ttyp, table, key, ignore_key_elem = 0):
     return bits
 
 # diff boards have diff key indexes
+def recode_helper_fn(x) :
+    if x >= 0:
+        return params['recode_idx'](x)
+    else:
+        return -params['recode_idx'](-x)
 def recode_key(key):
-    return set(map(params['recode_idx'], key))
+    return set(map(recode_helper_fn, key))
 
 # IOB from tables
 # (code, {option values}, is cmos-like mode, GW1N-4 aliases)
@@ -461,6 +469,66 @@ def fse_hysteresis(fse, db, pin_locations):
                             loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
                                     recode_key(val), 1)
                         b_attr.options[opt_name] = loc
+
+# make DS IOs
+_merge_input_key = {76, 83}
+_lvds_0_key = {46, 56}
+_lvds_1_key = {81, 83}
+_lvds_2_key = {-85, 1, 56, 63, 83}
+def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
+    for ttyp, tiles in pin_locations.items():
+        for tile in tiles.keys():
+            pin_index = tile + 'A'
+            if pin_index not in diff_cap_info.keys():
+                continue
+            is_diff, is_true_lvds, is_positive = diff_cap_info[pin_index]
+            if not is_diff:
+                continue
+            assert is_positive
+            side, num = _tbrlre.match(tile).groups()
+            row, col = tbrl2rc(fse, side, num)
+            print(f"[{row}][{col}]", pin_index, is_diff, is_true_lvds, is_positive)
+            if is_true_lvds:
+                # XXX IOSTD & DRIVE
+                # Use only the IOBA bel
+                try:
+                    bel_b = db.grid[row][col].bels["IOBB"]
+                    bel_b_flags = bel_b.iob_flags['LVCMOS25']['OBUF'].flags
+                    bel = db.grid[row][col].bels["IOBA"]
+                    bel_flags = bel.iob_flags['LVCMOS25']['OBUF'].flags
+                    slew_rate_loc = bel_b_flags['SLEW_RATE'].options['FAST'].copy();
+                    slew_rate_loc.update(bel_flags['SLEW_RATE'].options['FAST']);
+                    pull_mode_loc = bel_b_flags['PULL_MODE'].options['NONE'].copy();
+                    pull_mode_loc.update(bel_flags['PULL_MODE'].options['NONE']);
+                except KeyError:
+                    raise Exception(f"TLVDS base bes must have SLEW_RATE and PULL_MODE defined")
+
+                b_iostd = bel.iob_flags.setdefault('LVDS25', dict())
+                b_mode = b_iostd.setdefault('TLVDS_OBUF', chipdb.IOBMode())
+                # collect encode bits
+                merge_input_loc = get_longval(fse, ttyp, _pin_mode_longval['A'], recode_key(_merge_input_key))
+                lvds_0_loc = get_longval(fse, ttyp, _pin_mode_longval['A'],
+                        recode_key(_lvds_0_key)).copy()
+                lvds_0_loc.update(get_longval(fse, ttyp, _pin_mode_longval['B'],
+                        recode_key(_lvds_0_key)))
+                lvds_1_loc = get_longval(fse, ttyp, _pin_mode_longval['A'],
+                        recode_key(_lvds_1_key).copy())
+                lvds_1_loc.update(get_longval(fse, ttyp, _pin_mode_longval['B'],
+                        recode_key(_lvds_1_key)))
+                lvds_2_loc = get_longval(fse, ttyp, _pin_mode_longval['A'],
+                        recode_key(_lvds_2_key).copy())
+                lvds_2_loc.update(get_longval(fse, ttyp, _pin_mode_longval['B'],
+                        recode_key(_lvds_2_key)))
+                b_mode.encode_bits = set()
+                b_mode.encode_bits.update(slew_rate_loc)
+                b_mode.encode_bits.update(pull_mode_loc)
+                b_mode.encode_bits.update(merge_input_loc)
+                b_mode.encode_bits.update(lvds_0_loc)
+                b_mode.encode_bits.update(lvds_1_loc)
+                b_mode.encode_bits.update(lvds_2_loc)
+            else:
+                # emulated LVDS
+                pass
 
 # IOB fuzzer
 def find_next_loc(pin, locs):
@@ -702,8 +770,6 @@ if __name__ == "__main__":
         ttyp_pins = pin_locations.setdefault(ttyp, {})
         ttyp_pins.setdefault(name[:-1], set()).add(name)
 
-    diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
-    import ipdb; ipdb.set_trace()
     # Add fuzzers here
     fuzzers = chain(
         iob(pin_locations),
@@ -878,6 +944,7 @@ if __name__ == "__main__":
 
     # diff IOB
     diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
+    fse_diff_iob(fse, db, pin_locations, diff_cap_info);
 
     chipdb.dat_portmap(dat, db)
     chipdb.dat_aliases(dat, db)
