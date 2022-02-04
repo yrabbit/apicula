@@ -63,10 +63,11 @@ iostd_alias = {
         }
 # For each bank, remember the Bels used, mark whether Outs were among them and the standard.
 class BankDesc:
-    def __init__(self, iostd, inputs_only, bels_tiles):
+    def __init__(self, iostd, inputs_only, bels_tiles, true_lvds_drive):
         self.iostd = iostd
         self.inputs_only = inputs_only
         self.bels_tiles = bels_tiles
+        self.true_lvds_drive = true_lvds_drive
 
 _banks = {}
 _sides = "AB"
@@ -107,6 +108,10 @@ def place(db, tilemap, bels, cst, args):
             if not cellname.startswith('\$PACKER'):
                 cst.cells[cellname] = (row, col, int(num) // 2, _sides[int(num) % 2])
         elif typ[:3] == "IOB":
+            # skip B for true lvds
+            if 'DIFF' in attrs.keys():
+                if attrs['DIFF_TYPE'] == 'TLVDS_OBUF' and attrs['DIFF'] == 'N':
+                    continue
             edge = 'T'
             idx = col;
             if row == db.rows:
@@ -119,20 +124,23 @@ def place(db, tilemap, bels, cst, args):
                 idx = row
             cst.ports[cellname] = f"IO{edge}{idx}{num}"
             iob = tiledata.bels[f'IOB{num}']
-            if int(parms["ENABLE_USED"], 2) and int(parms["OUTPUT_USED"], 2):
-                # TBUF = IOBUF - O
-                mode = "IOBUF"
-            elif int(parms["INPUT_USED"], 2):
-                mode = "IBUF"
-            elif int(parms["OUTPUT_USED"], 2):
-                mode = "OBUF"
+            if 'DIFF' in attrs.keys():
+                mode = attrs['DIFF_TYPE']
             else:
-                raise ValueError("IOB has no in or output")
+                if int(parms["ENABLE_USED"], 2) and int(parms["OUTPUT_USED"], 2):
+                    # TBUF = IOBUF - O
+                    mode = "IOBUF"
+                elif int(parms["INPUT_USED"], 2):
+                    mode = "IBUF"
+                elif int(parms["OUTPUT_USED"], 2):
+                    mode = "OBUF"
+                else:
+                    raise ValueError("IOB has no in or output")
 
             pinless_io = False
             try:
                 bank = chipdb.loc2bank(db, row - 1, col - 1)
-                iostd = _banks.setdefault(bank, BankDesc(None, True, [])).iostd
+                iostd = _banks.setdefault(bank, BankDesc(None, True, [], None)).iostd
             except KeyError:
                 if not args.allow_pinless_io:
                     raise Exception(f"IO{edge}{idx}{num} is not allowed for a given package")
@@ -162,7 +170,11 @@ def place(db, tilemap, bels, cst, args):
                 else:
                     _banks[bank].inputs_only = False
 
-            cst.attrs.setdefault(cellname, {}).update({"IO_TYPE": iostd})
+            if 'DIFF' not in attrs.keys():
+                cst.attrs.setdefault(cellname, {}).update({"IO_TYPE": iostd})
+            else:
+                # XXX
+                iostd = 'LVDS25'
             # collect flag bits
             bits = iob.iob_flags[iostd][mode].encode_bits.copy()
             # XXX OPEN_DRAIN must be after DRIVE
@@ -170,6 +182,8 @@ def place(db, tilemap, bels, cst, args):
             if 'OPEN_DRAIN=ON' in attrs_keys:
                 attrs_keys = itertools.chain(attrs_keys, ['OPEN_DRAIN=ON'])
             for flag in attrs.keys():
+                if 'DIFF' in attrs.keys():
+                    break
                 flag_name_val = flag.split("=")
                 if len(flag_name_val) < 2:
                     continue
@@ -211,6 +225,7 @@ def place(db, tilemap, bels, cst, args):
                 bits |= bank_bel.bank_flags[iostd]
                 for row, col in bits:
                     tile[row][col] = 1
+
     # If the entire bank has only inputs, the LVCMOS12/15/18 bit is set
     # in each IBUF regardless of the actual I/O standard.
     for _, bank_desc in _banks.items():
@@ -311,6 +326,7 @@ def main():
     with open(args.netlist) as f:
         pnr = json.load(f)
 
+    import ipdb; ipdb.set_trace()
     tilemap = chipdb.tile_bitmap(db, db.template, empty=True)
     cst = codegen.Constraints()
     bels = get_bels(pnr)
