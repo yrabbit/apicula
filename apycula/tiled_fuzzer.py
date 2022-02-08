@@ -240,7 +240,7 @@ AttrValues = namedtuple('ModeAttr', [
     ])
 
 iobattrs = {
- "IO_TYPE"    : AttrValues(["IBUF"], [""], None),
+ "IO_TYPE"    : AttrValues(["OBUF"], [""], None),
 # "IO_TYPE"    : AttrValues(["IBUF", "OBUF", "IOBUF"], [""], None),
  #"SINGLE_RESISTOR" : AttrValues(["IBUF", "IOBUF"], ["ON", "OFF"], None),
 }
@@ -550,8 +550,8 @@ def find_next_loc(pin, locs):
 
 def iob(locations, diff_locations):
     for iostd in iostandards:
-        if iostd == '' or iostd == 'LVCMOS18' or iostd == 'LVCMOS15' or iostd == 'SSTL15' or iostd == 'HSTL18_I' or iostd == 'LVCMOS12':
-            continue
+        #if iostd == '' or iostd == 'LVCMOS18' or iostd == 'LVCMOS15' or iostd == 'SSTL15' or iostd == 'HSTL18_I' or iostd == 'LVCMOS12':
+        #    continue
         for ttyp, tiles in locations.items(): # for each tile of this type
             if ttyp not in diff_locations.keys():
                 continue
@@ -568,12 +568,12 @@ def iob(locations, diff_locations):
                 iob.portmap["I"] = name + "_I"
                 iob.portmap["O"] = name + "_O"
                 iob.portmap["OB"] = name + "_OB"
-                mod.inputs.update([iob.portmap["I"]])
-                mod.outputs.update([iob.portmap["O"]])
-                mod.outputs.update([iob.portmap["OB"]])
-                mod.primitives[name] = iob
-                cst.ports[name] = diff_tile + "[A]"
-                cst.attrs[name] = {"DRIVE": "1.25"}
+                #mod.inputs.update([iob.portmap["I"]])
+                #mod.outputs.update([iob.portmap["O"]])
+                #mod.outputs.update([iob.portmap["OB"]])
+                #mod.primitives[name] = iob
+                #cst.ports[name] = diff_tile + "[A]"
+                #cst.attrs[name] = {"DRIVE": "1.25"}
 
                 # get bels in this ttyp
                 bels = {name[-1] for loc in tiles.values() for name in loc}
