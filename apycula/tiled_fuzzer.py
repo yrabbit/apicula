@@ -54,6 +54,9 @@ def recode_idx_gw1ns_4(idx):
 
 def recode_idx_gw1n9(idx):
     new_idx = idx
+    if idx == 75 or idx == 81:
+        new_idx += 4
+        return new_idx
     if idx >= 69:
         new_idx += 3
     return new_idx
@@ -326,6 +329,40 @@ def fse_pull_mode(fse, db, pin_locations):
 # LVCMOS12/15/18 fuse
 def get_12_15_18_bits(fse, ttyp, pin):
     return get_longval(fse, ttyp, _pin_mode_longval[pin], recode_key({66}))
+
+# corner tiles/bank modes
+# using the 37 longval table
+# The table describes all standards (investigated so far), but ``pure'' are
+# only LVCMOSxx, the others are a combination of these modes and additional fuses.
+_complex_modes = {
+        "SSTL15":   ("LVCMOS15", {3}, {80}),
+        "HSTL18_I": ("LVCMOS18", {3}, {80}),
+        "SSTL25_I": ("LVCMOS25", {3}, {80}),
+        "SSTL33_I": ("LVCMOS33", {3}, {80}),
+        "PCI33":    ("LVCMOS33", None, None),
+        }
+def fse_banks(fse, db, corners):
+    for row, col, ttyp in corners:
+        bel = db.grid[row][col].bels.setdefault("BANK", chipdb.Bel())
+        for iostd in iostandards:
+            if iostd == '':
+                # XXX LVCMOS18 as default
+                iostd = "LVCMOS18"
+                iostd_key, _, _, _ = _iostd_codes[iostd]
+                loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), 1)
+                bel.modes.setdefault("ENABLE", loc)
+            else:
+                if iostd not in _complex_modes.keys():
+                    iostd_key, _, _, _ = _iostd_codes[iostd]
+                    loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), 1)
+                else:
+                    iostd_comp, key_0, key_1 = _complex_modes[iostd]
+                    iostd_key, _, _, _ = _iostd_codes[iostd_comp]
+                    loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), 1)
+                    if key_0 != None:
+                        loc.update(get_longval(fse, ttyp, 37, recode_key(key_0), 1))
+                        loc.update(get_longval(fse, ttyp, 37, recode_key(key_1), 1))
+                bel.bank_flags[iostd] = loc
 
 # SLEW_RATE
 _slew_rate_iob = [        "OBUF", "IOBUF"]
@@ -858,21 +895,16 @@ if __name__ == "__main__":
                 bel = db.grid[row][col].bels.setdefault("CFG", chipdb.Bel())
                 bel.flags.setdefault(flag.upper(), set()).update(loc)
             except ValueError:
-                bel = db.grid[row][col].bels.setdefault("BANK", chipdb.Bel())
-                # in one file all iostd are same
-                iostd = ''
-                if pnr.attrs:
-                    iostd = pnr.attrs[next(iter(pnr.attrs))].get('IO_TYPE', '')
-                if iostd:
-                    bel.bank_flags[iostd] = loc;
-                else:
-                    bel.modes["ENABLE"] = loc
+                pass
 
     # Fill the IOB encodings from fse tables
     fse_pull_mode(fse, db, pin_locations)
     fse_slew_rate(fse, db, pin_locations)
     fse_hysteresis(fse, db, pin_locations)
     fse_drive(fse, db, pin_locations)
+
+    # bank modes
+    fse_banks(fse, db, corners)
 
     chipdb.dat_portmap(dat, db)
     chipdb.dat_aliases(dat, db)
@@ -884,6 +916,10 @@ if __name__ == "__main__":
 
     db.grid[0][0].bels['CFG'].flags['UNK0'] = {(3, 1)}
     db.grid[0][0].bels['CFG'].flags['UNK1'] = {(3, 2)}
+
+    for row, col, ttyp in corners:
+        bel = db.grid[row][col].bels["BANK"]
+        print(ttyp, bel)
 
     # set template dual-mode pins to HW mode
     for pin in dualmode_pins:
