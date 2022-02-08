@@ -69,6 +69,8 @@ def recode_idx_gw1n4(idx):
         new_idx -= 1
     if idx >= 70:
         new_idx -= 2
+    if idx >= 80:
+        new_idx -= 1
     return new_idx
 
 # device = os.getenv("DEVICE")
