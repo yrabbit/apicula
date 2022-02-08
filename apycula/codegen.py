@@ -63,6 +63,8 @@ class Primitive:
             if not first:
                 f.write(",")
             first = False
+            if isinstance(wire, list):
+                wire = "{" + ", ".join([x for x in wire]) + "}"
             f.write("\n.{}({})".format(port, wire))
         f.write("\n);\n")
 
@@ -133,7 +135,7 @@ class Pnr:
             """
 
         device_desc = self.partnumber
-        if self.device in ['GW1N-9', 'GW1N-4']:
+        if self.device in ['GW1N-9', 'GW1N-4', 'GW1N-9C']:
             device_desc = f'-name {self.device} {device_desc}'
 
         f.write(template.format(

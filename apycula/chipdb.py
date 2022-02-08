@@ -136,7 +136,7 @@ def add_alu_mode(base_mode, modes, lut, new_alu_mode, new_mode_bits):
         if bit == '0':
             alu_mode.update(lut.flags[15 - i])
 
-# also make ALUs
+# also make ALUs and shadow RAM
 def fse_luts(fse, ttyp):
     try:
         data = fse[ttyp]['shortval'][5]
@@ -198,7 +198,8 @@ def fse_luts(fse, ttyp):
             # CDN
             add_alu_mode(mode, bel.modes, lut, "7",     "0101000001011111")
             # CUPCDN
-            add_alu_mode(mode, bel.modes, lut, "8",     "1010000001011010")
+            # The functionality of this seems to be the same with SUB
+            # add_alu_mode(mode, bel.modes, lut, "8",     "1010000001011010")
             # MULT   INIT="0111 1000 1000 1000"
             #
             add_alu_mode(mode, bel.modes, lut, "9",     "0111100010001000")
@@ -217,6 +218,31 @@ def fse_luts(fse, ttyp):
                 'I1': f"B{alu_idx}",
                 'I3': f"D{alu_idx}",
             }
+
+    # main fuse: enable shadow SRAM in the slice
+    # shortval(28) [2, 0, fuses]
+    if 28 in fse[ttyp]['shortval']:
+        data = fse[ttyp]['shortval'][28]
+        bel = luts.setdefault(f"RAM16", Bel())
+        mode = bel.modes.setdefault("0", set())
+        for key0, key1, *fuses in data:
+            if key0 == 2 and key1 == 0:
+                for f in (f for f in fuses if f != -1):
+                    coord = fuse.fuse_lookup(fse, ttyp, f)
+                    mode.update({coord})
+                break
+        bel.flags.update({k:v for (k, v) in luts["LUT0"].flags.items()})
+        bel.flags.update({k+16:v for (k, v) in luts["LUT1"].flags.items()})
+        bel.flags.update({k+32:v for (k, v) in luts["LUT2"].flags.items()})
+        bel.flags.update({k+48:v for (k, v) in luts["LUT3"].flags.items()})
+        bel.portmap = {
+            'DI': ("A5", "B5", "C5", "D5"),
+            'CLK': "CLK2",
+            'WRE': "LSR2",
+            'WAD': ("A4", "B4", "C4", "D4"),
+            'RAD': tuple(tuple(f"{j}{i}" for i in range(4)) for j in ["A", "B", "C", "D"]),
+            'DO': ("F0", "F1", "F2", "F3"),
+        }
     return luts
 
 
@@ -237,7 +263,7 @@ def from_fse(fse):
     return dev
 
 def get_pins(device):
-    if device not in {"GW1N-1", "GW1N-4", "GW1N-9", "GW1NR-9", "GW1NS-2", "GW1NS-2C", "GW1NS-4", "GW1NSR-4C"}:
+    if device not in {"GW1N-1", "GW1N-4", "GW1N-9", "GW1NR-9", "GW1N-9C", "GW1NR-9C", "GW1NS-2", "GW1NS-2C", "GW1NS-4", "GW1NSR-4C"}:
         raise Exception(f"unsupported device {device}")
     pkgs = pindef.all_packages(device)
     res = {}
@@ -287,6 +313,19 @@ def json_pinout(device):
         return (res, {
             "GW1N-9": pins,
             "GW1NR-9": pins_r
+        }, res_bank_pins)
+    elif device == "GW1N-9C":
+        pkgs, pins, bank_pins = get_pins("GW1N-9C")
+        pkgs_r, pins_r, bank_pins_r = get_pins("GW1NR-9C")
+        res = {}
+        res.update(pkgs)
+        res.update(pkgs_r)
+        res_bank_pins = {}
+        res_bank_pins.update(bank_pins)
+        res_bank_pins.update(bank_pins_r)
+        return (res, {
+            "GW1N-9C": pins,
+            "GW1NR-9C": pins_r
         }, res_bank_pins)
     elif device == "GW1NS-2":
         pkgs, pins, bank_pins = get_pins("GW1NS-2")
