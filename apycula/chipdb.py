@@ -452,6 +452,9 @@ def get_route_bits(db, row, col):
     for w in db.grid[row][col].pips.values():
         for v in w.values():
             bits.update(v)
+    for w in db.grid[row][col].clock_pips.values():
+        for v in w.values():
+            bits.update(v)
     return bits
 
 def diff2flag(dev):
