@@ -197,28 +197,30 @@ def place(db, tilemap, bels, cst, args):
 
             if pinless_io:
                 return
-            #bank enable
-            for pos, bnum in db.corners.items():
-                if bnum == bank:
-                    break
-            brow, bcol = pos
-            tiledata = db.grid[brow][bcol]
-            tile = tilemap[(brow, bcol)]
-            if not len(tiledata.bels) == 0:
-                bank_bel = tiledata.bels['BANK']
-                bits = bank_bel.modes['ENABLE'].copy()
-                # iostd flag
-                bits |= bank_bel.bank_flags[iostd]
-                for row, col in bits:
-                    tile[row][col] = 1
     # If the entire bank has only inputs, the LVCMOS12/15/18 bit is set
     # in each IBUF regardless of the actual I/O standard.
-    for _, bank_desc in _banks.items():
-        if bank_desc.inputs_only:
-            if bank_desc.iostd in {'LVCMOS33', 'LVCMOS25'}:
-                for bel, tile in bank_desc.bels_tiles:
-                    for row, col in bel.lvcmos121518_bits:
-                        tile[row][col] = 1
+    for bnum, bank_desc in _banks.items():
+        #bank enable
+        for pos, bnum in db.corners.items():
+            if bnum == bank:
+                break
+        brow, bcol = pos
+        tiledata = db.grid[brow][bcol]
+        tile = tilemap[(brow, bcol)]
+        if 'BANK' in tiledata.bels:
+            bank_bel = tiledata.bels['BANK']
+            bits = bank_bel.modes['ENABLE'].copy()
+            iostd = bank_desc.iostd
+            if bank_desc.inputs_only:
+                if bank_desc.iostd in {'LVCMOS33', 'LVCMOS25'}:
+                    for bel, tile in bank_desc.bels_tiles:
+                        for row, col in bel.lvcmos121518_bits:
+                            tile[row][col] = 1
+                iostd = bank_bel.bank_input_only_modes[bank_desc.iostd]
+            # iostd flag
+            bits |= bank_bel.bank_flags[iostd]
+            for row, col in bits:
+                tile[row][col] = 1
 
 def route(db, tilemap, pips):
     for row, col, src, dest in pips:
