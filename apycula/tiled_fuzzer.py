@@ -232,7 +232,7 @@ iostd_histeresis = {
             "PCI33"   ,
         }
 
-iostandards = ["", "LVCMOS18", "LVCMOS33", "LVCMOS25", "LVCMOS15",
+iostandards = ["", "LVCMOS12", "LVCMOS18", "LVCMOS33", "LVCMOS25", "LVCMOS15",
       "SSTL25_I", "SSTL33_I", "SSTL15", "HSTL18_I", "PCI33"]
 
 AttrValues = namedtuple('ModeAttr', [
@@ -349,6 +349,7 @@ def fse_banks(fse, db, corners):
         if 'longval' not in fse[ttyp].keys():
             continue
         bel = db.grid[row][col].bels.setdefault("BANK", chipdb.Bel())
+        bel.bank_input_only_modes.update({"": "LVCMOS12"})
         for iostd in iostandards:
             if iostd == '':
                 # XXX LVCMOS18 as default
@@ -368,6 +369,7 @@ def fse_banks(fse, db, corners):
                         loc.update(get_longval(fse, ttyp, 37, recode_key(key_0), 1))
                         loc.update(get_longval(fse, ttyp, 37, recode_key(key_1), 1))
                 bel.bank_flags[iostd] = loc
+                bel.bank_input_only_modes.update({iostd: "LVCMOS12"})
 
 # SLEW_RATE
 _slew_rate_iob = [        "OBUF", "IOBUF"]
