@@ -214,6 +214,13 @@ def attrs2log(attrs, pos):
         if p == pos:
             return f'{pos}:{attrs[1][name]}:{name}'
 
+def get_cfg_bits(db, row, col):
+    bits = set()
+    if 'CFG' in db.grid[row][col].bels :
+        for v in db.grid[row][col].bels['CFG'].flags.values():
+            bits.update(v)
+    return bits
+
 if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{device}/{device}.fse", 'rb') as f:
         fse = fuse_h4x.readFse(f)
@@ -224,21 +231,8 @@ if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{device}/{device}.tm", 'rb') as f:
         tm = tm_h4x.read_tm(f, device)
 
-    with open(f"/home/rabbit/var/fpga/bases-new-ide-iotable/{device}.pickle", "rb") as f:
+    with importlib.resources.open_binary("apycula", f"{device}.pickle") as f:
         db = pickle.load(f)
-    with open(f"/home/rabbit/var/fpga/bases-new-ide-site/{device}.pickle", "rb") as f:
-        ref_db = pickle.load(f)
-
-
-    print('Compare corners...')
-    for idx in db.corners.keys():
-        row, col = idx
-        if 'BANK' not in db.grid[row][col].bels.keys() \
-                and 'BANK' not in ref_db.grid[row][col].bels.keys():
-            continue
-        if db.grid[row][col].bels['BANK'] != ref_db.grid[row][col].bels['BANK']:
-            print(f"diff:{idx}")
-            deep_bank_cmp(db.grid[row][col].bels['BANK'], ref_db.grid[row][col].bels['BANK'])
 
     # init pindef
     pindef.all_packages(device)
@@ -256,17 +250,6 @@ if __name__ == "__main__":
         ttyp_pins = pin_bels.setdefault(ttyp, {})
         ttyp_pins.setdefault(tbrl2rc(fse, side, num), set()).add(f"IOB{pin}")
 
-    """
-    for ttyp, loc_bels in pin_bels.items():
-        # need only one cell per type
-        row, col = list(loc_bels.keys())[0]
-        bels = {name for loc in loc_bels.values() for name in loc}
-        # compare
-        for bel in bels:
-            if db.grid[row][col].bels[bel] != ref_db.grid[row][col].bels[bel]:
-                print(f"diff: {ttyp} ({row}, {col})[{bel}]")
-                deep_io_cmp(db.grid[row][col].bels[bel], ref_db.grid[row][col].bels[bel], row, col ,bel)
-    """
     if len(sys.argv) <= 2:
         exit()
     print('Compare images...')
@@ -278,19 +261,22 @@ if __name__ == "__main__":
     for dirname in dirnames:
         print(f'{total} {done} {errs}', end = '    \r'); done = done - 1
         img = bslib.read_bitstream(f'{sys.argv[2]}/{dirname}/top.fs')[0]
-        bm = chipdb.tile_bitmap(ref_db, img, empty = True)
+        bm = chipdb.tile_bitmap(db, img, empty = True)
         ref_img = bslib.read_bitstream(f'{sys.argv[2]}/{dirname}/impl/pnr/top.fs')[0]
-        ref_bm = chipdb.tile_bitmap(ref_db, ref_img, empty = True)
+        ref_bm = chipdb.tile_bitmap(db, ref_img, empty = True)
 
         with open(f'{sys.argv[2]}/{dirname}/attrs.json') as f:
             attrs = json.load(f)
 
-        for pos in attrs[0].values():
-            side, num, pin = pin_re.match(pos).groups()
-            row, col  = tbrl2rc(fse, side, num)
+        # banks
+        for idx in db.corners.keys():
+            row, col = idx
+            if 'BANK' not in db.grid[row][col].bels.keys():
+                continue
             ttyp = fse['header']['grid'][61][row][col]
             # bits w/o routing
             rbits = route_bits(db, row, col)
+            rbits.update(get_cfg_bits(db, row, col))
             r, c = np.where(ref_bm[(row, col)] == 1)
             tile = set(zip(r, c))
             ref_bits = tile - rbits
@@ -299,20 +285,50 @@ if __name__ == "__main__":
             bits = tile - rbits
             if bits != ref_bits:
                 if ref_bits != bits:
-                    # 12/15/18 modes
-                    m18 = tiled_fuzzer.get_longval(fse, ttyp, tiled_fuzzer._pin_mode_longval[pin],
-                                                 tiled_fuzzer.recode_key({66}))
-                    diff = ref_bits ^ bits
-                    if len(diff) == 1:
-                        if diff == m18:
-                            print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
-                            continue
                     errs = errs + 1
-                    print()
-                    print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
+                    print(f' {dirname}: [{ttyp}] ({row}, {col}): {ref_bits ^ bits}')
+                    print(' correct:', end = ' ')
                     for df in (ref_bits ^ bits):
-                        print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
-                    import ipdb; ipdb.set_trace()
+                        if df in ref_bits:
+                            print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
+                    print()
+                    print(' bad:', end = ' ')
+                    for df in (ref_bits ^ bits):
+                        if df in bits:
+                            print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
+                    print()
+                    #import ipdb; ipdb.set_trace()
+
+        # io pins
+        if False:
+            for pos in attrs[0].values():
+                side, num, pin = pin_re.match(pos).groups()
+                row, col  = tbrl2rc(fse, side, num)
+                ttyp = fse['header']['grid'][61][row][col]
+                # bits w/o routing
+                rbits = route_bits(db, row, col)
+                r, c = np.where(ref_bm[(row, col)] == 1)
+                tile = set(zip(r, c))
+                ref_bits = tile - rbits
+                r, c = np.where(bm[(row, col)] == 1)
+                tile = set(zip(r, c))
+                bits = tile - rbits
+                if bits != ref_bits:
+                    if ref_bits != bits:
+                        # 12/15/18 modes
+                        m18 = tiled_fuzzer.get_longval(fse, ttyp, tiled_fuzzer._pin_mode_longval[pin],
+                                                     tiled_fuzzer.recode_key({66}))
+                        diff = ref_bits ^ bits
+                        if len(diff) == 1:
+                            if diff == m18:
+                                print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
+                                continue
+                        errs = errs + 1
+                        print()
+                        print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
+                        for df in (ref_bits ^ bits):
+                            print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
+                        import ipdb; ipdb.set_trace()
     print('\nOk')
 
 
