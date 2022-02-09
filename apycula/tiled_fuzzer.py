@@ -345,6 +345,9 @@ _complex_modes = {
         }
 def fse_banks(fse, db, corners):
     for row, col, ttyp in corners:
+        # no longval tables -> no bank
+        if 'longval' not in fse[ttyp].keys():
+            continue
         bel = db.grid[row][col].bels.setdefault("BANK", chipdb.Bel())
         for iostd in iostandards:
             if iostd == '':
@@ -920,6 +923,8 @@ if __name__ == "__main__":
     db.grid[0][0].bels['CFG'].flags['UNK1'] = {(3, 2)}
 
     for row, col, ttyp in corners:
+        if "BANK" not in db.grid[row][col].bels.keys():
+            continue
         bel = db.grid[row][col].bels["BANK"]
         print(ttyp, bel)
 
