@@ -199,10 +199,10 @@ def place(db, tilemap, bels, cst, args):
                 return
     # If the entire bank has only inputs, the LVCMOS12/15/18 bit is set
     # in each IBUF regardless of the actual I/O standard.
-    for bnum, bank_desc in _banks.items():
+    for bank, bank_desc in _banks.items():
         #bank enable
         for pos, bnum in db.corners.items():
-            if bnum == bank:
+            if str(bnum) == bank:
                 break
         brow, bcol = pos
         tiledata = db.grid[brow][bcol]
