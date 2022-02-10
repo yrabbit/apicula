@@ -369,7 +369,10 @@ def fse_banks(fse, db, corners):
                         loc.update(get_longval(fse, ttyp, 37, recode_key(key_0), 1))
                         loc.update(get_longval(fse, ttyp, 37, recode_key(key_1), 1))
                 bel.bank_flags[iostd] = loc
-                bel.bank_input_only_modes.update({iostd: "LVCMOS12"})
+                if iostd != 'PCI33':
+                    bel.bank_input_only_modes.update({iostd: "LVCMOS12"})
+                else:
+                    bel.bank_input_only_modes.update({"PCI33": "PCI33"})
 
 # SLEW_RATE
 _slew_rate_iob = [        "OBUF", "IOBUF"]
