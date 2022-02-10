@@ -206,7 +206,7 @@ def place(db, tilemap, bels, cst, args):
                 break
         brow, bcol = pos
         tiledata = db.grid[brow][bcol]
-        tile = tilemap[(brow, bcol)]
+        btile = tilemap[(brow, bcol)]
         if 'BANK' in tiledata.bels:
             bank_bel = tiledata.bels['BANK']
             bits = bank_bel.modes['ENABLE'].copy()
@@ -220,7 +220,7 @@ def place(db, tilemap, bels, cst, args):
             # iostd flag
             bits |= bank_bel.bank_flags[iostd]
             for row, col in bits:
-                tile[row][col] = 1
+                btile[row][col] = 1
 
 def route(db, tilemap, pips):
     for row, col, src, dest in pips:
