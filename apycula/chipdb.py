@@ -46,7 +46,7 @@ class Bel:
     # banks
     bank_mask: Set[Coord] = field(default_factory=set)
     bank_flags: Dict[str, Set[Coord]] = field(default_factory=dict)
-    bank_input_only_modes: Dict[str, str] = field(default_factory=set)
+    bank_input_only_modes: Dict[str, str] = field(default_factory=dict)
     # there can be only one mode, modes are exclusive
     modes: Dict[Union[int, str], Set[Coord]] = field(default_factory=dict)
     portmap: Dict[str, str] = field(default_factory=dict)

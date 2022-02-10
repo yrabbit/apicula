@@ -199,14 +199,14 @@ def place(db, tilemap, bels, cst, args):
                 return
     # If the entire bank has only inputs, the LVCMOS12/15/18 bit is set
     # in each IBUF regardless of the actual I/O standard.
-    for bnum, bank_desc in _banks.items():
+    for bank, bank_desc in _banks.items():
         #bank enable
         for pos, bnum in db.corners.items():
-            if bnum == bank:
+            if str(bnum) == bank:
                 break
         brow, bcol = pos
         tiledata = db.grid[brow][bcol]
-        tile = tilemap[(brow, bcol)]
+        btile = tilemap[(brow, bcol)]
         if 'BANK' in tiledata.bels:
             bank_bel = tiledata.bels['BANK']
             bits = bank_bel.modes['ENABLE'].copy()
@@ -220,7 +220,7 @@ def place(db, tilemap, bels, cst, args):
             # iostd flag
             bits |= bank_bel.bank_flags[iostd]
             for row, col in bits:
-                tile[row][col] = 1
+                btile[row][col] = 1
 
 def route(db, tilemap, pips):
     for row, col, src, dest in pips:
