@@ -214,6 +214,15 @@ def attrs2log(attrs, pos):
         if p == pos:
             return f'{pos}:{attrs[1][name]}:{name}'
 
+def is_lvcmos12_drive_4(attrs, pos):
+    for name, p in attrs[0].items():
+        if p == pos:
+            if 'DRIVE' not in attrs[1][name].keys():
+                return False
+            if 'IO_TYPE' not in attrs[1][name].keys():
+                return False
+            return attrs[1][name]['DRIVE'] == '4' and attrs[1][name]['IO_TYPE'] == 'LVCMOS12'
+
 def get_cfg_bits(db, row, col):
     bits = set()
     if 'CFG' in db.grid[row][col].bels :
@@ -236,7 +245,7 @@ if __name__ == "__main__":
 
     # init pindef
     pindef.all_packages(device)
-    print('Compare IOs...')
+    #print('Compare IOs...')
     pin_names = pindef.get_locs(device, params['package'], True)
     edges = {'T': fse['header']['grid'][61][0],
              'B': fse['header']['grid'][61][-1],
@@ -300,8 +309,10 @@ if __name__ == "__main__":
                     #import ipdb; ipdb.set_trace()
 
         # io pins
-        if False:
+        if True:
             for pos in attrs[0].values():
+                if is_lvcmos12_drive_4(attrs, pos):
+                    continue
                 side, num, pin = pin_re.match(pos).groups()
                 row, col  = tbrl2rc(fse, side, num)
                 ttyp = fse['header']['grid'][61][row][col]
@@ -326,9 +337,16 @@ if __name__ == "__main__":
                         errs = errs + 1
                         print()
                         print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
+                        print(' correct:', end = ' ')
                         for df in (ref_bits ^ bits):
-                            print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
-                        import ipdb; ipdb.set_trace()
+                            if df in ref_bits:
+                                print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
+                        print()
+                        print(' bad:', end = ' ')
+                        for df in (ref_bits ^ bits):
+                            if df in bits:
+                                print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
+                        print()
     print('\nOk')
 
 

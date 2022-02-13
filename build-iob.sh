@@ -21,6 +21,7 @@ for DIR in $(find ${TOP_DIR} -type d -depth 1); do
 		DEVICE=$(echo ${PNUMBER} | sed -n -e 's/\(GW[[:digit:]]N.*-\)[[:alpha:]][[:alpha:]]\([[:digit:]]\).*/\1\2/p')
 	fi
 	cd ${DIR}
+	echo ${DIR}
 	if [ ! -r pnr.json -o ${FORCE_REBUILD} -eq 1 ]; then
 		${YOSYS=yosys} -p "read_verilog top.v; synth_gowin -json synth.json"
 	    ${NEXTPNR=nextpnr-gowin} --json synth.json --write pnr.json --family ${DEVICE} --device ${PNUMBER} --cst top.cst
