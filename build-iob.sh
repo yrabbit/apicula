@@ -20,6 +20,7 @@ for DIR in $(find ${TOP_DIR} -type d -depth 1); do
 	else
 		DEVICE=$(echo ${PNUMBER} | sed -n -e 's/\(GW[[:digit:]]N.*-\)[[:alpha:]][[:alpha:]]\([[:digit:]]\).*/\1\2/p')
 	fi
+	DEVICE=$(echo ${DEVICE}|sed -e 's/R//')
 	cd ${DIR}
 	echo ${DIR}
 	if [ ! -r pnr.json -o ${FORCE_REBUILD} -eq 1 ]; then

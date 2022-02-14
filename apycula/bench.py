@@ -44,6 +44,11 @@ params = {
         "device": "GW1NS-2C-LQ144-5",
         "partnumber": "GW1NS-UX2CLQ144C5/I4",
     },
+    "GW1NS-4": {
+        "package": "QFN48",
+        "device": "GW1NSR-4C-QFN48-7",
+        "partnumber": "GW1NSR-LV4CQN48PC7/I6",
+    },
     "GW1N-9": {
         "package": "PBGA256",
         "device": "GW1N-9-PBGA256-6",
@@ -59,6 +64,11 @@ params = {
         "device": "GW1N-1-LQFP144-6",
         "partnumber": "GW1N-LV1LQ144C6/I5",
     },
+    "GW1N-9C": {
+        "package": "UBGA332",
+        "device": "GW1N-9C-UBGA332-6",
+        "partnumber": "GW1N-LV9UG332C6/I5",
+    }
 }[device]
 
 # collect all routing bits of the tile
@@ -236,7 +246,7 @@ if __name__ == "__main__":
     bm = chipdb.tile_bitmap(db, img)
 
     row = 19
-    col = 46
+    col = 37
     ttyp = fse['header']['grid'][61][row][col]
 
     rbits = route_bits(db, row, col)
