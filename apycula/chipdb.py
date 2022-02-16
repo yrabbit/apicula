@@ -264,7 +264,10 @@ def set_banks(device, db):
     # fill the bank# : corner tile table
     w = db.cols - 1
     h = db.rows - 1
-    if device == 'GW1NS-2':
+    if device == 'GW1NZ-1':
+        db.grid[0][0].bels.setdefault('BANK0', Bel())
+        db.grid[0][w].bels.setdefault('BANK1', Bel())
+    elif device == 'GW1NS-2':
         db.grid[0][0].bels.setdefault('BANK0', Bel())
         db.grid[0][w].bels.setdefault('BANK1', Bel())
         db.grid[h][w].bels.setdefault('BANK2', Bel())
