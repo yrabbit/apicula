@@ -43,9 +43,13 @@ class Bel:
     lvcmos121518_bits: Set[Coord] = field(default_factory = set)
     # this Bel is IOBUF and needs routing to become IBUF or OBUF
     simplified_iob: bool = field(default = False)
+    # differential signal capabilities info
+    is_diff:      bool = field(default = False)
+    is_true_lvds: bool = field(default = False)
     # banks
     bank_mask: Set[Coord] = field(default_factory=set)
     bank_flags: Dict[str, Set[Coord]] = field(default_factory=dict)
+    bank_input_only_modes: Dict[str, str] = field(default_factory=dict)
     # there can be only one mode, modes are exclusive
     modes: Dict[Union[int, str], Set[Coord]] = field(default_factory=dict)
     portmap: Dict[str, str] = field(default_factory=dict)
@@ -98,14 +102,28 @@ class Device:
     def width(self):
         return sum(tile.width for tile in self.grid[0])
 
+    # XXX consider removing
     @property
     def corners(self):
         # { (row, col) : bank# }
         return {
-            (0, 0) : 0,
-            (0, self.cols - 1) : 1,
-            (self.rows - 1, self.cols - 1) : 2,
-            (self.rows - 1, 0) : 3}
+            (0, 0) : '0',
+            (0, self.cols - 1) : '1',
+            (self.rows - 1, self.cols - 1) : '2',
+            (self.rows - 1, 0) : '3'}
+
+    # Some chips have bits responsible for different banks in the same corner tile.
+    # Here stores the correspondence of the bank number to the (row, col) of the tile.
+    @property
+    def bank_tiles(self):
+        # { bank# : (row, col) }
+        res = {}
+        for pos in self.corners.keys():
+            row, col = pos
+            for bel in self.grid[row][col].bels.keys():
+                if bel[0:4] == 'BANK':
+                    res.update({ bel[4:] : pos })
+        return res
 
 def unpad(fuses, pad=-1):
     try:
@@ -136,7 +154,7 @@ def add_alu_mode(base_mode, modes, lut, new_alu_mode, new_mode_bits):
         if bit == '0':
             alu_mode.update(lut.flags[15 - i])
 
-# also make ALUs
+# also make ALUs and shadow RAM
 def fse_luts(fse, ttyp):
     try:
         data = fse[ttyp]['shortval'][5]
@@ -218,8 +236,64 @@ def fse_luts(fse, ttyp):
                 'I1': f"B{alu_idx}",
                 'I3': f"D{alu_idx}",
             }
+
+    # main fuse: enable shadow SRAM in the slice
+    # shortval(28) [2, 0, fuses]
+    if 28 in fse[ttyp]['shortval']:
+        data = fse[ttyp]['shortval'][28]
+        bel = luts.setdefault(f"RAM16", Bel())
+        mode = bel.modes.setdefault("0", set())
+        for key0, key1, *fuses in data:
+            if key0 == 2 and key1 == 0:
+                for f in (f for f in fuses if f != -1):
+                    coord = fuse.fuse_lookup(fse, ttyp, f)
+                    mode.update({coord})
+                break
+        bel.flags.update({k:v for (k, v) in luts["LUT0"].flags.items()})
+        bel.flags.update({k+16:v for (k, v) in luts["LUT1"].flags.items()})
+        bel.flags.update({k+32:v for (k, v) in luts["LUT2"].flags.items()})
+        bel.flags.update({k+48:v for (k, v) in luts["LUT3"].flags.items()})
+        bel.portmap = {
+            'DI': ("A5", "B5", "C5", "D5"),
+            'CLK': "CLK2",
+            'WRE': "LSR2",
+            'WAD': ("A4", "B4", "C4", "D4"),
+            'RAD': tuple(tuple(f"{j}{i}" for i in range(4)) for j in ["A", "B", "C", "D"]),
+            'DO': ("F0", "F1", "F2", "F3"),
+        }
     return luts
 
+# XXX This is not a nice way, I will replace it with automatic creation of banks
+# in the very near future.
+def set_banks(device, db):
+    # fill the bank# : corner tile table
+    w = db.cols - 1
+    h = db.rows - 1
+    if device == 'GW1NZ-1':
+        db.grid[0][0].bels.setdefault('BANK0', Bel())
+        db.grid[0][w].bels.setdefault('BANK1', Bel())
+    elif device == 'GW1NS-2':
+        db.grid[0][0].bels.setdefault('BANK0', Bel())
+        db.grid[0][w].bels.setdefault('BANK1', Bel())
+        db.grid[h][w].bels.setdefault('BANK2', Bel())
+        db.grid[0][0].bels.setdefault('BANK3', Bel())
+    elif device == 'GW1NS-4':
+        db.grid[0][0].bels.setdefault('BANK0', Bel())
+        db.grid[0][w].bels.setdefault('BANK1', Bel())
+        db.grid[h][w].bels.setdefault('BANK2', Bel())
+        db.grid[h][w].bels.setdefault('BANK3', Bel())
+    elif device == 'GW1N-9':
+        db.grid[0][0].bels.setdefault('BANK0', Bel())
+        db.grid[0][w].bels.setdefault('BANK1', Bel())
+        db.grid[h][w].bels.setdefault('BANK2', Bel())
+        db.grid[h][0].bels.setdefault('BANK3', Bel())
+        db.grid[0][0].bels.setdefault('BANK10', Bel())
+        db.grid[0][0].bels.setdefault('BANK30', Bel())
+    else:
+        db.grid[0][0].bels.setdefault('BANK0', Bel())
+        db.grid[0][w].bels.setdefault('BANK1', Bel())
+        db.grid[h][w].bels.setdefault('BANK2', Bel())
+        db.grid[h][0].bels.setdefault('BANK3', Bel())
 
 def from_fse(fse):
     dev = Device()
@@ -238,7 +312,7 @@ def from_fse(fse):
     return dev
 
 def get_pins(device):
-    if device not in {"GW1N-1", "GW1N-4", "GW1N-9", "GW1NR-9", "GW1N-9C", "GW1NR-9C", "GW1NS-2", "GW1NS-2C", "GW1NS-4", "GW1NSR-4C"}:
+    if device not in {"GW1N-1", "GW1NZ-1", "GW1N-4", "GW1N-9", "GW1NR-9", "GW1N-9C", "GW1NR-9C", "GW1NS-2", "GW1NS-2C", "GW1NS-4", "GW1NSR-4C"}:
         raise Exception(f"unsupported device {device}")
     pkgs = pindef.all_packages(device)
     res = {}
@@ -257,6 +331,11 @@ def json_pinout(device):
         pkgs, pins, bank_pins = get_pins("GW1N-1")
         return (pkgs, {
             "GW1N-1": pins
+        }, bank_pins)
+    elif device == "GW1NZ-1":
+        pkgs, pins, bank_pins = get_pins("GW1NZ-1")
+        return (pkgs, {
+            "GW1NZ-1": pins
         }, bank_pins)
     elif device == "GW1N-4":
         pkgs, pins, bank_pins = get_pins("GW1N-4")
@@ -431,6 +510,9 @@ def get_route_bits(db, row, col):
     for w in db.grid[row][col].pips.values():
         for v in w.values():
             bits.update(v)
+    for w in db.grid[row][col].clock_pips.values():
+        for v in w.values():
+            bits.update(v)
     return bits
 
 def diff2flag(dev):
@@ -470,7 +552,7 @@ def diff2flag(dev):
                             # decode bits don't include flags
                             for _, flag_rec in mode_rec.flags.items():
                                 mode_rec.decode_bits -= flag_rec.mask
-                elif name == "BANK":
+                elif name[0:4] == "BANK":
                     noise_bits = None
                     for bits in bel.bank_flags.values():
                         if noise_bits != None:
@@ -538,7 +620,7 @@ def loc2pin_name(db, row, col):
     return f"IO{side}{idx}"
 
 def loc2bank(db, row, col):
-    """ returns bank index 0...n
+    """ returns bank index '0'...'n'
     """
     bank =  db.corners.get((row, col))
     if bank == None:
