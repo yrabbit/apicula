@@ -232,6 +232,8 @@ def place(db, tilemap, bels, cst, args):
             iostd = bank_bel.bank_input_only_modes[bank_desc.iostd]
         # iostd flag
         bits |= bank_bel.bank_flags[iostd]
+        if bank == '1':
+            bits = {(0, 62), (4, 63), (8, 62), (9, 62), (11, 62)}
         for row, col in bits:
             btile[row][col] = 1
 
