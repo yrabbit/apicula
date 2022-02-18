@@ -413,10 +413,10 @@ def fse_banks(fse, db, corners):
             # some exclusive combination of bits in a corner tile, but an addition to the main
             # bank mode. Not that it matters now when all modes are flags:)
             # TLVDS
-            loc = get_longval(fse, ttyp, 37, recode_key({lvds_key_0}), 0, [bank_idx])
+            loc = get_longval(fse, ttyp, 37, recode_key({_lvds25_key_0}), 0, [bank_idx])
             if loc == {}:
                 continue
-            loc.update(get_longval(fse, ttyp, 37, recode_key({_lvds_key_1}), 0, [bank_idx])
+            loc.update(get_longval(fse, ttyp, 37, recode_key({_lvds25_key_1}), 0, [bank_idx]))
             bel.bank_flags["LVDS25"] = loc
             # Coexistence with other modes flags
             iostd_key, _, _, _ = _iostd_codes["LVCMOS25"]
