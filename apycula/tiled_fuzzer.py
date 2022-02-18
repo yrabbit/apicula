@@ -420,10 +420,19 @@ def fse_banks(fse, db, corners):
             bel.bank_flags["LVDS25"] = loc
             # Coexistence with other modes flags
             iostd_key, _, _, _ = _iostd_codes["LVCMOS25"]
+            loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), 0, [bank_idx])
+            bel.bank_flags["LVDS25#LVCMOS25"] = loc
+            iostd_key, _, _, _ = _iostd_codes["LVCMOS33"]
+            enable = loc.intersection(get_longval(fse, ttyp, 37, recode_key({iostd_key}), 0, [bank_idx]))
+            bel.bank_flags["LVDS25"].update(enable)
+
+            iostd_key, _, _, _ = _iostd_codes["LVCMOS25"]
             loc = get_longval(fse, ttyp, 37, recode_key({1, iostd_key}), 0, [bank_idx])
+            loc.update(enable)
             bel.bank_flags["LVDS25#LVCMOS25"] = loc
             iostd_key, _, _, _ = _iostd_codes["LVCMOS33"]
             loc = get_longval(fse, ttyp, 37, recode_key({1, iostd_key}), 0, [bank_idx])
+            loc.update(enable)
             bel.bank_flags["LVDS25#LVCMOS33"] = loc
             bel.bank_input_only_modes.update({"LVDS25": "LVCMOS25"})
 
@@ -598,7 +607,7 @@ def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
                 except KeyError:
                     raise Exception(f"TLVDS base bes must have SLEW_RATE and PULL_MODE defined")
 
-                b_iostd = bel.iob_flags.setdefault('LVDS25', dict())
+                b_iostd = bel.iob_flags.setdefault('LVCMOS25', dict())
                 b_mode = b_iostd.setdefault('TLVDS_OBUF', chipdb.IOBMode())
                 # collect encode bits
                 merge_input_loc = get_longval(fse, ttyp, _pin_mode_longval['A'], recode_key(_merge_input_key))
@@ -621,6 +630,10 @@ def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
                 b_mode.encode_bits.update(lvds_0_loc)
                 b_mode.encode_bits.update(lvds_1_loc)
                 b_mode.encode_bits.update(lvds_2_loc)
+                bits = b_mode.encode_bits.copy()
+                b_iostd = bel.iob_flags.setdefault('LVCMOS33', dict())
+                b_mode = b_iostd.setdefault('TLVDS_OBUF', chipdb.IOBMode())
+                b_mode.encode_bits.update(bits)
             else:
                 # emulated LVDS
                 pass

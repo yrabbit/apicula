@@ -162,9 +162,15 @@ def place(db, tilemap, bels, cst, args):
             # first used pin sets bank's iostd
             # XXX default io standard may be board-dependent!
             if not iostd:
-                iostd = "LVCMOS18"
+                if 'DIFF' in attrs.keys():
+                    iostd = 'LVDS25'
+                else:
+                    iostd = "LVCMOS18"
             if not pinless_io:
-                _banks[bank].iostd = iostd
+                if iostd == 'LVDS25':
+                    _banks[bank].iostd = 'LVCMOS25'
+                else:
+                    _banks[bank].iostd = iostd
                 if mode == 'IBUF':
                     _banks[bank].bels_tiles.append((iob, tile))
                 else:
@@ -174,11 +180,13 @@ def place(db, tilemap, bels, cst, args):
                 cst.attrs.setdefault(cellname, {}).update({"IO_TYPE": iostd})
             else:
                 # XXX
-                iostd = 'LVDS25'
+                _banks[bank].true_lvds_drive = "3.5"
             # collect flag bits
             if iostd not in iob.iob_flags.keys():
                 print(f"Warning: {iostd} isn't allowed for IO{edge}{idx}{num}. Set LVCMOS18 instead.")
                 iostd = 'LVCMOS18'
+            if mode not in iob.iob_flags[iostd].keys() :
+                    raise Exception(f"IO{edge}{idx}{num}. {mode} is not allowed for a given io standard {iostd}")
             bits = iob.iob_flags[iostd][mode].encode_bits.copy()
             # XXX OPEN_DRAIN must be after DRIVE
             attrs_keys = attrs.keys()
@@ -232,8 +240,14 @@ def place(db, tilemap, bels, cst, args):
             iostd = bank_bel.bank_input_only_modes[bank_desc.iostd]
         # iostd flag
         bits |= bank_bel.bank_flags[iostd]
-        if bank == '1':
-            bits = {(0, 62), (4, 63), (8, 62), (9, 62), (11, 62)}
+        if bank_desc.true_lvds_drive:
+            # XXX set drive
+            bits |= bank_bel.bank_flags["LVDS25"]
+            comb_mode = f'LVDS25#{iostd}'
+            if comb_mode not in bank_bel.bank_flags.keys():
+                    raise Exception(
+                            f'Incorrect iostd "{iostd}" for bank with "LVDS25" pin')
+            bits |= bank_bel.bank_flags[comb_mode]
         for row, col in bits:
             btile[row][col] = 1
 
@@ -328,7 +342,6 @@ def main():
     with open(args.netlist) as f:
         pnr = json.load(f)
 
-    import ipdb; ipdb.set_trace()
     tilemap = chipdb.tile_bitmap(db, db.template, empty=True)
     cst = codegen.Constraints()
     bels = get_bels(pnr)
