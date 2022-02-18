@@ -56,9 +56,6 @@ def recode_idx_gw1ns_4(idx):
 
 def recode_idx_gw1n9(idx):
     new_idx = idx
-    if idx == 75 or idx == 81:
-        new_idx += 4
-        return new_idx
     if idx >= 69:
         new_idx += 3
     if idx == 79:
@@ -288,9 +285,10 @@ def tbrl2rc(fse, side, num):
 # the key is automatically sorted and appended with zeros.
 # If ignore_key_elem is set, the initial elements in the table record keys
 # is ignored when searching.
-def get_longval(fse, ttyp, table, key, ignore_key_elem = 0):
+# Don't sort the keep_key_elem
+def get_longval(fse, ttyp, table, key, ignore_key_elem = 0, keep_key_elem = []):
     bits = set()
-    sorted_key = (sorted(key) + [0] * 16)[:16 - ignore_key_elem]
+    sorted_key = (keep_key_elem + sorted(key) + [0] * 16)[:16 - ignore_key_elem]
     for rec in fse[ttyp]['longval'][table]:
         k = rec[ignore_key_elem:16]
         if k == sorted_key:
@@ -383,7 +381,8 @@ _input_only_recode = {
         "SSTL33_I"  : "SSTL33_I",
         "PCI33"     : "PCI33"
         }
-
+_lvds25_key_0 = 75
+_lvds25_key_1 = 1
 def fse_banks(fse, db, corners):
     for row, col, ttyp in corners:
         for name, bel in db.grid[row][col].bels.items():
@@ -396,20 +395,37 @@ def fse_banks(fse, db, corners):
                     # XXX LVCMOS18 as default
                     iostd = "LVCMOS18"
                     iostd_key, _, _, _ = _iostd_codes[iostd]
-                    loc = get_longval(fse, ttyp, 37, recode_key({bank_idx, iostd_key}))
+                    loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), 0, [bank_idx])
                     bel.modes.setdefault("ENABLE", loc)
                 else:
                     if iostd not in _complex_modes.keys():
                         iostd_key, _, _, _ = _iostd_codes[iostd]
-                        loc = get_longval(fse, ttyp, 37, recode_key({bank_idx, iostd_key}))
+                        loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), 0, [bank_idx])
                     else:
                         iostd_comp, key = _complex_modes[iostd]
                         iostd_key, _, _, _ = _iostd_codes[iostd_comp]
-                        loc = get_longval(fse, ttyp, 37, recode_key({bank_idx, iostd_key}))
+                        loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), 0, [bank_idx])
                         if key != None:
-                            loc.update(get_longval(fse, ttyp, 37, recode_key({bank_idx, key})))
+                            loc.update(get_longval(fse, ttyp, 37, recode_key({key}), 0, [bank_idx]))
                     bel.bank_flags[iostd] = loc
                     bel.bank_input_only_modes.update({iostd: _input_only_recode[iostd]})
+            # Differential pins coexist with regular pins so that LVDS modes are not
+            # some exclusive combination of bits in a corner tile, but an addition to the main
+            # bank mode. Not that it matters now when all modes are flags:)
+            # TLVDS
+            loc = get_longval(fse, ttyp, 37, recode_key({lvds_key_0}), 0, [bank_idx])
+            if loc == {}:
+                continue
+            loc.update(get_longval(fse, ttyp, 37, recode_key({_lvds_key_1}), 0, [bank_idx])
+            bel.bank_flags["LVDS25"] = loc
+            # Coexistence with other modes flags
+            iostd_key, _, _, _ = _iostd_codes["LVCMOS25"]
+            loc = get_longval(fse, ttyp, 37, recode_key({1, iostd_key}), 0, [bank_idx])
+            bel.bank_flags["LVDS25#LVCMOS25"] = loc
+            iostd_key, _, _, _ = _iostd_codes["LVCMOS33"]
+            loc = get_longval(fse, ttyp, 37, recode_key({1, iostd_key}), 0, [bank_idx])
+            bel.bank_flags["LVDS25#LVCMOS33"] = loc
+            bel.bank_input_only_modes.update({"LVDS25": "LVCMOS25"})
 
 # SLEW_RATE
 _slew_rate_iob = [        "OBUF", "IOBUF"]
