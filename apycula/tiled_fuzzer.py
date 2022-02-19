@@ -413,28 +413,28 @@ def fse_banks(fse, db, corners):
             # some exclusive combination of bits in a corner tile, but an addition to the main
             # bank mode. Not that it matters now when all modes are flags:)
             # TLVDS
-            loc = get_longval(fse, ttyp, 37, recode_key({_lvds25_key_0}), 0, [bank_idx])
-            if loc == {}:
+            mode_loc = get_longval(fse, ttyp, 37, recode_key({_lvds25_key_0}), 0, [bank_idx])
+            if mode_loc == {}:
                 continue
-            loc.update(get_longval(fse, ttyp, 37, recode_key({_lvds25_key_1}), 0, [bank_idx]))
-            bel.bank_flags["LVDS25"] = loc
+            mode_loc.update(get_longval(fse, ttyp, 37, recode_key({_lvds25_key_1}), 0, [bank_idx]))
             # Coexistence with other modes flags
             iostd_key, _, _, _ = _iostd_codes["LVCMOS25"]
             loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), 0, [bank_idx])
-            bel.bank_flags["LVDS25#LVCMOS25"] = loc
             iostd_key, _, _, _ = _iostd_codes["LVCMOS33"]
             enable = loc.intersection(get_longval(fse, ttyp, 37, recode_key({iostd_key}), 0, [bank_idx]))
-            bel.bank_flags["LVDS25"].update(enable)
-
             iostd_key, _, _, _ = _iostd_codes["LVCMOS25"]
             loc = get_longval(fse, ttyp, 37, recode_key({1, iostd_key}), 0, [bank_idx])
             loc.update(enable)
+            loc.update(mode_loc)
             bel.bank_flags["LVDS25#LVCMOS25"] = loc
+            bel.bank_input_only_modes.update({"LVDS25#LVCMOS25": "LVCMOS25"})
+
             iostd_key, _, _, _ = _iostd_codes["LVCMOS33"]
             loc = get_longval(fse, ttyp, 37, recode_key({1, iostd_key}), 0, [bank_idx])
             loc.update(enable)
+            loc.update(mode_loc)
             bel.bank_flags["LVDS25#LVCMOS33"] = loc
-            bel.bank_input_only_modes.update({"LVDS25": "LVCMOS25"})
+            bel.bank_input_only_modes.update({"LVDS25#LVCMOS33": "LVCMOS25"})
 
 # SLEW_RATE
 _slew_rate_iob = [        "OBUF", "IOBUF"]
