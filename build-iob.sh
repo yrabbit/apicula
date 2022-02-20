@@ -1,5 +1,4 @@
 #!/bin/sh
-# TOP-DIR is made by "python apycula/fuse_test.py GW1N-9C"
 if [ $# -lt 1 ]; then
 	echo "Usage: biod-iob.sh TOP-DIR [force-rebuild]"
 	exit 1
@@ -15,18 +14,16 @@ for DIR in $(find ${TOP_DIR} -type d -depth 1); do
 	PNUMBER=$(sed -n -e 's/[[:space:]]*set_device[[:space:]]*//p' <${DIR}/run.tcl)
 	PNUMBER_1=$(echo ${PNUMBER}|sed -n -e 's/-name[[:space:]].*[[:space:]]//p')
 	if [ "x${PNUMBER_1}" != "x" ]; then
-		DEVICE=$(echo ${PNUMBER}|sed -n -e 's/.*-name[[:space:]]\(.*\)[[:space:]].*/\1/p')
 		PNUMBER=${PNUMBER_1}
-	else
-		DEVICE=$(echo ${PNUMBER} | sed -n -e 's/\(GW[[:digit:]]N.*-\)[[:alpha:]][[:alpha:]]\([[:digit:]]\).*/\1\2/p')
 	fi
-	DEVICE=$(echo ${DEVICE}|sed -e 's/R//')
+	# device
+	DEVICE=$(echo ${PNUMBER} | sed -n -e 's/\(GW[[:digit:]]N.*-\)[[:alpha:]][[:alpha:]]\([[:digit:]]\).*/\1\2/p')
 	cd ${DIR}
-	echo ${DIR}
 	if [ ! -r pnr.json -o ${FORCE_REBUILD} -eq 1 ]; then
-		${YOSYS=yosys} -p "read_verilog top.v; synth_gowin -json synth.json"
-	    ${NEXTPNR=nextpnr-gowin} --json synth.json --write pnr.json --family ${DEVICE} --device ${PNUMBER} --cst top.cst
+		${YOSYS=yosys} -p "read_verilog top.v; synth_gowin -json synth.json"  
+		${NEXTPNR=nextpnr-gowin} --json synth.json --write pnr.json --device ${PNUMBER} --cst top.cst
 	fi
+	echo ${DEVICE} ${PNUMBER} ${DIR} gowin_pack
 	gowin_pack -d ${DEVICE} -o top.fs pnr.json
 	if [ ! -f top.fs ]; then
 		exit 3
