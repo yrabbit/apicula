@@ -267,7 +267,7 @@ if __name__ == "__main__":
              'L': [row[0] for row in fse['header']['grid'][61]],
              'R': [row[-1] for row in fse['header']['grid'][61]]}
     pin_bels = {}
-    pin_re = re.compile(r"IO([TBRL])(\d+)([A-Z])")
+    pin_re = re.compile(r"IO([TBRL])(\d+)\[?([A-Z])\]?")
     for name in pin_names:
         side, num, pin = pin_re.match(name).groups()
         ttyp = edges[side][int(num)-1]
