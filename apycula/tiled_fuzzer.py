@@ -61,7 +61,7 @@ def recode_idx_gw1n9(idx):
     if idx >= 69:
         new_idx += 3
     if idx >= 79:
-        new_idx += 4
+        new_idx += 1
     if idx >= 83:
         new_idx -=1
     return new_idx
