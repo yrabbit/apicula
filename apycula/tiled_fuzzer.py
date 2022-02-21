@@ -103,7 +103,7 @@ params = {
         "package": "QFN48",
         "device": "GW1NSR-4C-QFN48-7",
         "partnumber": "GW1NSR-LV4CQN48PC7/I6",
-        "recode_idx": recode_idx_gw1ns_4,
+        "recode_idx": recode_idx_gw1n4,
     },
     "GW1N-9": {
         "package": "PBGA256",
