@@ -60,9 +60,10 @@ def recode_idx_gw1n9(idx):
     new_idx = idx
     if idx >= 69:
         new_idx += 3
-    if idx == 79:
+    if idx >= 79:
         new_idx += 4
-        return new_idx
+    if idx >= 83:
+        new_idx -=1
     return new_idx
 
 def recode_idx_gw1n4(idx):
@@ -289,14 +290,13 @@ def tbrl2rc(fse, side, num):
 
 # get fuse bits from longval table
 # the key is automatically sorted and appended with zeros.
-# If ignore_key_elem is set, the initial elements in the table record keys
-# is ignored when searching.
+# If ignore_key_elem is set, elements at these positions are ignored in the comparison
 # Don't sort the keep_key_elem
-def get_longval(fse, ttyp, table, key, ignore_key_elem = 0, keep_key_elem = []):
+def get_longval(fse, ttyp, table, key, ignore_key_elem = set(), keep_key_elem = []):
     bits = set()
-    sorted_key = (keep_key_elem + sorted(key) + [0] * 16)[:16 - ignore_key_elem]
+    sorted_key = (keep_key_elem + sorted(key) + [0]*16)[:16 - len(ignore_key_elem)]
     for rec in fse[ttyp]['longval'][table]:
-        k = rec[ignore_key_elem:16]
+        k = [el for idx, el in enumerate(rec[:16]) if idx not in ignore_key_elem]
         if k == sorted_key:
             fuses = [f for f in rec[16:] if f != -1]
             for fuse in fuses:
@@ -401,42 +401,42 @@ def fse_banks(fse, db, corners):
                     # XXX LVCMOS18 as default
                     iostd = "LVCMOS18"
                     iostd_key, _, _, _ = _iostd_codes[iostd]
-                    loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), 0, [bank_idx])
+                    loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), set(), [bank_idx])
                     bel.modes.setdefault("ENABLE", loc)
                 else:
                     if iostd not in _complex_modes.keys():
                         iostd_key, _, _, _ = _iostd_codes[iostd]
-                        loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), 0, [bank_idx])
+                        loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), set(), [bank_idx])
                     else:
                         iostd_comp, key = _complex_modes[iostd]
                         iostd_key, _, _, _ = _iostd_codes[iostd_comp]
-                        loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), 0, [bank_idx])
+                        loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), set(), [bank_idx])
                         if key != None:
-                            loc.update(get_longval(fse, ttyp, 37, recode_key({key}), 0, [bank_idx]))
+                            loc.update(get_longval(fse, ttyp, 37, recode_key({key}), set(), [bank_idx]))
                     bel.bank_flags[iostd] = loc
                     bel.bank_input_only_modes.update({iostd: _input_only_recode[iostd]})
             # Differential pins coexist with regular pins so that LVDS modes are not
             # some exclusive combination of bits in a corner tile, but an addition to the main
             # bank mode. Not that it matters now when all modes are flags:)
             # TLVDS
-            mode_loc = get_longval(fse, ttyp, 37, recode_key({_lvds25_key_0}), 0, [bank_idx])
+            mode_loc = get_longval(fse, ttyp, 37, recode_key({_lvds25_key_0}), set(), [bank_idx])
             if mode_loc == {}:
                 continue
-            mode_loc.update(get_longval(fse, ttyp, 37, recode_key({_lvds25_key_1}), 0, [bank_idx]))
+            mode_loc.update(get_longval(fse, ttyp, 37, recode_key({_lvds25_key_1}), set(), [bank_idx]))
             # Coexistence with other modes flags
             iostd_key, _, _, _ = _iostd_codes["LVCMOS25"]
-            loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), 0, [bank_idx])
+            loc = get_longval(fse, ttyp, 37, recode_key({iostd_key}), set(), [bank_idx])
             iostd_key, _, _, _ = _iostd_codes["LVCMOS33"]
-            enable = loc.intersection(get_longval(fse, ttyp, 37, recode_key({iostd_key}), 0, [bank_idx]))
+            enable = loc.intersection(get_longval(fse, ttyp, 37, recode_key({iostd_key}), set(), [bank_idx]))
             iostd_key, _, _, _ = _iostd_codes["LVCMOS25"]
-            loc = get_longval(fse, ttyp, 37, recode_key({1, iostd_key}), 0, [bank_idx])
+            loc = get_longval(fse, ttyp, 37, recode_key({1, iostd_key}), set(), [bank_idx])
             loc.update(enable)
             loc.update(mode_loc)
             bel.bank_flags["LVDS25#LVCMOS25"] = loc
             bel.bank_input_only_modes.update({"LVDS25#LVCMOS25": "LVCMOS25"})
 
             iostd_key, _, _, _ = _iostd_codes["LVCMOS33"]
-            loc = get_longval(fse, ttyp, 37, recode_key({1, iostd_key}), 0, [bank_idx])
+            loc = get_longval(fse, ttyp, 37, recode_key({1, iostd_key}), set(), [bank_idx])
             loc.update(enable)
             loc.update(mode_loc)
             bel.bank_flags["LVDS25#LVCMOS33"] = loc
@@ -496,7 +496,7 @@ def fse_drive(fse, db, pin_locations):
                                 if opt_key:
                                     val = _drive_key.union({opt_key})
                                     loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
-                                            recode_key(val), 1)
+                                            recode_key(val), {0})
                                 else:
                                     loc = set()
                             else:
@@ -504,7 +504,7 @@ def fse_drive(fse, db, pin_locations):
                                 if iostd_cmos:
                                     val = val.union(_drive_idx[opt_name])
                                 loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
-                                        recode_key(val), 1)
+                                        recode_key(val), {0})
                         b_attr.options[opt_name] = loc
 
 # OPEN_DRAIN
@@ -537,13 +537,13 @@ def fse_open_drain(fse, db, pin_locations):
                     keys = _open_drain_key
                 # ON fuse is simple
                 on_fuse = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
-                        recode_key(keys['ON']), 1)
+                        recode_key(keys['ON']), {0})
                 # the mask to clear is diff between 16mA fuses of LVCMOS33 standard and
                 # some key
                 cur16ma_fuse = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
-                        recode_key(cur16ma_key), 1)
+                        recode_key(cur16ma_key), {0})
                 noise_fuse = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
-                        recode_key(keys['NOISE']), 1)
+                        recode_key(keys['NOISE']), {0})
                 clear_mask = cur16ma_fuse - noise_fuse - on_fuse;
                 for io_mode in _open_drain_iob:
                     b_mode = b_iostd.setdefault(io_mode, chipdb.IOBMode())
@@ -577,14 +577,14 @@ def fse_hysteresis(fse, db, pin_locations):
                             loc = set()
                         else:
                             loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
-                                    recode_key(val), 1)
+                                    recode_key(val), {0})
                         b_attr.options[opt_name] = loc
 
 # make DS IOs
 _merge_input_key = {76, 83}
 _lvds_0_key = {46, 56}
 _lvds_1_key = {81, 83}
-_lvds_2_key = {-85, 1, 56, 63, 83}
+_lvds_2_key = {-85, 56, 63, 83}
 def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
     for ttyp, tiles in pin_locations.items():
         for tile in tiles.keys():
@@ -618,17 +618,17 @@ def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
                 # collect encode bits
                 merge_input_loc = get_longval(fse, ttyp, _pin_mode_longval['A'], recode_key(_merge_input_key))
                 lvds_0_loc = get_longval(fse, ttyp, _pin_mode_longval['A'],
-                        recode_key(_lvds_0_key)).copy()
+                        recode_key(_lvds_0_key))
                 lvds_0_loc.update(get_longval(fse, ttyp, _pin_mode_longval['B'],
                         recode_key(_lvds_0_key)))
                 lvds_1_loc = get_longval(fse, ttyp, _pin_mode_longval['A'],
-                        recode_key(_lvds_1_key).copy())
+                        recode_key(_lvds_1_key))
                 lvds_1_loc.update(get_longval(fse, ttyp, _pin_mode_longval['B'],
                         recode_key(_lvds_1_key)))
                 lvds_2_loc = get_longval(fse, ttyp, _pin_mode_longval['A'],
-                        recode_key(_lvds_2_key).copy())
+                        recode_key(_lvds_2_key), {1})
                 lvds_2_loc.update(get_longval(fse, ttyp, _pin_mode_longval['B'],
-                        recode_key(_lvds_2_key)))
+                        recode_key(_lvds_2_key), {1}))
                 b_mode.encode_bits = set()
                 b_mode.encode_bits.update(slew_rate_loc)
                 b_mode.encode_bits.update(pull_mode_loc)
