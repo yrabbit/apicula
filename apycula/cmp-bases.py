@@ -276,12 +276,12 @@ if __name__ == "__main__":
 
     if len(sys.argv) <= 2:
         exit()
-    print('Compare images...')
 
     (_, dirnames, _) = next(os.walk(sys.argv[2]))
     total = len(dirnames)
     done  = total
     errs  = 0
+    print("Comparing banks and IOs")
     for dirname in dirnames:
         print(f'{total} {done} {errs}', end = '    \r'); done = done - 1
         img = bslib.read_bitstream(f'{sys.argv[2]}/{dirname}/top.fs')[0]
@@ -346,10 +346,10 @@ if __name__ == "__main__":
                         m18 = tiled_fuzzer.get_longval(fse, ttyp, tiled_fuzzer._pin_mode_longval[pin],
                                                      tiled_fuzzer.recode_key({66}))
                         diff = ref_bits ^ bits
-                        if len(diff) == 1:
-                            if diff == m18:
-                                print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
-                                continue
+                        #if len(diff) == 1:
+                            #if diff == m18:
+                            #    print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
+                            #    continue
                         errs = errs + 1
                         print()
                         print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')

@@ -116,6 +116,18 @@ def print_longval(ttyp, table, contains = None, must_all = False):
             if are_all:
                 print(row)
 
+def get_longval(fse, ttyp, table, key, ignore_key_elem = set(), keep_key_elem = []):
+    bits = set()
+    sorted_key = (keep_key_elem + sorted(key) + [0]*16)[:16 - len(ignore_key_elem)]
+    for rec in fse[ttyp]['longval'][table]:
+        k = [el for idx, el in enumerate(rec[:16]) if idx not in ignore_key_elem]
+        if k == sorted_key:
+            fuses = [f for f in rec[16:] if f != -1]
+            for fuse in fuses:
+                bits.update({fuse_h4x.fuse_lookup(fse, ttyp, fuse)})
+            break
+    return bits
+
 def print_longval_key(ttyp, table, key, ignore_key_elem = 0, zeros = True):
     if zeros:
         sorted_key = (sorted(key) + [0] * 16)[:16 - ignore_key_elem]
@@ -250,8 +262,8 @@ if __name__ == "__main__":
     img = bslib.read_bitstream(f'{sys.argv[2]}')[0]
     bm = chipdb.tile_bitmap(db, img)
 
-    row = 19
-    col = 37
+    row = 28
+    col = 44
     ttyp = fse['header']['grid'][61][row][col]
 
     rbits = route_bits(db, row, col)
@@ -261,5 +273,6 @@ if __name__ == "__main__":
     for df in sorted(bits):
         print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
     print(sorted(bits))
-
     import ipdb; ipdb.set_trace()
+    get_longval(fse, 58, 24, {58, 90}, {0})
+
