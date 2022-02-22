@@ -231,7 +231,10 @@ def is_illegal(iostd, pin, attr, attr_value = None):
         if pin.startswith('IOB'):
             return (not iostd.startswith('LVCMOS') and iostd != 'PCI33')
     if device == 'GW1NZ-1':
-         return iostd in ["SSTL25_I", "SSTL33_I", "SSTL15", "HSTL18_I"]
+        # XXX
+        if iostd == 'PCI33' and attr == 'DRIVE' and attr_value == '4':
+            return True
+        return iostd in ["SSTL25_I", "SSTL33_I", "SSTL15", "HSTL18_I"]
     if device == 'GW1N-9C' and pin.startswith('IOB') and attr == 'DRIVE':
         return attr_value == '24'
     return False
