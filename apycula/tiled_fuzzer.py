@@ -54,6 +54,8 @@ def recode_idx_gw1ns_4(idx):
         new_idx -= 3
     if idx >= 79:
         new_idx += 1
+    if idx >= 83:
+        new_idx -= 1
     return new_idx
 
 def recode_idx_gw1n9(idx):
@@ -74,7 +76,7 @@ def recode_idx_gw1n4(idx):
         new_idx -= 1
     if idx >= 70:
         new_idx -= 2
-    if idx >= 72:
+    if idx >= 73:
         new_idx -= 1
     if idx >= 79:
         new_idx += 1
@@ -103,7 +105,7 @@ params = {
         "package": "QFN48",
         "device": "GW1NSR-4C-QFN48-7",
         "partnumber": "GW1NSR-LV4CQN48PC7/I6",
-        "recode_idx": recode_idx_gw1n4,
+        "recode_idx": recode_idx_gw1ns_4,
     },
     "GW1N-9": {
         "package": "PBGA256",
