@@ -256,14 +256,13 @@ if __name__ == "__main__":
         print(diff_tiles.keys())
         #print(fuse_h4x.parse_tile(fse, 49, fuse_h4x.tile_bitmap(fse, img)[(19, 37, 49)]))
         #print(fuse_h4x.parse_tile(fse, 49, fuse_h4x.tile_bitmap(fse, sec_img)[(19, 37, 49)]))
-        print(sorted(get_bits(fuse_h4x.tile_bitmap(fse, img)[(0, 46, 51)])))
-        bits = get_bits(fuse_h4x.tile_bitmap(fse, img)[(0, 46, 51)])
-        import ipdb; ipdb.set_trace()
-        print(sorted(get_bits(fuse_h4x.tile_bitmap(fse, sec_img)[(16, 37, 58)])))
-        print(sorted(get_bits(diff_tiles[(16, 37, 58)])))
+        print(sorted(get_bits(fuse_h4x.tile_bitmap(fse, img)[(0, 27, 88)])))
+        bits = get_bits(fuse_h4x.tile_bitmap(fse, img)[(0, 27, 88)])
+        print(sorted(get_bits(fuse_h4x.tile_bitmap(fse, sec_img)[(0, 27, 88)])))
+        print(sorted(get_bits(diff_tiles[(0, 27, 88)])))
 
     row = 0
-    col = 46
+    col = 27
     ttyp = fse['header']['grid'][61][row][col]
 
     rbits = route_bits(db, row, col)
