@@ -60,6 +60,9 @@ def recode_idx_gw1ns_4(idx):
 
 def recode_idx_gw1n9(idx):
     new_idx = idx
+    if idx == 75 or idx == 81:
+        new_idx += 4
+        return new_idx
     if idx >= 69:
         new_idx += 3
     if idx >= 79:
@@ -80,6 +83,16 @@ def recode_idx_gw1n4(idx):
         new_idx -= 1
     if idx >= 79:
         new_idx += 1
+    return new_idx
+
+def recode_idx_gw1nz_1(idx):
+    new_idx = idx
+    if idx >= 40:
+        new_idx -= 10
+    if idx >= 60:
+        new_idx -= 2
+    if idx >= 80:
+        new_idx -= 6
     return new_idx
 
 def recode_idx_gw1nz_1(idx):
@@ -948,6 +961,13 @@ if __name__ == "__main__":
                 bel.flags.setdefault(flag.upper(), set()).update(loc)
             except ValueError:
                 pass
+    fse_pull_mode(fse, db, pin_locations)
+    fse_slew_rate(fse, db, pin_locations)
+    fse_hysteresis(fse, db, pin_locations)
+    fse_drive(fse, db, pin_locations)
+
+    # bank modes
+    fse_banks(fse, db, corners)
 
     # Fill the IOB encodings from fse tables
     fse_pull_mode(fse, db, pin_locations)
