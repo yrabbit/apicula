@@ -45,9 +45,9 @@ params = {
         "partnumber": "GW1NS-UX2CLQ144C5/I4",
     },
     "GW1NS-4": {
-        "package": "QFN48",
-        "device": "GW1NSR-4C-QFN48-7",
-        "partnumber": "GW1NSR-LV4CQN48PC7/I6",
+          "package": "MBGA64",
+          "device": "GW1NS-4C-MBGA64-6",
+          "partnumber": "GW1NS-LV4CMG64C6/I5",
     },
     "GW1N-9": {
         "package": "PBGA256",
@@ -63,16 +63,6 @@ params = {
         "package": "LQFP144",
         "device": "GW1N-1-LQFP144-6",
         "partnumber": "GW1N-LV1LQ144C6/I5",
-    },
-    "GW1N-9C": {
-        "package": "UBGA332",
-        "device": "GW1N-9C-UBGA332-6",
-        "partnumber": "GW1N-LV9UG332C6/I5",
-    },
-    "GW1NZ-1": {
-        "package": "QFN48",
-        "device": "GW1NZ-1-QFN48-6",
-        "partnumber": "GW1NZ-LV1QN48C6/I5",
     },
 }[device]
 
@@ -115,18 +105,6 @@ def print_longval(ttyp, table, contains = None, must_all = False):
                         break
             if are_all:
                 print(row)
-
-def get_longval(fse, ttyp, table, key, ignore_key_elem = set(), keep_key_elem = []):
-    bits = set()
-    sorted_key = (keep_key_elem + sorted(key) + [0]*16)[:16 - len(ignore_key_elem)]
-    for rec in fse[ttyp]['longval'][table]:
-        k = [el for idx, el in enumerate(rec[:16]) if idx not in ignore_key_elem]
-        if k == sorted_key:
-            fuses = [f for f in rec[16:] if f != -1]
-            for fuse in fuses:
-                bits.update({fuse_h4x.fuse_lookup(fse, ttyp, fuse)})
-            break
-    return bits
 
 def print_longval_key(ttyp, table, key, ignore_key_elem = 0, zeros = True):
     if zeros:
@@ -173,6 +151,15 @@ def pict(bm, name):
     im = bslib.display(None, bm)
     im_scaled = im.resize((im.width * 10, im.height * 10), Image.NEAREST)
     im_scaled.save(f"/home/rabbit/tmp/{name}")
+
+def get_bits(bm):
+    bits = set()
+    rows, cols = bm.shape
+    for row in range(rows):
+        for col in range(cols):
+            if bm[row][col] == 1:
+                bits.update({(row, col)})
+    return bits
 
 def deep_bank_cmp(bel, ref_bel):
     keys = set(bel.bank_flags.keys())
@@ -253,26 +240,41 @@ if __name__ == "__main__":
 
     with open(f"/home/rabbit/src/apicula/apycula/{device}.pickle", "rb") as f:
         db = pickle.load(f)
-    #with open(f"/home/rabbit/var/fpga/bases-new-ide-site/{device}.pickle", "rb") as f:
-    #    ref_db = pickle.load(f)
 
+    if len(sys.argv) > 2:
+        img = bslib.read_bitstream(f'{sys.argv[2]}')[0]
+        bm = chipdb.tile_bitmap(db, img)
+    else:
+        import ipdb; ipdb.set_trace()
 
-    import ipdb; ipdb.set_trace()
+    # cmp images
+    if len(sys.argv) > 3:
+        sec_img = bslib.read_bitstream(f'{sys.argv[3]}')[0]
+        sec_bm = chipdb.tile_bitmap(db, sec_img)
+        diff = img ^ sec_img
+        diff_tiles = fuse_h4x.tile_bitmap(fse, diff)
+        print(diff_tiles.keys())
+        #print(fuse_h4x.parse_tile(fse, 49, fuse_h4x.tile_bitmap(fse, img)[(19, 37, 49)]))
+        #print(fuse_h4x.parse_tile(fse, 49, fuse_h4x.tile_bitmap(fse, sec_img)[(19, 37, 49)]))
+        print(sorted(get_bits(fuse_h4x.tile_bitmap(fse, img)[(0, 46, 51)])))
+        bits = get_bits(fuse_h4x.tile_bitmap(fse, img)[(0, 46, 51)])
+        import ipdb; ipdb.set_trace()
+        print(sorted(get_bits(fuse_h4x.tile_bitmap(fse, sec_img)[(16, 37, 58)])))
+        print(sorted(get_bits(diff_tiles[(16, 37, 58)])))
 
-    img = bslib.read_bitstream(f'{sys.argv[2]}')[0]
-    bm = chipdb.tile_bitmap(db, img)
-
-    row = 28
-    col = 44
+    row = 0
+    col = 46
     ttyp = fse['header']['grid'][61][row][col]
 
     rbits = route_bits(db, row, col)
     r, c = np.where(bm[(row, col)] == 1)
     tile = set(zip(r, c))
-    bits = tile - rbits
+    bits = tile# - rbits
+    fuses = set()
     for df in sorted(bits):
+        fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
         print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
     print(sorted(bits))
-    import ipdb; ipdb.set_trace()
-    get_longval(fse, 58, 24, {58, 90}, {0})
+    print(sorted(fuses))
 
+    import ipdb; ipdb.set_trace()
