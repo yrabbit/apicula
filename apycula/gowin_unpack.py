@@ -91,14 +91,14 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                 #print(mode, sorted(bits))
                 if bits == mode_bits and (default or bits):
                     bels.setdefault(name, set()).add(mode)
-                    if name == "BANK":
+                    if name[0:4] == "BANK":
                         # set iostd for bank
                         flag_bits = {(row, col)
                                       for row, col in bel.bank_mask
                                       if tile[row][col] == 1}
                         for iostd, bits in bel.bank_flags.items():
                             if bits == flag_bits:
-                                _banks[chipdb.loc2bank(db, row, col)] = iostd
+                                _banks[name[4:]] = iostd
                                 break
                         # mode found
                         break
@@ -106,6 +106,8 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
         for flag, bits in bel.flags.items():
             used_bits = {tile[row][col] for row, col in bits}
             if all(used_bits):
+                if name == "RAM16" and not name in bels:
+                    continue
                 bels.setdefault(name, set()).add(flag)
 
     pips = {}
@@ -224,8 +226,17 @@ def removeALUs(bels):
     for bel in bels_to_remove:
         bels.pop(bel, None)
 
+def ram16_remove_bels(bels):
+    bels_to_remove = []
+    for bel in bels:
+        if bel == "RAM16":
+            bels_to_remove.extend(f"LUT{x}" for x in range(6))
+            bels_to_remove.extend(f"DFF{x}" for x in range(4, 6))
+    for bel in bels_to_remove:
+        bels.pop(bel, None)
+
 _sides = "AB"
-def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cfg, cst, db):
+def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
     # db is 0-based, floorplanner is 1-based
     row = dbrow+1
     col = dbcol+1
@@ -236,7 +247,7 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cfg, cst, db):
         mod.wires.update({srcg, destg})
         mod.assigns.append((destg, srcg))
 
-    belre = re.compile(r"(IOB|LUT|DFF|BANK|CFG|ALU)(\w*)")
+    belre = re.compile(r"(IOB|LUT|DFF|BANK|CFG|ALU|RAM16)(\w*)")
     for bel, flags in bels.items():
         typ, idx = belre.match(bel).groups()
 
@@ -284,6 +295,25 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cfg, cst, db):
                     alu.portmap['I1'] = f"R{row}C{col}_D{idx}"
                 mod.wires.update(alu.portmap.values())
                 mod.primitives[name] = alu
+        elif typ == "RAM16":
+            val0 = sum(1<<x for x in range(0,16) if not x in flags)
+            val1 = sum(1<<(x-16) for x in range(16,32) if not x in flags)
+            val2 = sum(1<<(x-32) for x in range(32,48) if not x in flags)
+            val3 = sum(1<<(x-48) for x in range(48,64) if not x in flags)
+            name = f"R{row}C{col}_RAM16"
+            ram16 = codegen.Primitive("RAM16SDP4", name)
+            ram16.params["INIT_0"] = f"16'b{val0:016b}"
+            ram16.params["INIT_1"] = f"16'b{val1:016b}"
+            ram16.params["INIT_2"] = f"16'b{val2:016b}"
+            ram16.params["INIT_3"] = f"16'b{val3:016b}"
+            ram16.portmap['DI'] = [f"R{row}C{col}_{x}5" for x in "ABCD"]
+            ram16.portmap['CLK'] = f"R{row}C{col}_CLK2"
+            ram16.portmap['WRE'] = f"R{row}C{col}_LSR2"
+            ram16.portmap['WAD'] = [f"R{row}C{col}_{x}4" for x in "ABCD"]
+            ram16.portmap['RAD'] = [f"R{row}C{col}_{x}0" for x in "ABCD"]
+            ram16.portmap['DO'] = [f"R{row}C{col}_F{x}" for x in range(4)]
+            mod.wires.update(chain.from_iterable([x if isinstance(x, list) else [x] for x in ram16.portmap.values()]))
+            mod.primitives[name] = ram16
 
         elif typ == "DFF":
             #print(flags)
@@ -338,12 +368,6 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cfg, cst, db):
                 name_val = flg.split('=')
                 cst.attrs.setdefault(name, {}).update({name_val[0] : name_val[1]})
 
-        elif typ == "CFG":
-            for flag in flags:
-                for name in cfg.settings.keys():
-                    if name.startswith(flag):
-                        cfg.settings[name] = 'true'
-
     # gnd = codegen.Primitive("GND", "mygnd")
     # gnd.portmap["G"] = "VSS"
     # mod.primitives["mygnd"] = gnd
@@ -378,10 +402,8 @@ def main():
     parser.add_argument('bitstream')
     parser.add_argument('-d', '--device', required=True)
     parser.add_argument('-o', '--output', default='unpack.v')
-    parser.add_argument('-c', '--config', default=None)
     parser.add_argument('-s', '--cst', default=None)
-    parser.add_argument('--noalu', metavar='N', type = int,
-                        default = 0, help = '0 - detect the ALU')
+    parser.add_argument('--noalu', action = 'store_false')
 
     args = parser.parse_args()
 
@@ -400,7 +422,6 @@ def main():
     bitmap = read_bitstream(args.bitstream)[0]
     bm = chipdb.tile_bitmap(db, bitmap)
     mod = codegen.Module()
-    cfg = codegen.DeviceConfig(default_device_config())
     cst = codegen.Constraints()
 
     for (drow, dcol, dname), (srow, scol, sname) in db.aliases.items():
@@ -417,7 +438,7 @@ def main():
         except KeyError:
             continue
         bels, pips, clock_pips = parse_tile_(db, row, col, t)
-        tile2verilog(row, col, bels, pips, clock_pips, mod, cfg, cst, db)
+        tile2verilog(row, col, bels, pips, clock_pips, mod, cst, db)
 
     for idx, t in bm.items():
         row, col = idx
@@ -438,14 +459,11 @@ def main():
             removeALUs(bels)
         else:
             removeLUTs(bels)
-        tile2verilog(row, col, bels, pips, clock_pips, mod, cfg, cst, db)
+        ram16_remove_bels(bels)
+        tile2verilog(row, col, bels, pips, clock_pips, mod, cst, db)
 
     with open(args.output, 'w') as f:
         mod.write(f)
-
-    if args.config:
-        with open(args.config, 'w') as f:
-            cfg.write(f)
 
     if args.cst:
         with open(args.cst, 'w') as f:
