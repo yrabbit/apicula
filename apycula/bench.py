@@ -54,6 +54,11 @@ params = {
         "device": "GW1N-9-PBGA256-6",
         "partnumber": "GW1N-LV9PG256C6/I5",
     },
+    "GW1N-9C": {
+        "package": "UBGA332",
+        "device": "GW1N-9C-UBGA332-6",
+        "partnumber": "GW1N-LV9UG332C6/I5",
+    },
     "GW1N-4": {
         "package": "PBGA256",
         "device": "GW1N-4-PBGA256-6",
@@ -247,13 +252,11 @@ if __name__ == "__main__":
     else:
         import ipdb; ipdb.set_trace()
 
-    row3 = 10
-    col3 = 6
+    row3 = 1
+    col3 = 37
     # cmp images
     if len(sys.argv) > 3:
         fuses = set()
-        row3 = 10
-        col3 = 6
         ttyp = fse['header']['grid'][61][row3][col3]
         sec_img = bslib.read_bitstream(f'{sys.argv[3]}')[0]
         sec_bm = chipdb.tile_bitmap(db, sec_img)
