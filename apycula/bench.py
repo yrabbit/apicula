@@ -252,17 +252,18 @@ if __name__ == "__main__":
     else:
         import ipdb; ipdb.set_trace()
 
-    row3 = 1
-    col3 = 37
+    row3 = 28
+    col3 = 30
+    import ipdb; ipdb.set_trace()
     # cmp images
     if len(sys.argv) > 3:
         fuses = set()
-        ttyp = fse['header']['grid'][61][row3][col3]
         sec_img = bslib.read_bitstream(f'{sys.argv[3]}')[0]
         sec_bm = chipdb.tile_bitmap(db, sec_img)
         diff = img ^ sec_img
         diff_tiles = fuse_h4x.tile_bitmap(fse, diff)
         print(diff_tiles.keys())
+        ttyp = fse['header']['grid'][61][row3][col3]
         #print(fuse_h4x.parse_tile(fse, 49, fuse_h4x.tile_bitmap(fse, img)[(19, 37, 49)]))
         #print(fuse_h4x.parse_tile(fse, 49, fuse_h4x.tile_bitmap(fse, sec_img)[(19, 37, 49)]))
         print(sorted(get_bits(fuse_h4x.tile_bitmap(fse, img)[(row3, col3, ttyp)])))
