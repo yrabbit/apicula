@@ -19,6 +19,7 @@ from apycula import codegen
 from apycula import bslib
 from apycula import pindef
 from apycula import fuse_h4x
+from apycula.wirenames import wirenames, clknames
 #TODO proper API
 #from apycula import dat19_h4x
 from apycula import tm_h4x
@@ -676,6 +677,12 @@ def fse_iologic(fse, db, pin_locations):
                 loc = get_shortval(fse, ttyp, _iologic_table, _oddr_key_0)
                 loc.update(get_shortval(fse, ttyp, _iologic_table, _oddr_key_1))
                 bel.modes.setdefault('ENABLE', loc)
+                bel.portmap = {
+                    'D0':  wirenames[dat[f'Iologic{bel_idx}In'][1]],
+                    'D1':  wirenames[dat[f'Iologic{bel_idx}In'][2]],
+                    'CLK': wirenames[dat[f'Iologic{bel_idx}In'][17]],
+                    'TX':  wirenames[dat[f'Iologic{bel_idx}In'][27]],
+                }
 
 # IOB fuzzer
 def find_next_loc(pin, locs):

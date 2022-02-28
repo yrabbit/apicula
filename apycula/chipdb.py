@@ -420,13 +420,6 @@ def dat_portmap(dat, dev):
                         bel.portmap['I'] = out
                         oe = wirenames[dat[f'Iobuf{pin}OE']]
                         bel.portmap['OE'] = oe
-                        # XXX iologic ports
-                        d0 = wirenames[dat[f'Iologic{pin}In'][1]]
-                        bel.portmap['IOL_D0'] = d0
-                        d1 = wirenames[dat[f'Iologic{pin}In'][2]]
-                        bel.portmap['IOL_D1'] = d1
-                        tx = wirenames[dat[f'Iologic{pin}In'][27]]
-                        bel.portmap['IOL_TX'] = tx
 
 def dat_aliases(dat, dev):
     for row in dev.grid:
