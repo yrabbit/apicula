@@ -313,7 +313,7 @@ def get_longval(fse, ttyp, table, key, ignore_key_elem = set(), keep_key_elem = 
 def get_shortval(fse, ttyp, table, key):
     bits = set()
     for rec in fse[ttyp]['shortval'][table]:
-        if kye[0] == rec[0] and key[1] == rec[1]:
+        if key[0] == rec[0] and key[1] == rec[1]:
             fuses = [f for f in rec[2:] if f != -1]
             for fuse in fuses:
                 bits.update({fuse_h4x.fuse_lookup(fse, ttyp, fuse)})
