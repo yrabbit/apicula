@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - master
-      - test-9c
     tags:
       - '*'
   pull_request:
