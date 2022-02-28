@@ -672,6 +672,8 @@ def fse_iologic(fse, db, pin_locations):
         row, col = tbrl2rc(fse, side, num)
         bels = {name[-1] for loc in tiles.values() for name in loc}
         for bel_idx in bels:
+            if bel_idx not in {'A', 'B'}:
+                continue
             if 'shortval' in fse[ttyp] and _iologic_table in fse[ttyp]['shortval']:
                 bel = db.grid[row][col].bels.setdefault(f"ODDR{bel_idx}", chipdb.Bel())
                 loc = get_shortval(fse, ttyp, _iologic_table, _oddr_key_0)
