@@ -309,6 +309,17 @@ def get_longval(fse, ttyp, table, key, ignore_key_elem = set(), keep_key_elem = 
             break
     return bits
 
+#
+def get_shortval(fse, ttyp, table, key):
+    bits = set()
+    for rec in fse[ttyp]['shortval'][table]:
+        if kye[0] == rec[0] and key[1] == rec[1]:
+            fuses = [f for f in rec[2:] if f != -1]
+            for fuse in fuses:
+                bits.update({fuse_h4x.fuse_lookup(fse, ttyp, fuse)})
+            break
+    return bits
+
 # diff boards have diff key indexes
 def recode_helper_fn(x) :
     if x >= 0:
@@ -648,6 +659,23 @@ def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
             else:
                 # emulated LVDS
                 pass
+
+# make IOLogic bels
+_iologic_table = 21
+_oddr_key_0 = [10, 0]
+_oddr_key_1 = [91, 0]
+def fse_iologic(fse, db, pin_locations):
+    for ttyp, tiles in pin_locations.items():
+        pin_loc = list(tiles.keys())[0]
+        side, num = _tbrlre.match(pin_loc).groups()
+        row, col = tbrl2rc(fse, side, num)
+        bels = {name[-1] for loc in tiles.values() for name in loc}
+        for bel_idx in bels:
+            if 'shortval' in fse[ttyp] and _iologic_table in fse[ttyp]['shortval']:
+                bel = db.grid[row][col].bels.setdefault(f"ODDR{bel_idx}", chipdb.Bel())
+                loc = get_shortval(fse, ttyp, _iologic_table, _oddr_key_0)
+                loc.update(get_shortval(fse, ttyp, _iologic_table, _oddr_key_1))
+                bel.modes.setdefault('ENABLE', loc)
 
 # IOB fuzzer
 def find_next_loc(pin, locs):
@@ -1053,6 +1081,7 @@ if __name__ == "__main__":
     fse_slew_rate(fse, db, pin_locations)
     fse_hysteresis(fse, db, pin_locations)
     fse_drive(fse, db, pin_locations)
+    fse_iologic(fse, db, pin_locations)
 
     # diff IOB
     diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
