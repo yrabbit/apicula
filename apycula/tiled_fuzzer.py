@@ -1096,6 +1096,10 @@ if __name__ == "__main__":
     diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
     fse_diff_iob(fse, db, pin_locations, diff_cap_info);
 
+    # diff IOB
+    diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
+    fse_diff_iob(fse, db, pin_locations, diff_cap_info);
+
     # bank modes
     fse_banks(fse, db, corners)
 
