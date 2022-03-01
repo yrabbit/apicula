@@ -85,6 +85,7 @@ class BankDesc:
 _banks = {}
 _sides = "AB"
 def place(db, tilemap, bels, cst, args):
+    import ipdb; ipdb.set_trace()
     for typ, row, col, num, parms, attrs, cellname in bels:
         tiledata = db.grid[row-1][col-1]
         tile = tilemap[(row-1, col-1)]
