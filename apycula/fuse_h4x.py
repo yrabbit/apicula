@@ -214,7 +214,7 @@ def scan_fuses(d, ttyp, tile):
             num = fuse[ttyp]
             frow = num // 100
             fcol = num % 100
-            if frow == row and fcol == col and fnum > 100:
+            if frow == row and fcol == col:
                 fuses.append(fnum)
     return set(fuses)
 
