@@ -684,6 +684,9 @@ def fse_iologic(fse, db, pin_locations):
                     'D1':  wirenames[dat[f'Iologic{bel_idx}In'][2]],
                     'CLK': wirenames[dat[f'Iologic{bel_idx}In'][17]],
                     'TX':  wirenames[dat[f'Iologic{bel_idx}In'][27]],
+                    # XXX shamanism
+                    #'PORT_VSS': wirenames[dat[f'Iologic{bel_idx}In'][47]],
+                    #'PORT_VCC': wirenames[dat[f'Iologic{bel_idx}In'][48]],
                 }
 
 # IOB fuzzer
