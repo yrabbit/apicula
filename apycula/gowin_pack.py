@@ -28,7 +28,7 @@ def sanitize_name(name):
 
 def get_bels(data):
     later = []
-    belre = re.compile(r"R(\d+)C(\d+)_(?:SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8)(\w)")
+    belre = re.compile(r"R(\d+)C(\d+)_(?:SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8|ODDR)(\w)")
     for cellname, cell in data['modules']['top']['cells'].items():
         bel = cell['attributes']['NEXTPNR_BEL']
         bels = belre.match(bel)
@@ -85,6 +85,7 @@ class BankDesc:
 _banks = {}
 _sides = "AB"
 def place(db, tilemap, bels, cst, args):
+    import ipdb; ipdb.set_trace()
     for typ, row, col, num, parms, attrs, cellname in bels:
         tiledata = db.grid[row-1][col-1]
         tile = tilemap[(row-1, col-1)]
@@ -230,6 +231,12 @@ def place(db, tilemap, bels, cst, args):
 
             if pinless_io:
                 return
+        elif typ == "ODDR":
+            bel = tiledata.bels[f'ODDR{num}']
+            bits = bel.modes['ENABLE']
+            for r, c in bits:
+                tile[r][c] = 1
+
     # If the entire bank has only inputs, the LVCMOS12/15/18 bit is set
     # in each IBUF regardless of the actual I/O standard.
     for bank, bank_desc in _banks.items():
