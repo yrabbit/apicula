@@ -662,9 +662,11 @@ def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
                 pass
 
 # make IOLogic bels
-_iologic_table = 21
-_oddr_key_0 = [10, 0]
+_iologic_table = {'A' : 21, 'B' : 22}
+_oddr_sbuf_key = [9, 0]   # single end
+_oddr_dbuf_key = [10, 0]  # diff
 _oddr_key_1 = [91, 0]
+_oddr_io_key = {89}       # iobuf key
 def fse_iologic(fse, db, pin_locations):
     for ttyp, tiles in pin_locations.items():
         pin_loc = list(tiles.keys())[0]
@@ -674,19 +676,27 @@ def fse_iologic(fse, db, pin_locations):
         for bel_idx in bels:
             if bel_idx not in {'A', 'B'}:
                 continue
-            if 'shortval' in fse[ttyp] and _iologic_table in fse[ttyp]['shortval']:
+            if 'shortval' in fse[ttyp] and _iologic_table[bel_idx] in fse[ttyp]['shortval']:
                 bel = db.grid[row][col].bels.setdefault(f"ODDR{bel_idx}", chipdb.Bel())
-                loc = get_shortval(fse, ttyp, _iologic_table, _oddr_key_0)
-                loc.update(get_shortval(fse, ttyp, _iologic_table, _oddr_key_1))
-                bel.modes.setdefault('ENABLE', loc)
+                bel.modes.setdefault('ENABLE', set())
+                # single end obuf
+                loc = get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_sbuf_key)
+                loc.update(get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_key_1))
+                bel.flags.setdefault('SBUF', loc)
+                # diff obuf
+                loc = get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_dbuf_key)
+                loc.update(get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_key_1))
+                bel.flags.setdefault('DBUF', loc)
+                # iobuf
+                loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
+                        recode_key(_oddr_io_key))
+                loc.update(get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_key_1))
+                bel.flags.setdefault('IOBUF', loc)
                 bel.portmap = {
                     'D0':  wirenames[dat[f'Iologic{bel_idx}In'][1]],
                     'D1':  wirenames[dat[f'Iologic{bel_idx}In'][2]],
                     'CLK': wirenames[dat[f'Iologic{bel_idx}In'][17]],
                     'TX':  wirenames[dat[f'Iologic{bel_idx}In'][27]],
-                    # XXX shamanism
-                    #'PORT_VSS': wirenames[dat[f'Iologic{bel_idx}In'][47]],
-                    #'PORT_VCC': wirenames[dat[f'Iologic{bel_idx}In'][48]],
                 }
 
 # IOB fuzzer
@@ -1094,10 +1104,6 @@ if __name__ == "__main__":
     fse_hysteresis(fse, db, pin_locations)
     fse_drive(fse, db, pin_locations)
     fse_iologic(fse, db, pin_locations)
-
-    # diff IOB
-    diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
-    fse_diff_iob(fse, db, pin_locations, diff_cap_info);
 
     # diff IOB
     diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
