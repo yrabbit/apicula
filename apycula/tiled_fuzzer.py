@@ -665,7 +665,7 @@ def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
 _iologic_table = {'A' : 21, 'B' : 22}
 _oddr_sbuf_key = [9, 0]   # single end
 _oddr_dbuf_key = [10, 0]  # diff
-_oddr_key_1 = [91, 0]
+#_oddr_key_1 = [91, 0]
 _oddr_io_key = {89}       # iobuf key
 def fse_iologic(fse, db, pin_locations):
     for ttyp, tiles in pin_locations.items():
@@ -681,16 +681,16 @@ def fse_iologic(fse, db, pin_locations):
                 bel.modes.setdefault('ENABLE', set())
                 # single end obuf
                 loc = get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_sbuf_key)
-                loc.update(get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_key_1))
+#                loc.update(get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_key_1))
                 bel.flags.setdefault('SBUF', loc)
                 # diff obuf
                 loc = get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_dbuf_key)
-                loc.update(get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_key_1))
+#                loc.update(get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_key_1))
                 bel.flags.setdefault('DBUF', loc)
                 # iobuf
                 loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
                         recode_key(_oddr_io_key))
-                loc.update(get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_key_1))
+#                loc.update(get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_key_1))
                 bel.flags.setdefault('IOBUF', loc)
                 bel.portmap = {
                     'D0':  wirenames[dat[f'Iologic{bel_idx}In'][1]],
