@@ -610,12 +610,6 @@ def fse_hysteresis(fse, db, pin_locations):
                                     recode_key(val), {0})
                         b_attr.options[opt_name] = loc
 
-def is_true_lvds_p(pin, diff_cap_info):
-    if pin_index not in diff_cap_info.keys():
-        return False
-    is_diff, is_true_lvds, is_positive = diff_cap_info[pin_index]
-    return is_diff and is_true_lvds and is_positive
-
 # make DS IOs
 _merge_input_key = {76, 83}
 _lvds_0_key = {46, 56}
@@ -627,12 +621,12 @@ def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
             pin_index = tile + 'A'
             if pin_index not in diff_cap_info.keys():
                 continue
-            if not is_true_lvds_p(pin_index, diff_cap_info):
+            is_diff, is_true_lvds, is_positive = diff_cap_info[pin_index]
+            if not is_diff:
                 continue
+            assert is_positive
             side, num = _tbrlre.match(tile).groups()
             row, col = tbrl2rc(fse, side, num)
-            # XXX
-            is_diff, is_true_lvds, is_positive = diff_cap_info[pin_index]
             print(f"[{row}][{col}]", pin_index, is_diff, is_true_lvds, is_positive)
             if is_true_lvds:
                 # XXX IOSTD & DRIVE
@@ -1140,6 +1134,10 @@ if __name__ == "__main__":
     fse_hysteresis(fse, db, pin_locations)
     fse_drive(fse, db, pin_locations)
     fse_iologic(fse, db, pin_locations)
+
+    # diff IOB
+    diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
+    fse_diff_iob(fse, db, pin_locations, diff_cap_info);
 
     # diff IOB
     diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
