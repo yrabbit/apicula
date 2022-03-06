@@ -628,7 +628,7 @@ def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
                     pull_mode_loc = bel_b_flags['PULL_MODE'].options['NONE'].copy();
                     pull_mode_loc.update(bel_flags['PULL_MODE'].options['NONE']);
                 except KeyError:
-                    raise Exception(f"TLVDS base bes must have SLEW_RATE and PULL_MODE defined")
+                    raise Exception(f"TLVDS base bels must have SLEW_RATE and PULL_MODE defined")
 
                 b_iostd = bel.iob_flags.setdefault('LVCMOS25', dict())
                 b_mode = b_iostd.setdefault('TLVDS_OBUF', chipdb.IOBMode())
@@ -1104,6 +1104,10 @@ if __name__ == "__main__":
     fse_hysteresis(fse, db, pin_locations)
     fse_drive(fse, db, pin_locations)
     fse_iologic(fse, db, pin_locations)
+
+    # diff IOB
+    diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
+    fse_diff_iob(fse, db, pin_locations, diff_cap_info);
 
     # diff IOB
     diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
