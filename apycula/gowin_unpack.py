@@ -98,6 +98,8 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                                       if tile[row][col] == 1}
                         for iostd, bits in bel.bank_flags.items():
                             if bits == flag_bits:
+                                if iostd.startswith('LVDS25'):
+                                    iostd = iostd[7:]
                                 _banks[name[4:]] = iostd
                                 break
                         # mode found
@@ -151,6 +153,7 @@ iobmap = {
     "IBUF": {"wires": ["O"], "inputs": ["I"]},
     "OBUF": {"wires": ["I"], "outputs": ["O"]},
     "IOBUF": {"wires": ["I", "O", "OE"], "inouts": ["IO"]},
+    "TLVDS_OBUF": {"wires": ["I"], "outputs": ["O", "OB"]},
 }
 
 # OE -> OEN
@@ -236,7 +239,7 @@ def ram16_remove_bels(bels):
         bels.pop(bel, None)
 
 _sides = "AB"
-def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cfg, cst, db):
+def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
     # db is 0-based, floorplanner is 1-based
     row = dbrow+1
     col = dbcol+1
@@ -361,18 +364,14 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cfg, cst, db):
             pos = chipdb.loc2pin_name(db, dbrow, dbcol)
             bank = chipdb.loc2bank(db, dbrow, dbcol)
             cst.ports[name] = f"{pos}{idx}"
+            if kind[0:5] == 'TLVDS':
+                cst.ports[name] = f"{pos}{idx},{pos}{chr(ord(idx) + 1)}"
             iostd = _banks.get(bank)
             if iostd:
                 cst.attrs.setdefault(name, {}).update({"IO_TYPE" : iostd})
             for flg in flags:
                 name_val = flg.split('=')
                 cst.attrs.setdefault(name, {}).update({name_val[0] : name_val[1]})
-
-        elif typ == "CFG":
-            for flag in flags:
-                for name in cfg.settings.keys():
-                    if name.startswith(flag):
-                        cfg.settings[name] = 'true'
 
     # gnd = codegen.Primitive("GND", "mygnd")
     # gnd.portmap["G"] = "VSS"
@@ -444,7 +443,7 @@ def main():
         except KeyError:
             continue
         bels, pips, clock_pips = parse_tile_(db, row, col, t)
-        tile2verilog(row, col, bels, pips, clock_pips, mod, cfg, cst, db)
+        tile2verilog(row, col, bels, pips, clock_pips, mod, cst, db)
 
     for idx, t in bm.items():
         row, col = idx
@@ -466,7 +465,7 @@ def main():
         else:
             removeLUTs(bels)
         ram16_remove_bels(bels)
-        tile2verilog(row, col, bels, pips, clock_pips, mod, cfg, cst, db)
+        tile2verilog(row, col, bels, pips, clock_pips, mod, cst, db)
 
     with open(args.output, 'w') as f:
         mod.write(f)

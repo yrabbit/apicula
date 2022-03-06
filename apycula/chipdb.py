@@ -424,6 +424,13 @@ def dat_portmap(dat, dev):
                         bel.portmap['I'] = out
                         oe = wirenames[dat[f'Iobuf{pin}OE']]
                         bel.portmap['OE'] = oe
+                elif name.startswith("ODDR"):
+                        d0 = wirenames[dat[f'Iologic{pin}In'][1]]
+                        bel.portmap['D0'] = d0
+                        d1 = wirenames[dat[f'Iologic{pin}In'][2]]
+                        bel.portmap['D1'] = d1
+                        tx = wirenames[dat[f'Iologic{pin}In'][27]]
+                        bel.portmap['TX'] = tx
 
 def dat_aliases(dat, dev):
     for row in dev.grid:

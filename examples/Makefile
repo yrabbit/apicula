@@ -10,10 +10,10 @@ unpacked: attosoc-tec0117-unpacked.v nanolcd-tangnano-unpacked.v blinky-tec0117-
 	blinky-tangnano-unpacked.v blinky-honeycomb-unpacked.v shift-tec0117-unpacked.v shift-runber-unpacked.v \
 	shift-tangnano-unpacked.v shift-honeycomb-unpacked.v iob-tangnano-unpacked.v iob-default-flags-tangnano-unpacked.v \
 	tonegen-tec0117-unpacked.v
-	
+
 clean:
 	rm -f *.json *.fs *-unpacked.v
-	
+
 .PHONY: all clean
 
 %-tec0117.fs: %-tec0117.json
@@ -103,7 +103,7 @@ nanolcd-tangnano-synth.json: nanolcd/TOP.v nanolcd/VGAMod.v
 
 %-tangnano-prog: %-tangnano.fs
 	openFPGALoader -b tangnano $^
-	
+
 %-tangnano4k-prog: %-tangnano4k.fs
 	openFPGALoader -b tangnano4k $^
 

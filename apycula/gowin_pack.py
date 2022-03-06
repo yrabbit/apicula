@@ -27,6 +27,7 @@ def sanitize_name(name):
     return f"\{retname} "
 
 def get_bels(data):
+    later = []
     belre = re.compile(r"R(\d+)C(\d+)_(?:SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8)(\w)")
     for cellname, cell in data['modules']['top']['cells'].items():
         bel = cell['attributes']['NEXTPNR_BEL']
@@ -34,6 +35,17 @@ def get_bels(data):
         if not bels:
             raise Exception(f"Unknown bel:{bel}")
         row, col, num = bels.groups()
+        # The differential buffer is pushed to the end of the queue for processing
+        # because it does not have an independent iostd, but adjusts to the normal pins
+        # in the bank, if any are found
+        if 'DIFF' in cell['attributes'].keys():
+            later.append((cellname, cell, row, col, num))
+            continue
+        yield (cell['type'], int(row), int(col), num,
+                cell['parameters'], cell['attributes'], sanitize_name(cellname))
+
+    # diff iobs
+    for cellname, cell, row, col, num in later:
         yield (cell['type'], int(row), int(col), num,
                 cell['parameters'], cell['attributes'], sanitize_name(cellname))
 
@@ -163,7 +175,10 @@ def place(db, tilemap, bels, cst, args):
             # first used pin sets bank's iostd
             # XXX default io standard may be board-dependent!
             if not iostd:
-                iostd = "LVCMOS18"
+                if 'DIFF' in attrs.keys():
+                    iostd = "LVCMOS25"
+                else:
+                    iostd = "LVCMOS18"
             if not pinless_io:
                 _banks[bank].iostd = iostd
                 if mode == 'IBUF':
@@ -171,45 +186,45 @@ def place(db, tilemap, bels, cst, args):
                 else:
                     _banks[bank].inputs_only = False
 
-            if 'DIFF' not in attrs.keys():
-                cst.attrs.setdefault(cellname, {}).update({"IO_TYPE": iostd})
-            else:
-                # XXX
-                iostd = 'LVDS25'
+            if 'DIFF' in attrs.keys():
+                _banks[bank].true_lvds_drive = "3.5"
+            cst.attrs.setdefault(cellname, {}).update({"IO_TYPE": iostd})
+
             # collect flag bits
             if iostd not in iob.iob_flags.keys():
                 print(f"Warning: {iostd} isn't allowed for IO{edge}{idx}{num}. Set LVCMOS18 instead.")
                 iostd = 'LVCMOS18'
+            if mode not in iob.iob_flags[iostd].keys() :
+                    raise Exception(f"IO{edge}{idx}{num}. {mode} is not allowed for a given io standard {iostd}")
             bits = iob.iob_flags[iostd][mode].encode_bits.copy()
             # XXX OPEN_DRAIN must be after DRIVE
             attrs_keys = attrs.keys()
-            if 'OPEN_DRAIN=ON' in attrs_keys:
-                attrs_keys = itertools.chain(attrs_keys, ['OPEN_DRAIN=ON'])
-            for flag in attrs.keys():
-                if 'DIFF' in attrs.keys():
-                    break
-                flag_name_val = flag.split("=")
-                if len(flag_name_val) < 2:
-                    continue
-                if flag[0] != chipdb.mode_attr_sep:
-                    continue
-                if flag_name_val[0] == chipdb.mode_attr_sep + "IO_TYPE":
-                    continue
-                # skip OPEN_DRAIN=OFF can't clear by mask and OFF is the default
-                if flag_name_val[0] == chipdb.mode_attr_sep + "OPEN_DRAIN" \
-                        and flag_name_val[1] == 'OFF':
-                            continue
-                # set flag
-                mode_desc = iob.iob_flags[iostd][mode]
-                try:
-                   flag_desc = mode_desc.flags[flag_name_val[0][1:]]
-                   flag_bits = flag_desc.options[flag_name_val[1]]
-                except KeyError:
-                    raise Exception(
-                            f"Incorrect attribute {flag[1:]} (iostd:\"{iostd}\", mode:{mode})")
-                bits -= flag_desc.mask
-                bits.update(flag_bits)
-                cst.attrs[cellname].update({flag_name_val[0][1:] : flag_name_val[1]})
+            if 'DIFF' not in attrs_keys:
+                if 'OPEN_DRAIN=ON' in attrs_keys:
+                    attrs_keys = itertools.chain(attrs_keys, ['OPEN_DRAIN=ON'])
+                for flag in attrs.keys():
+                    flag_name_val = flag.split("=")
+                    if len(flag_name_val) < 2:
+                        continue
+                    if flag[0] != chipdb.mode_attr_sep:
+                        continue
+                    if flag_name_val[0] == chipdb.mode_attr_sep + "IO_TYPE":
+                        continue
+                    # skip OPEN_DRAIN=OFF can't clear by mask and OFF is the default
+                    if flag_name_val[0] == chipdb.mode_attr_sep + "OPEN_DRAIN" \
+                            and flag_name_val[1] == 'OFF':
+                                continue
+                    # set flag
+                    mode_desc = iob.iob_flags[iostd][mode]
+                    try:
+                       flag_desc = mode_desc.flags[flag_name_val[0][1:]]
+                       flag_bits = flag_desc.options[flag_name_val[1]]
+                    except KeyError:
+                        raise Exception(
+                                f"Incorrect attribute {flag[1:]} (iostd:\"{iostd}\", mode:{mode})")
+                    bits -= flag_desc.mask
+                    bits.update(flag_bits)
+                    cst.attrs[cellname].update({flag_name_val[0][1:] : flag_name_val[1]})
             for r, c in bits:
                 tile[r][c] = 1
 
@@ -233,6 +248,13 @@ def place(db, tilemap, bels, cst, args):
             iostd = bank_bel.bank_input_only_modes[bank_desc.iostd]
         # iostd flag
         bits |= bank_bel.bank_flags[iostd]
+        if bank_desc.true_lvds_drive:
+            # XXX set drive
+            comb_mode = f'LVDS25#{iostd}'
+            if comb_mode not in bank_bel.bank_flags.keys():
+                    raise Exception(
+                            f'Incorrect iostd "{iostd}" for bank with "LVDS25" pin')
+            bits |= bank_bel.bank_flags[comb_mode]
         for row, col in bits:
             btile[row][col] = 1
 
@@ -327,7 +349,6 @@ def main():
     with open(args.netlist) as f:
         pnr = json.load(f)
 
-    import ipdb; ipdb.set_trace()
     tilemap = chipdb.tile_bitmap(db, db.template, empty=True)
     cst = codegen.Constraints()
     bels = get_bels(pnr)
