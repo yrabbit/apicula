@@ -680,7 +680,7 @@ def fse_iologic(fse, db, pin_locations):
                 bel = db.grid[row][col].bels.setdefault(f"ODDR{bel_idx}", chipdb.Bel())
                 loc = get_shortval(fse, ttyp, _iologic_table[bel_idx],
                         _oddr_key[_oddr_device_recode[device]])
-                bel.modes.setdefault('ENABLE', set())
+                bel.modes.setdefault('ENABLE', loc)
                 # iobuf
                 loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
                         recode_key(_oddr_io_key))
