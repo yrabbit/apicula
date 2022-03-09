@@ -665,9 +665,7 @@ def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
 _iologic_table = {'A' : 21, 'B' : 22}
 _oddr_device_recode = {'GW1N-1' : 0, 'GW1NZ-1' : 0, 'GW1N-4' : 0,
         'GW1NS-2' : 1, 'GW1NS-4' : 1, 'GW1N-9' : 1, 'GW1N-9C' : 1}
-_oddr_sbuf_key = [[9, 0], [10, 0]]  # single end
-_oddr_dbuf_key = [10, 0]  # diff
-_oddr_key_1 = [91, 0]
+_oddr_key = [[9, 0], [10, 0]]
 _oddr_io_key = {89}
 def fse_iologic(fse, db, pin_locations):
     for ttyp, tiles in pin_locations.items():
@@ -680,14 +678,9 @@ def fse_iologic(fse, db, pin_locations):
                 continue
             if 'shortval' in fse[ttyp] and _iologic_table[bel_idx] in fse[ttyp]['shortval']:
                 bel = db.grid[row][col].bels.setdefault(f"ODDR{bel_idx}", chipdb.Bel())
-                bel.modes.setdefault('ENABLE', set())
-                # single end obuf
                 loc = get_shortval(fse, ttyp, _iologic_table[bel_idx],
-                        _oddr_sbuf_key[_oddr_device_recode[device]])
-                bel.flags.setdefault('SBUF', loc)
-                # diff obuf
-                loc = get_shortval(fse, ttyp, _iologic_table[bel_idx], _oddr_dbuf_key)
-                bel.flags.setdefault('DBUF', loc)
+                        _oddr_key[_oddr_device_recode[device]])
+                bel.modes.setdefault('ENABLE', set())
                 # iobuf
                 loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
                         recode_key(_oddr_io_key))

@@ -233,7 +233,9 @@ def place(db, tilemap, bels, cst, args):
                 return
         elif typ == "ODDR":
             bel = tiledata.bels[f'ODDR{num}']
-            bits = bel.modes['ENABLE']
+            bits = bel.modes['ENABLE'].copy()
+            if int(attrs["IOBUF"], 2):
+                bits.update(bel.flags['IOBUF'])
             for r, c in bits:
                 tile[r][c] = 1
 
