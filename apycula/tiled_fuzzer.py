@@ -287,7 +287,8 @@ AttrValues = namedtuple('ModeAttr', [
     ])
 
 iobattrs = {
- "IO_TYPE"    : AttrValues(["IBUF", "OBUF", "IOBUF"], [""], None),
+ "IO_TYPE"    : AttrValues(["OBUF"], [""], None),
+# "IO_TYPE"    : AttrValues(["IBUF", "OBUF", "IOBUF"], [""], None),
  #"SINGLE_RESISTOR" : AttrValues(["IBUF", "IOBUF"], ["ON", "OFF"], None),
 }
 
@@ -640,7 +641,7 @@ def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
                     pull_mode_loc = bel_b_flags['PULL_MODE'].options['NONE'].copy();
                     pull_mode_loc.update(bel_flags['PULL_MODE'].options['NONE']);
                 except KeyError:
-                    raise Exception(f"TLVDS base bes must have SLEW_RATE and PULL_MODE defined")
+                    raise Exception(f"TLVDS base bels must have SLEW_RATE and PULL_MODE defined")
 
                 b_iostd = bel.iob_flags.setdefault('LVCMOS25', dict())
                 b_mode = b_iostd.setdefault('TLVDS_OBUF', chipdb.IOBMode())
@@ -701,35 +702,50 @@ def find_next_loc(pin, locs):
             return name
     return None
 
-def iob(locations):
+def iob(locations, diff_locations):
     for iostd in iostandards:
+        #if iostd == '' or iostd == 'LVCMOS18' or iostd == 'LVCMOS15' or iostd == 'SSTL15' or iostd == 'HSTL18_I' or iostd == 'LVCMOS12':
+        #    continue
         for ttyp, tiles in locations.items(): # for each tile of this type
-            locs = tiles.copy()
-            mod = codegen.Module()
-            cst = codegen.Constraints()
-            # get bels in this ttyp
-            bels = {name[-1] for loc in tiles.values() for name in loc}
-            for pin in bels: # [A, B, C, D, ...]
-                for attr, attr_values in iobattrs.items():  # each IOB attribute
-                    # XXX remove
-                    if iostd == "PCI33" and attr == "SINGLE_RESISTOR":
-                        continue
-                    attr_vals = attr_values.values
-                    if attr_vals == None:
-                        attr_vals = attr_values.table[iostd]
-                    for attr_val in attr_vals:   # each value of the attribute
-                        for typ, conn in iobmap.items():
-                            # skip illegal atributesa for mode
-                            if typ not in attr_values.allowed_modes:
-                                continue
-                            # find the next location that has pin
-                            # or make a new module
-                            loc = find_next_loc(pin, locs)
-                            if (loc == None):
-                                yield Fuzzer(ttyp, mod, cst, {}, iostd)
-                                locs = tiles.copy()
-                                mod = codegen.Module()
-                                cst = codegen.Constraints()
+            if ttyp not in diff_locations.keys():
+                continue
+            for diff_tile in diff_locations[ttyp]:
+                locs = tiles.copy()
+                locs.pop(diff_tile, None)
+                if len(locs) == 0:
+                    continue
+                mod = codegen.Module()
+                cst = codegen.Constraints()
+                # true lvds
+                name = make_name("IOB", "TLVDS_OBUF")
+                iob = codegen.Primitive("TLVDS_OBUF", name)
+                iob.portmap["I"] = name + "_I"
+                iob.portmap["O"] = name + "_O"
+                iob.portmap["OB"] = name + "_OB"
+                #mod.inputs.update([iob.portmap["I"]])
+                #mod.outputs.update([iob.portmap["O"]])
+                #mod.outputs.update([iob.portmap["OB"]])
+                #mod.primitives[name] = iob
+                #cst.ports[name] = diff_tile + "[A]"
+                #cst.attrs[name] = {"DRIVE": "1.25"}
+
+                # get bels in this ttyp
+                bels = {name[-1] for loc in tiles.values() for name in loc}
+                for pin in bels: # [A, B, C, D, ...]
+                    for attr, attr_values in iobattrs.items():  # each IOB attribute
+                        # XXX remove
+                        if iostd == "PCI33" and attr == "SINGLE_RESISTOR":
+                            continue
+                        attr_vals = attr_values.values
+                        if attr_vals == None:
+                            attr_vals = attr_values.table[iostd]
+                        for attr_val in attr_vals:   # each value of the attribute
+                            for typ, conn in iobmap.items():
+                                # skip illegal atributesa for mode
+                                if typ not in attr_values.allowed_modes:
+                                    continue
+                                # find the next location that has pin
+                                # or make a new module
                                 loc = find_next_loc(pin, locs)
 
                             # special pins
@@ -924,16 +940,28 @@ if __name__ == "__main__":
              'L': [row[0] for row in fse['header']['grid'][61]],
              'R': [row[-1] for row in fse['header']['grid'][61]]}
     pin_locations = {}
-    pin_re = re.compile(r"IO([TBRL])(\d+)([A-Z])")
+    pin_re = re.compile(r"IO([TBRL])(\d+)\[?([A-Z])\]?")
     for name in pin_names:
         side, num, pin = pin_re.match(name).groups()
         ttyp = edges[side][int(num)-1]
         ttyp_pins = pin_locations.setdefault(ttyp, {})
         ttyp_pins.setdefault(name[:-1], set()).add(name)
 
+    # XXX diff bench
+    diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
+    diff_locations = {}
+    for ttyp, tiles in pin_locations.items():
+        for tile in tiles.keys():
+            pin_index = tile + 'A'
+            if not is_true_lvds_p(pin_index, diff_cap_info):
+                continue
+            ttyp_pins = diff_locations.setdefault(ttyp, {})
+            ttyp_pins.setdefault(tile, set()).add(name + 'A')
+            ttyp_pins[tile].add(name + 'B')
+
     # Add fuzzers here
     fuzzers = chain(
-        iob(pin_locations),
+        iob(pin_locations, diff_locations),
         dff(locations),
         dualmode(fse['header']['grid'][61][0][0]),
     )
@@ -1030,6 +1058,8 @@ if __name__ == "__main__":
                 bel = db.grid[row][col].bels.setdefault(f"IOB{pin}", chipdb.Bel())
                 bel.lvcmos121518_bits = get_12_15_18_bits(fse, typ, pin)
                 pnr_attrs = pnr.attrs.get(name)
+                iostd = None
+                rec_iostd = ""
                 if pnr_attrs:
                     # first get iostd
                     iostd = pnr_attrs.get("IO_TYPE")
@@ -1062,11 +1092,13 @@ if __name__ == "__main__":
                         b_mode   = b_iostd.setdefault(cell_type, chipdb.IOBMode())
                         b_attr   = b_mode.flags.setdefault(rec_attr, chipdb.IOBFlag())
                         b_attr.options[rec_val] = loc
+                    print(row, col, rec_iostd, iostd, pnr_attrs)
                 else:
                     # set mode bits
                     b_iostd  = bel.iob_flags.setdefault('', {})
                     b_mode   = b_iostd.setdefault(cell_type, chipdb.IOBMode())
                     b_mode.encode_bits = loc
+                    print(row, col, 'default')
             else:
                 raise ValueError(f"Type {bel_type} not handled")
 
@@ -1102,6 +1134,10 @@ if __name__ == "__main__":
     fse_hysteresis(fse, db, pin_locations)
     fse_drive(fse, db, pin_locations)
     fse_iologic(fse, db, pin_locations)
+
+    # diff IOB
+    diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
+    fse_diff_iob(fse, db, pin_locations, diff_cap_info);
 
     # diff IOB
     diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
