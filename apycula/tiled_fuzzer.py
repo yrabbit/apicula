@@ -19,6 +19,7 @@ from apycula import codegen
 from apycula import bslib
 from apycula import pindef
 from apycula import fuse_h4x
+from apycula.wirenames import wirenames, clknames
 #TODO proper API
 #from apycula import dat19_h4x
 from apycula import tm_h4x
@@ -675,9 +676,11 @@ def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
                 pass
 
 # make IOLogic bels
-_iologic_table = 21
-_oddr_key_0 = [10, 0]
-_oddr_key_1 = [91, 0]
+_iologic_table = {'A' : 21, 'B' : 22}
+_oddr_device_recode = {'GW1N-1' : 0, 'GW1NZ-1' : 0, 'GW1N-4' : 0,
+        'GW1NS-2' : 1, 'GW1NS-4' : 1, 'GW1N-9' : 1, 'GW1N-9C' : 1}
+_oddr_key = [[9, 0], [10, 0]]
+_oddr_io_key = {89}
 def fse_iologic(fse, db, pin_locations):
     for ttyp, tiles in pin_locations.items():
         pin_loc = list(tiles.keys())[0]
@@ -685,11 +688,23 @@ def fse_iologic(fse, db, pin_locations):
         row, col = tbrl2rc(fse, side, num)
         bels = {name[-1] for loc in tiles.values() for name in loc}
         for bel_idx in bels:
-            if 'shortval' in fse[ttyp] and _iologic_table in fse[ttyp]['shortval']:
+            if bel_idx not in {'A', 'B'}:
+                continue
+            if 'shortval' in fse[ttyp] and _iologic_table[bel_idx] in fse[ttyp]['shortval']:
                 bel = db.grid[row][col].bels.setdefault(f"ODDR{bel_idx}", chipdb.Bel())
-                loc = get_shortval(fse, ttyp, _iologic_table, _oddr_key_0)
-                loc.update(get_shortval(fse, ttyp, _iologic_table, _oddr_key_1))
+                loc = get_shortval(fse, ttyp, _iologic_table[bel_idx],
+                        _oddr_key[_oddr_device_recode[device]])
                 bel.modes.setdefault('ENABLE', loc)
+                # iobuf
+                loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
+                        recode_key(_oddr_io_key))
+                bel.flags.setdefault('IOBUF', loc)
+                bel.portmap = {
+                    'D0':  wirenames[dat[f'Iologic{bel_idx}In'][1]],
+                    'D1':  wirenames[dat[f'Iologic{bel_idx}In'][2]],
+                    'CLK': wirenames[dat[f'Iologic{bel_idx}In'][17]],
+                    'TX':  wirenames[dat[f'Iologic{bel_idx}In'][27]],
+                }
 
 # IOB fuzzer
 def find_next_loc(pin, locs):
