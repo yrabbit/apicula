@@ -663,9 +663,15 @@ def fse_diff_iob(fse, db, pin_locations, diff_cap_info):
 
 # make IOLogic bels
 _iologic_table = {'A' : 21, 'B' : 22}
-_oddr_device_recode = {'GW1N-1' : 0, 'GW1NZ-1' : 0, 'GW1N-4' : 0,
-        'GW1NS-2' : 1, 'GW1NS-4' : 1, 'GW1N-9' : 1, 'GW1N-9C' : 1}
-_oddr_key = [[9, 0], [10, 0]]
+_oddr_keys = {
+        'GW1N-1'  : [[9, 0],  [88, 0]],
+        'GW1NZ-1' : [[9, 0],  [85, 0]],
+        'GW1NS-2' : [[10, 0], [87, 0]],
+        'GW1N-4'  : [[9, 0],  [85, 0]],
+        'GW1NS-4' : [[10, 0], [-39, 0], [91, 0]],
+        'GW1N-9'  : [[10, 0], [88, 0]],
+        'GW1N-9C' : [[10, 0], [91, 0]],
+        }
 _oddr_io_key = {89}
 def fse_iologic(fse, db, pin_locations):
     for ttyp, tiles in pin_locations.items():
@@ -678,8 +684,9 @@ def fse_iologic(fse, db, pin_locations):
                 continue
             if 'shortval' in fse[ttyp] and _iologic_table[bel_idx] in fse[ttyp]['shortval']:
                 bel = db.grid[row][col].bels.setdefault(f"ODDR{bel_idx}", chipdb.Bel())
-                loc = get_shortval(fse, ttyp, _iologic_table[bel_idx],
-                        _oddr_key[_oddr_device_recode[device]])
+                loc = set()
+                for fs in _oddr_keys[device] :
+                    loc.update(get_shortval(fse, ttyp, _iologic_table[bel_idx], fs))
                 bel.modes.setdefault('ENABLE', loc)
                 # iobuf
                 loc = get_longval(fse, ttyp, _pin_mode_longval[bel_idx],
@@ -1119,6 +1126,8 @@ if __name__ == "__main__":
 
     db.grid[0][0].bels['CFG'].flags['UNK0'] = {(3, 1)}
     db.grid[0][0].bels['CFG'].flags['UNK1'] = {(3, 2)}
+    db.template[(3, 1)] = 1
+    db.template[(3, 2)] = 1
 
     for row, col, ttyp in corners:
         if "BANK" not in db.grid[row][col].bels.keys():
