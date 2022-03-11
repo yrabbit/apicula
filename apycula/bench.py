@@ -69,6 +69,11 @@ params = {
         "device": "GW1N-1-LQFP144-6",
         "partnumber": "GW1N-LV1LQ144C6/I5",
     },
+    "GW1NZ-1": {
+        "package": "QFN48",
+        "device": "GW1NZ-1-QFN48-6",
+        "partnumber": "GW1NZ-LV1QN48C6/I5",
+    },
 }[device]
 
 # collect all routing bits of the tile

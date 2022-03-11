@@ -235,9 +235,6 @@ def place(db, tilemap, bels, cst, args):
             bits = bel.modes['ENABLE'].copy()
             if int(attrs["IOBUF"], 2):
                 bits.update(bel.flags['IOBUF'])
-            # XXX
-            for xx in {(26, 24)}:
-                bits.update({xx})
             for r, c in bits:
                 tile[r][c] = 1
 
