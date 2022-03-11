@@ -269,7 +269,11 @@ if __name__ == "__main__":
         print(sorted(get_bits(fuse_h4x.tile_bitmap(fse, img)[(row3, col3, ttyp)])))
         bits = get_bits(fuse_h4x.tile_bitmap(fse, img)[(row3, col3, ttyp)])
         print(sorted(get_bits(fuse_h4x.tile_bitmap(fse, sec_img)[(row3, col3, ttyp)])))
-        print("diff:", sorted(get_bits(diff_tiles[(row3, col3, ttyp)])))
+        fuses = set()
+        for df in get_bits(diff_tiles[(row3, col3, ttyp)]):
+            fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
+        print("all diff:")
+        print(sorted(fuses))
         print("second:")
         for df in sorted(get_bits(fuse_h4x.tile_bitmap(fse, sec_img)[(row3, col3, ttyp)])):
             if df in get_bits(diff_tiles[(row3, col3, ttyp)]):

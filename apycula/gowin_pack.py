@@ -235,6 +235,9 @@ def place(db, tilemap, bels, cst, args):
             bits = bel.modes['ENABLE'].copy()
             if int(attrs["IOBUF"], 2):
                 bits.update(bel.flags['IOBUF'])
+            # XXX
+            for xx in {(26, 24)}:
+                bits.update({xx})
             for r, c in bits:
                 tile[r][c] = 1
 
@@ -321,7 +324,9 @@ def dualmode_pins(db, tilemap, args):
         bits.update(db.grid[0][0].bels['CFG'].flags['DONE'])
     if args.reconfign_as_gpio:
         bits.update(db.grid[0][0].bels['CFG'].flags['RECONFIG'])
-
+    # XXX
+    for xx in {(20, 50), (20, 51), (21, 54), (18, 45), (18, 46), (16, 46), (16, 49), (23, 51)}:
+        bits.update({xx})
     if bits:
         tile = tilemap[(0, 0)]
         for row, col in bits:
