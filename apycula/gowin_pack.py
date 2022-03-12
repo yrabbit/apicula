@@ -88,6 +88,8 @@ def place(db, tilemap, bels, cst, args):
     for typ, row, col, num, parms, attrs, cellname in bels:
         tiledata = db.grid[row-1][col-1]
         tile = tilemap[(row-1, col-1)]
+        if typ == "GSR":
+            pass
         if typ == "SLICE":
             lutmap = tiledata.bels[f'LUT{num}'].flags
 
