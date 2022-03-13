@@ -269,10 +269,19 @@ if __name__ == "__main__":
         diff_tiles = fuse_h4x.tile_bitmap(fse, diff)
         print(diff_tiles.keys())
         ttyp = fse['header']['grid'][61][row3][col3]
+        # first tiles wo same
+        first_tiles = set()
+        for ft in fuse_h4x.tile_bitmap(fse, img):
+            if ft in diff_tiles:
+                first_tiles.update({ft})
+        print('first tiles:', sorted(first_tiles))
         #print(fuse_h4x.parse_tile(fse, 49, fuse_h4x.tile_bitmap(fse, img)[(19, 37, 49)]))
         #print(fuse_h4x.parse_tile(fse, 49, fuse_h4x.tile_bitmap(fse, sec_img)[(19, 37, 49)]))
         print(sorted(get_bits(fuse_h4x.tile_bitmap(fse, img)[(row3, col3, ttyp)])))
-        bits = get_bits(fuse_h4x.tile_bitmap(fse, img)[(row3, col3, ttyp)])
+        fuses = set()
+        for df in get_bits(fuse_h4x.tile_bitmap(fse, img)[(row3, col3, ttyp)]):
+            fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
+        print('first fuses:', sorted(fuses))
         print(sorted(get_bits(fuse_h4x.tile_bitmap(fse, sec_img)[(row3, col3, ttyp)])))
         fuses = set()
         for df in get_bits(diff_tiles[(row3, col3, ttyp)]):
