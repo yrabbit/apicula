@@ -896,16 +896,6 @@ def run_pnr(mod, constr, config):
             input()
             return None
 
-def connect_VCC_to_GSR(db):
-    for dst, srcs in db.grid[0][0].pips.items():
-        if 'VCC' in srcs.keys():
-            if dst in db.grid[0][0].pips['C4'].keys():
-                bits = db.grid[0][0].pips['C4'][dst] | db.grid[0][0].pips[dst]['VCC']
-                for bit in bits:
-                    db.template[bit] = 1
-                db.grid[0][0].pips.pop(dst)
-                db.grid[0][0].pips.pop('C4')
-                return
 
 # module + constraints + config
 DataForPnr = namedtuple('DataForPnr', ['modmap', 'cstmap', 'cfgmap'])
@@ -1139,9 +1129,7 @@ if __name__ == "__main__":
     db.template[(3, 1)] = 1
     db.template[(3, 2)] = 1
     # GSR
-    #db.grid[0][0].bels.setdefault('GSR0', chipdb.Bel()).portmap['GSRI'] = 'C4';
-    # XXX
-    connect_VCC_to_GSR(db)
+    db.grid[0][0].bels.setdefault('GSR0', chipdb.Bel()).portmap['GSRI'] = 'C4';
 
     for row, col, ttyp in corners:
         if "BANK" not in db.grid[row][col].bels.keys():
