@@ -327,6 +327,8 @@ def dualmode_pins(db, tilemap, args):
     # XXX
     #for xx in {(20, 50), (20, 51), (21, 54), (18, 45), (18, 46), (16, 46), (16, 49), (23, 51)}:
     #    bits.update({xx})
+    #for xx in {(12, 38), (12, 41), (14, 37), (14, 38), (16, 42), (16, 43), (17, 46), (19, 43)}:
+    #    bits.update({xx})
     if bits:
         tile = tilemap[(0, 0)]
         for row, col in bits:
