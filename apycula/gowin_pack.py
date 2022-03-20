@@ -31,6 +31,7 @@ def get_bels(data):
     belre = re.compile(r"R(\d+)C(\d+)_(?:GSR|SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8|ODDR)(\w)")
     for cellname, cell in data['modules']['top']['cells'].items():
         bel = cell['attributes']['NEXTPNR_BEL']
+        if bel in {"VCC", "GND"}: continue
         bels = belre.match(bel)
         if not bels:
             raise Exception(f"Unknown bel:{bel}")
@@ -324,8 +325,8 @@ def dualmode_pins(db, tilemap, args):
     if args.reconfign_as_gpio:
         bits.update(db.grid[0][0].bels['CFG'].flags['RECONFIG'])
     # XXX
-    for xx in {(20, 50), (20, 51), (21, 54), (18, 45), (18, 46), (16, 46), (16, 49), (23, 51)}:
-        bits.update({xx})
+    #for xx in {(20, 50), (20, 51), (21, 54), (18, 45), (18, 46), (16, 46), (16, 49), (23, 51)}:
+    #    bits.update({xx})
     if bits:
         tile = tilemap[(0, 0)]
         for row, col in bits:
