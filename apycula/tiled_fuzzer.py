@@ -1129,7 +1129,7 @@ if __name__ == "__main__":
     db.template[(3, 1)] = 1
     db.template[(3, 2)] = 1
     # GSR
-    db.grid[0][0].bels.setdefault('GSR', chipdb.Bel()).portmap['GSRI'] = 'C4';
+    db.grid[0][0].bels.setdefault('GSR0', chipdb.Bel()).portmap['GSRI'] = 'C4';
 
     for row, col, ttyp in corners:
         if "BANK" not in db.grid[row][col].bels.keys():
