@@ -258,11 +258,12 @@ if __name__ == "__main__":
     with importlib.resources.open_binary("apycula", f"{device}.pickle") as f:
         db = pickle.load(f)
 
-    with importlib.resources.open_binary("apycula", f"/home/rabbit/var/fpga/bases-clock-etal/{device}.pickle") as f:
+    with open(f"/home/rabbit/var/fpga/bases-clock-etal/{device}.pickle", 'rb') as f:
         db_etal = pickle.load(f)
 
     # init pindef
     pindef.all_packages(device)
+    import ipdb; ipdb.set_trace()
     print('Compare global aliases...')
     for dst, src in db_etal.aliases.items():
         if dst not in db.aliases.keys():
