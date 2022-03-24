@@ -268,7 +268,7 @@ if __name__ == "__main__":
     for dst, src in db_etal.aliases.items():
         if dst not in db.aliases.keys():
             print(f'No {dst} in the new base\n')
-            break
+            continue
         if src != db.aliases[dst]:
             print(f'old:{dst}:{db.aliases[dst]} new:{src}\n')
     print('\nOk')
