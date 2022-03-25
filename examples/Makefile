@@ -78,6 +78,9 @@ clean:
 attosoc-tec0117-synth.json: attosoc/attosoc.v attosoc/picorv32.v
 	$(YOSYS) -p "read_verilog $^; synth_gowin -json $@"
 
+attosoc-tangnano9k-synth.json: attosoc/attosoc.v attosoc/picorv32.v
+	$(YOSYS) -p "read_verilog $^; synth_gowin -json $@"
+
 tonegen-tec0117-synth.json: tonegen/top.v tonegen/sddac.v tonegen/cordic.v
 	$(YOSYS) -p "read_verilog $^; synth_gowin -json $@"
 

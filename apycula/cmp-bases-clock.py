@@ -263,7 +263,6 @@ if __name__ == "__main__":
 
     # init pindef
     pindef.all_packages(device)
-    import ipdb; ipdb.set_trace()
     print('Compare global aliases...')
     for dst, src in db_etal.aliases.items():
         if dst not in db.aliases.keys():
