@@ -28,7 +28,7 @@ def sanitize_name(name):
 
 def get_bels(data):
     later = []
-    belre = re.compile(r"R(\d+)C(\d+)_(?:GSR|SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8|ODDR)(\w)")
+    belre = re.compile(r"R(\d+)C(\d+)_(?:GSR|SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8|ODDR|OSC[ZFH]?)(\w*)")
     for cellname, cell in data['modules']['top']['cells'].items():
         bel = cell['attributes']['NEXTPNR_BEL']
         if bel in {"VCC", "GND"}: continue
@@ -91,7 +91,16 @@ def place(db, tilemap, bels, cst, args):
         tile = tilemap[(row-1, col-1)]
         if typ == "GSR":
             pass
-        elif typ == "SLICE":
+        if typ in {'OSC', 'OSCZ', 'OSCF', 'OSCH'}:
+            divisor = int(parms['FREQ_DIV'], 2)
+            if divisor % 2 == 1:
+                raise Exception(f"Divisor of {typ} must be even")
+            divisor //= 2
+            if divisor in tiledata.bels[typ].modes:
+                bits = tiledata.bels[typ].modes[divisor]
+                for r, c in bits:
+                    tile[r][c] = 1
+        if typ == "SLICE":
             lutmap = tiledata.bels[f'LUT{num}'].flags
 
             if 'ALU_MODE' in parms.keys():
@@ -324,11 +333,6 @@ def dualmode_pins(db, tilemap, args):
         bits.update(db.grid[0][0].bels['CFG'].flags['DONE'])
     if args.reconfign_as_gpio:
         bits.update(db.grid[0][0].bels['CFG'].flags['RECONFIG'])
-    # XXX
-    #for xx in {(20, 50), (20, 51), (21, 54), (18, 45), (18, 46), (16, 46), (16, 49), (23, 51)}:
-    #    bits.update({xx})
-    #for xx in {(12, 38), (12, 41), (14, 37), (14, 38), (16, 42), (16, 43), (17, 46), (19, 43)}:
-    #    bits.update({xx})
     if bits:
         tile = tilemap[(0, 0)]
         for row, col in bits:
@@ -353,9 +357,9 @@ def main():
     args = parser.parse_args()
     device = args.device
     # For tool integration it is allowed to pass a full part number
-    m = re.match("GW1N(S?)[A-Z]*-(LV|UV|UX)([0-9])C?([A-Z]{2}[0-9]+P?)(C[0-9]/I[0-9])", device)
+    m = re.match("GW1N(S|Z)?[A-Z]*-(LV|UV|UX)([0-9])C?([A-Z]{2}[0-9]+P?)(C[0-9]/I[0-9])", device)
     if m:
-        mods = m.group(1)
+        mods = m.group(1) or ""
         luts = m.group(3)
         device = f"GW1N{mods}-{luts}"
 

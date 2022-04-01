@@ -712,6 +712,13 @@ def fse_iologic(fse, db, pin_locations):
                     'CLK': wirenames[dat[f'Iologic{bel_idx}In'][17]],
                     'TX':  wirenames[dat[f'Iologic{bel_idx}In'][27]],
                 }
+                # These two inputs are so far only found in the GW1N-9C,
+                # the purpose is not clear, but must be connected.
+                if dat[f'Iologic{bel_idx}In'][47] != -1:
+                    bel.portmap.update({
+                        'XXX_VSS': wirenames[dat[f'Iologic{bel_idx}In'][47]],
+                        'XXX_VCC': wirenames[dat[f'Iologic{bel_idx}In'][48]]
+                        })
 
 # IOB fuzzer
 def find_next_loc(pin, locs):
@@ -939,7 +946,7 @@ if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{device}/{device}.tm", 'rb') as f:
         tm = tm_h4x.read_tm(f, device)
 
-    db = chipdb.from_fse(fse)
+    db = chipdb.from_fse(device, fse)
     chipdb.set_banks(device, db)
     db.timing = tm
     db.packages, db.pinout, db.pin_bank = chipdb.json_pinout(device)

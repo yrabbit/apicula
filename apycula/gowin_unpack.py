@@ -243,6 +243,19 @@ def ram16_remove_bels(bels):
     for bel in bels_to_remove:
         bels.pop(bel, None)
 
+
+def have_iologic(bels):
+    return 'ODDRA' in bels.keys() or 'ODDRB' in bels.keys()
+
+def move_iologic(bels):
+    res = []
+    if 'ODDRA' in bels.keys():
+        res.append(('ODDRA', bels['ODDRA']))
+    if 'ODDRB' in bels.keys():
+        res.append(('ODDRB', bels['ODDRB']))
+    res += [(bel, flags) for bel, flags in bels.items() if not bel.startswith('ODDR')]
+    return res
+
 _sides = "AB"
 def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
     # db is 0-based, floorplanner is 1-based
@@ -255,8 +268,14 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
         mod.wires.update({srcg, destg})
         mod.assigns.append((destg, srcg))
 
-    belre = re.compile(r"(IOB|LUT|DFF|BANK|CFG|ALU|RAM16|ODDR)(\w*)")
-    for bel, flags in bels.items():
+    belre = re.compile(r"(IOB|LUT|DFF|BANK|CFG|ALU|RAM16|ODDR|OSC[ZFH]?)(\w*)")
+    if have_iologic(bels):
+        bels_items = move_iologic(bels)
+    else:
+        bels_items = bels.items()
+
+    iologic_detected = None
+    for bel, flags in bels_items:
         typ, idx = belre.match(bel).groups()
 
         if typ == "LUT":
@@ -322,7 +341,16 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
             ram16.portmap['DO'] = [f"R{row}C{col}_F{x}" for x in range(4)]
             mod.wires.update(chain.from_iterable([x if isinstance(x, list) else [x] for x in ram16.portmap.values()]))
             mod.primitives[name] = ram16
-
+        elif typ in {"OSC", "OSCZ", "OSCF", "OSCH"}:
+            name = f"R{row}C{col}_{typ}"
+            osc = codegen.Primitive(typ, name)
+            divisor, = flags
+            osc.params["FREQ_DIV"] = f"{divisor*2}"
+            portmap = db.grid[dbrow][dbcol].bels[bel].portmap
+            for port, wname in portmap.items():
+                osc.portmap[port] = f"R{row}C{col}_{wname}"
+            mod.wires.update(osc.portmap.values())
+            mod.primitives[name] = osc
         elif typ == "DFF":
             #print(flags)
             kind, = flags # DFF only have one flag
@@ -339,6 +367,18 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
             mod.wires.update(dff.portmap.values())
             mod.primitives[name] = dff
             cst.cells[name] = (row, col, int(idx) // 2, _sides[int(idx) % 2])
+        elif typ == "ODDR":
+            iologic_detected = idx
+            portmap = db.grid[dbrow][dbcol].bels[bel].portmap
+            name = f"R{row}C{col}_ODDR{idx}"
+            oddr = codegen.Primitive("ODDR", name)
+            for port in {'TX', 'D0', 'D1', 'CLK'}:
+                wname = portmap[port]
+                oddr.portmap[port] = f"R{row}C{col}_{wname}"
+            oddr.portmap['Q0'] = f"R{row}C{col}_{portmap['D0']}_IOL"
+            #oddr.portmap['Q1'] = f"R{row}C{col}_{portmap['Q1']}_IOL"
+            mod.wires.update(oddr.portmap.values())
+            mod.primitives[name] = oddr
         elif typ == "IOB":
             try:
                 kind, = flags.intersection(iobmap.keys())
@@ -352,9 +392,13 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
 
             iob = codegen.Primitive(kind, name)
 
+            if iologic_detected == idx:
+                wires_suffix = '_IOL'
+            else:
+                wires_suffix = ''
             for port in wires:
                 wname = portmap[port]
-                iob.portmap[portname(port)] = f"R{row}C{col}_{wname}"
+                iob.portmap[portname(port)] = f"R{row}C{col}_{wname}{wires_suffix}"
 
             for port in ports:
                 iob.portmap[port] = f"R{row}C{col}_{port}{idx}"
