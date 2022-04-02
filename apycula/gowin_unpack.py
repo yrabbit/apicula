@@ -50,7 +50,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
     bels = {}
     for name, bel in tiledata.bels.items():
         if name[0:3] == "IOB":
-            print(name)
+            #print(name)
             if noiostd:
                 iostd = ''
             else:
@@ -62,18 +62,18 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             # instead we try the longest bit sequence first.
             for mode, mode_rec in sorted(bel.iob_flags[iostd].items(),
                     key = _io_mode_sort_func, reverse = True):
-                print(mode, mode_rec.decode_bits)
+                #print(mode, mode_rec.decode_bits)
                 mode_bits = {(row, col)
                              for row, col in mode_rec.decode_bits
                              if tile[row][col] == 1}
-                print("read", mode_bits)
+                #print("read", mode_bits)
                 if mode_rec.decode_bits == mode_bits:
                     zeros = zero_bits(mode, bel.iob_flags[iostd])
                     print("zeros", zeros)
                     used_bits = {tile[row][col] for row, col in zeros}
                     if not any(used_bits):
                         bels.setdefault(name, set()).add(mode)
-                        print(f"found: {mode}")
+                        #print(f"found: {mode}")
                         # mode found
                         break
 
@@ -458,7 +458,7 @@ def main():
     parser.add_argument('-d', '--device', required=True)
     parser.add_argument('-o', '--output', default='unpack.v')
     parser.add_argument('-s', '--cst', default=None)
-    parser.add_argument('--noalu', action = 'store_false')
+    parser.add_argument('--noalu', action = 'store_true')
 
     args = parser.parse_args()
 
