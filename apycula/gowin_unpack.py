@@ -92,7 +92,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                          for row, col in bel.mode_bits
                          if tile[row][col] == 1}
             print(name, sorted(bel.mode_bits))
-            print("read", sorted(mode_bits))
+            print("read mode:", sorted(mode_bits))
             for mode, bits in bel.modes.items():
                 print(mode, sorted(bits))
                 if bits == mode_bits and (default or bits):
@@ -117,6 +117,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                 if name == "RAM16" and not name in bels:
                     continue
                 bels.setdefault(name, set()).add(flag)
+        print("flags:", sorted(bels.get(name, set())))
 
     pips = {}
     for dest, srcs in tiledata.pips.items():
