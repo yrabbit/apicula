@@ -238,6 +238,9 @@ def attrs2log(attrs, pos):
         if p == pos:
             return f'{pos}:{attrs[1][name]}:{name}'
 
+def st(ttyp, fuses):
+    fuse_h4x.scan_tables(fse, ttyp, fuses)
+
 if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{device}/{device}.fse", 'rb') as f:
         fse = fuse_h4x.readFse(f)
@@ -276,8 +279,8 @@ if __name__ == "__main__":
 
     #row3 = 28
     #col3 = 7
-    row3 = 1
-    col3 = 0
+    row3 = 5
+    col3 = 9
     import ipdb; ipdb.set_trace()
     # cmp images
     if len(sys.argv) > 3:
@@ -316,6 +319,10 @@ if __name__ == "__main__":
     row = row3
     col = col3
     ttyp = fse['header']['grid'][61][row][col]
+    consts = set()
+    if 'const' in fse[ttyp].keys():
+        consts = {item for sublist in fse[ttyp]['const'][4] for item in sublist}
+    print(consts)
 
     rbits = route_bits(db, row, col)
     r, c = np.where(bm[(row, col)] == 1)
@@ -323,9 +330,11 @@ if __name__ == "__main__":
     bits = tile# - rbits
     fuses = set()
     for df in sorted(bits):
-        fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
+        fs = get_fuse_num(ttyp, df[0] * 100 + df[1])
+        if fs in rbits:
+            fuses.update({fs})
     print("all first bits:")
-    print(sorted(bits))
+    #print(sorted(bits))
     print(sorted(fuses))
     fuses = set()
     for df in sorted(bits):
@@ -340,9 +349,11 @@ if __name__ == "__main__":
     bits = tile# - rbits
     fuses = set()
     for df in sorted(bits):
-        fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
+        fs = get_fuse_num(ttyp, df[0] * 100 + df[1])
+        if fs in rbits:
+            fuses.update({fs})
     print("all second bits:")
-    print(sorted(bits))
+    #print(sorted(bits))
     print(sorted(fuses))
     fuses = set()
     for df in sorted(bits):
