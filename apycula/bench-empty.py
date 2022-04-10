@@ -279,7 +279,7 @@ if __name__ == "__main__":
 
     #row3 = 28
     #col3 = 7
-    row3 = 5
+    row3 = 0
     col3 = 9
     import ipdb; ipdb.set_trace()
     # cmp images
@@ -331,7 +331,7 @@ if __name__ == "__main__":
     fuses = set()
     for df in sorted(bits):
         fs = get_fuse_num(ttyp, df[0] * 100 + df[1])
-        if fs in rbits:
+        if fs not in consts:
             fuses.update({fs})
     print("all first bits:")
     #print(sorted(bits))
@@ -350,7 +350,7 @@ if __name__ == "__main__":
     fuses = set()
     for df in sorted(bits):
         fs = get_fuse_num(ttyp, df[0] * 100 + df[1])
-        if fs in rbits:
+        if fs not in consts:
             fuses.update({fs})
     print("all second bits:")
     #print(sorted(bits))
