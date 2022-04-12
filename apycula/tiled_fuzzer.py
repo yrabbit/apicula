@@ -140,6 +140,83 @@ params = {
     },
 }[device]
 
+# create aliases for long wires
+def make_lw_aliases(fse, dat, db):
+    tap_cols = set()
+    # branches
+    for row in range(db.rows):
+        for col in range(db.cols):
+            src = 1 + (col // 4) * 4
+            tap_cols.update({ src })
+            db.aliases.update({(row, col, 'LB00') : (row, src, 'LBO0')})
+            db.aliases.update({(row, col, 'LB10') : (row, src, 'LBO0')})
+            db.aliases.update({(row, col, 'LB20') : (row, src, 'LBO0')})
+            db.aliases.update({(row, col, 'LB30') : (row, src, 'LBO0')})
+            db.aliases.update({(row, col, 'LB40') : (row, src, 'LBO1')})
+            db.aliases.update({(row, col, 'LB50') : (row, src, 'LBO1')})
+            db.aliases.update({(row, col, 'LB60') : (row, src, 'LBO1')})
+            db.aliases.update({(row, col, 'LB70') : (row, src, 'LBO1')})
+
+    # taps
+    for row in range(db.rows):
+        for col in tap_cols:
+            db.aliases.update({(row, col, 'LT01') : (0, col, 'LT02')})
+            db.aliases.update({(row, col, 'LT04') : (0, col, 'LT13')})
+
+    # type 82, 81 tiles
+    # 82 switches lw[0]-lw[6], 81 -- lw[7]
+    row82, col82 = dat['center']
+    row82 -= 1
+    col82 -= 1
+    row81 = row82
+    col81 = col82 - 1
+
+    # XXX logic entries
+    srcs = {}
+    for i, src in enumerate(dat['UfbIns']):
+        row, col, pip = src
+        if pip == 126: # CLK2
+            db.aliases.update({ (row82, col82, f'UNK{i + 104}') : (row - 1, col -1, 'CLK2')})
+            db.aliases.update({ (row81, col81, f'UNK{i + 104}') : (row - 1, col -1, 'CLK2')})
+
+    # from muxes to spines
+    db.aliases.update({(0, col82, 'LW0') : (row82, col82, 'LW0')})
+    db.aliases.update({(0, col82, 'LW1') : (row82, col82, 'LW1')})
+    db.aliases.update({(0, col82, 'LW2') : (row82, col82, 'LW2')})
+    db.aliases.update({(0, col82, 'LW3') : (row82, col82, 'LW3')})
+    db.aliases.update({(0, col82, 'LW4') : (row82, col82, 'LW4')})
+    db.aliases.update({(0, col82, 'LW5') : (row82, col82, 'LW5')})
+    db.aliases.update({(0, col82, 'LW6') : (row82, col82, 'LW6')})
+    db.aliases.update({(0, col82, 'LW7') : (row81, col81, 'LW7')})
+
+    # combine spines into SS
+    # left
+    db.grid[0][col82].pips.setdefault('SS00', {}).update({'LW_SPINE0': set()})
+    db.grid[0][col82].pips.setdefault('SS00', {}).update({'LW_SPINE1': set()})
+    db.grid[0][col82].pips.setdefault('SS00', {}).update({'LW_SPINE2': set()})
+    db.grid[0][col82].pips.setdefault('SS00', {}).update({'LW_SPINE3': set()})
+    db.grid[0][col82].pips.setdefault('SS40', {}).update({'LW_SPINE4': set()})
+    db.grid[0][col82].pips.setdefault('SS40', {}).update({'LW_SPINE5': set()})
+    db.grid[0][col82].pips.setdefault('SS40', {}).update({'LW_SPINE6': set()})
+    db.grid[0][col82].pips.setdefault('SS40', {}).update({'LW_SPINE7': set()})
+    # right
+    db.grid[0][col82 + 1].pips.setdefault('SS00', {}).update({'LW_SPINE8': set()})
+    db.grid[0][col82 + 1].pips.setdefault('SS00', {}).update({'LW_SPINE9': set()})
+    db.grid[0][col82 + 1].pips.setdefault('SS00', {}).update({'LW_SPINE10': set()})
+    db.grid[0][col82 + 1].pips.setdefault('SS00', {}).update({'LW_SPINE11': set()})
+    db.grid[0][col82 + 1].pips.setdefault('SS40', {}).update({'LW_SPINE12': set()})
+    db.grid[0][col82 + 1].pips.setdefault('SS40', {}).update({'LW_SPINE13': set()})
+    db.grid[0][col82 + 1].pips.setdefault('SS40', {}).update({'LW_SPINE14': set()})
+    db.grid[0][col82 + 1].pips.setdefault('SS40', {}).update({'LW_SPINE15': set()})
+    db.aliases.update({(0, col82 + 1, 'LW_SPINE8') : (0, col82, 'LW_SPINE8')})
+    db.aliases.update({(0, col82 + 1, 'LW_SPINE9') : (0, col82, 'LW_SPINE9')})
+    db.aliases.update({(0, col82 + 1, 'LW_SPINE10') : (0, col82, 'LW_SPINE10')})
+    db.aliases.update({(0, col82 + 1, 'LW_SPINE11') : (0, col82, 'LW_SPINE11')})
+    db.aliases.update({(0, col82 + 1, 'LW_SPINE12') : (0, col82, 'LW_SPINE12')})
+    db.aliases.update({(0, col82 + 1, 'LW_SPINE13') : (0, col82, 'LW_SPINE13')})
+    db.aliases.update({(0, col82 + 1, 'LW_SPINE14') : (0, col82, 'LW_SPINE14')})
+    db.aliases.update({(0, col82 + 1, 'LW_SPINE15') : (0, col82, 'LW_SPINE15')})
+
 name_idx = 0
 def make_name(bel, typ):
     global name_idx
@@ -1133,6 +1210,10 @@ if __name__ == "__main__":
         bel.portmap['XXX_VSS1'] = wirenames[dat[f'IologicAIn'][42]]
     chipdb.dat_aliases(dat, db)
     chipdb.diff2flag(db)
+
+    # long wires
+    if not device.startswith("GW1N-9"):
+        make_lw_aliases(fse, dat, db)
 
     # must be after diff2flags in order to make clean mask for OPEN_DRAIN
     fse_open_drain(fse, db, pin_locations)
