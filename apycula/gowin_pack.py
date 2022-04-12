@@ -280,6 +280,7 @@ def place(db, tilemap, bels, cst, args):
 
 def route(db, tilemap, pips):
     for row, col, src, dest in pips:
+        print(row, col, src, '->', dest)
         tiledata = db.grid[row-1][col-1]
         tile = tilemap[(row-1, col-1)]
 
