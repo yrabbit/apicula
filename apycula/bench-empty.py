@@ -134,12 +134,12 @@ def print_alonenode(ttyp, contains = 0):
         if contains == 0 or contains in row:
             print(row)
 
-def get_wires_to(fse, ttyp, wiren):
-    for wr in [wire for wire in fse[ttyp]['wire'][2] if wire[1] == wiren]:
+def get_wires_to(fse, ttyp, wiren, table = 2):
+    for wr in [wire for wire in fse[ttyp]['wire'][table] if wire[1] == wiren]:
         print(wr)
 
-def get_wires_from(fse, ttyp, wiren):
-    for wr in [wire for wire in fse[ttyp]['wire'][2] if wire[0] == wiren]:
+def get_wires_from(fse, ttyp, wiren, table = 2):
+    for wr in [wire for wire in fse[ttyp]['wire'][table] if wire[0] == wiren]:
         print(wr)
 
 def get_grid_rc(fse, row, col):
