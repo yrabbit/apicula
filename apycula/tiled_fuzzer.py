@@ -153,6 +153,92 @@ params = {
     },
 }[device]
 
+# create aliases and pipes for long wires
+def make_lw_aliases(fse, dat, db):
+    tap_cols = set()
+    # branches
+    for row in range(db.rows):
+        for col in range(db.cols):
+            src = (col // 4) * 4
+            tap_cols.update({ src })
+            db.aliases.update({(row, col, 'LB01') : (row, src + 1, 'LBO0')})
+            db.aliases.update({(row, col, 'LB11') : (row, src + 0, 'LBO0')})
+            db.aliases.update({(row, col, 'LB21') : (row, src + 3, 'LBO0')})
+            db.aliases.update({(row, col, 'LB31') : (row, src + 2, 'LBO0')})
+            db.aliases.update({(row, col, 'LB41') : (row, src + 1, 'LBO1')})
+            db.aliases.update({(row, col, 'LB51') : (row, src + 0, 'LBO1')})
+            db.aliases.update({(row, col, 'LB61') : (row, src + 3, 'LBO1')})
+            db.aliases.update({(row, col, 'LB71') : (row, src + 2, 'LBO1')})
+
+    # type 82, 81 tiles
+    # 82 switches lw[0]-lw[6], 81 -- lw[7]
+    row82, col82 = dat['center']
+    row82 -= 1
+    col82 -= 1
+    row81 = row82
+    col81 = col82 - 1
+
+    # Bel used to enable/disable the fanout of long wires to quadrants
+    bel = db.grid[0][col82].bels.setdefault('BUFS', chipdb.Bel())
+    db.grid[0][col82].pips.setdefault('ILW0', {})['LW0'] = {}
+    db.grid[0][col82].pips.setdefault('ILW1', {})['LW1'] = {}
+    db.grid[0][col82].pips.setdefault('ILW2', {})['LW2'] = {}
+    db.grid[0][col82].pips.setdefault('ILW3', {})['LW3'] = {}
+    db.grid[0][col82].pips.setdefault('ILW4', {})['LW4'] = {}
+    db.grid[0][col82].pips.setdefault('ILW5', {})['LW5'] = {}
+    db.grid[0][col82].pips.setdefault('ILW6', {})['LW6'] = {}
+    db.grid[0][col82].pips.setdefault('ILW7', {})['LW7'] = {}
+    db.aliases.update({ (0, col82, 'LW0') : (row82, col82, 'LW0') })
+    db.aliases.update({ (0, col82, 'LW1') : (row82, col82, 'LW1') })
+    db.aliases.update({ (0, col82, 'LW2') : (row82, col82, 'LW2') })
+    db.aliases.update({ (0, col82, 'LW3') : (row82, col82, 'LW3') })
+    db.aliases.update({ (0, col82, 'LW4') : (row82, col82, 'LW4') })
+    db.aliases.update({ (0, col82, 'LW5') : (row82, col82, 'LW5') })
+    db.aliases.update({ (0, col82, 'LW6') : (row82, col82, 'LW6') })
+    db.aliases.update({ (0, col82, 'LW7') : (row81, col81, 'LW7') })
+
+    # taps
+    for row in range(db.rows):
+        for col in tap_cols:
+            for i in range(4):
+                db.aliases.update({(row, col + i, 'LT01') : (0, col + i, 'LT02')})
+                db.aliases.update({(row, col + i, 'LT04') : (0, col + i, 'LT13')})
+
+    for col in tap_cols:
+        # XXX
+        for dst in ['LT02', 'LT13']:
+            for i in range(4):
+                if dst in db.grid[0][col + i].pips.keys():
+                    for k in [ src for src in db.grid[0][col + i].pips[dst] if src not in ['SS00', 'SS40']]:
+                        del db.grid[0][col + i].pips[dst][k]
+        db.aliases.update({ (0, col + 1, 'SS00') : (0, col82, 'OLW0') })
+        db.aliases.update({ (0, col + 0, 'SS00') : (0, col82, 'OLW1') })
+        db.aliases.update({ (0, col + 3, 'SS00') : (0, col82, 'OLW2') })
+        db.aliases.update({ (0, col + 2, 'SS00') : (0, col82, 'OLW3') })
+        db.aliases.update({ (0, col + 1, 'SS40') : (0, col82, 'OLW4') })
+        db.aliases.update({ (0, col + 0, 'SS40') : (0, col82, 'OLW5') })
+        db.aliases.update({ (0, col + 3, 'SS40') : (0, col82, 'OLW6') })
+        db.aliases.update({ (0, col + 2, 'SS40') : (0, col82, 'OLW7') })
+
+    # XXX logic entries
+    srcs = {}
+    for i, src in enumerate(dat['UfbIns']):
+        row, col, pip = src
+        if pip == 126: # CLK2
+            db.aliases.update({ (row82, col82, f'UNK{i + 104}') : (row - 1, col -1, 'CLK2')})
+            db.aliases.update({ (row81, col81, f'UNK{i + 104}') : (row - 1, col -1, 'CLK2')})
+
+    # from muxes to spines
+    #db.aliases.update({(0, col82, 'LW0') : (row82, col82, 'LW0')})
+    #db.aliases.update({(0, col82, 'LW1') : (row82, col82, 'LW1')})
+    #db.aliases.update({(0, col82, 'LW2') : (row82, col82, 'LW2')})
+    #db.aliases.update({(0, col82, 'LW3') : (row82, col82, 'LW3')})
+    #db.aliases.update({(0, col82, 'LW4') : (row82, col82, 'LW4')})
+    #db.aliases.update({(0, col82, 'LW5') : (row82, col82, 'LW5')})
+    #db.aliases.update({(0, col82, 'LW6') : (row82, col82, 'LW6')})
+    #db.aliases.update({(0, col82, 'LW7') : (row81, col81, 'LW7')})
+
+
 name_idx = 0
 def make_name(bel, typ):
     global name_idx
@@ -1177,8 +1263,18 @@ if __name__ == "__main__":
     fse_banks(fse, db, corners)
 
     chipdb.dat_portmap(dat, db)
+    # XXX GW1NR-9 has interesting IOBA pins on the bottom side
+    if device == 'GW1N-9' :
+        loc = locations[52][0]
+        bel = db.grid[loc[0]][loc[1]].bels['IOBA']
+        bel.portmap['XXX_VSS0'] = wirenames[dat[f'IologicAIn'][40]]
+        bel.portmap['XXX_VSS1'] = wirenames[dat[f'IologicAIn'][42]]
     chipdb.dat_aliases(dat, db)
     chipdb.diff2flag(db)
+
+    # long wires
+    if not device.startswith("GW1N-9"):
+        make_lw_aliases(fse, dat, db)
 
     # must be after diff2flags in order to make clean mask for OPEN_DRAIN
     fse_open_drain(fse, db, pin_locations)

@@ -24,8 +24,12 @@ wirenames = { 0: "A0", 1: "B0", 2: "C0", 3: "D0", 4: "A1", 5: "B1", 6: "C1", 7: 
 291: "GT00", 292: "GT10", 293: "GBO0", 294: "GBO1", 295: "DI0", 296: "DI1", 297: "DI2", 298: "DI3", 299: "DI4", 300: "DI5", 301: "DI6", 302: "DI7",
 303: "CIN0", 304: "CIN1", 305: "CIN2", 306: "CIN3", 307: "CIN4", 308: "CIN5", 309: "COUT0", 310: "COUT1", 311: "COUT2", 312: "COUT3", 313: "COUT4", 314: "COUT5"}
 
+wirenames.update({n: f"LW_SPINE{n - 1001}" for n in range(1001, 1017)})
 wirenumbers = {v: k for k, v in wirenames.items()}
 
 clknames = wirenames.copy()
 clknames.update({n: f"SPINE{n}" for n in range(32)})
-clknames.update({n: f"UNK{n}" for n in range(32, 261)})
+clknames.update({n: f"UNK{n}" for n in range(40, 261)})
+# XXX
+clknames.update({n: f"LW{n - 32}" for n in range(32, 40)})
+clknames.update({n: f"LWSPINE{n - 1001}" for n in range(1001, 1017)})
