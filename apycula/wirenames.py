@@ -32,4 +32,4 @@ clknames.update({n: f"SPINE{n}" for n in range(32)})
 clknames.update({n: f"UNK{n}" for n in range(40, 261)})
 # XXX
 clknames.update({n: f"LW{n - 32}" for n in range(32, 40)})
-clknames.update({n: f"LW_SPINE{n - 1001}" for n in range(1001, 1017)})
+clknames.update({n: f"LWSPINE{n - 1001}" for n in range(1001, 1017)})

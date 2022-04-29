@@ -140,28 +140,22 @@ params = {
     },
 }[device]
 
-# create aliases for long wires
+# create aliases and pipes for long wires
 def make_lw_aliases(fse, dat, db):
     tap_cols = set()
     # branches
     for row in range(db.rows):
         for col in range(db.cols):
-            src = 1 + (col // 4) * 4
+            src = (col // 4) * 4
             tap_cols.update({ src })
-            db.aliases.update({(row, col, 'LB00') : (row, src, 'LBO0')})
-            db.aliases.update({(row, col, 'LB10') : (row, src, 'LBO0')})
-            db.aliases.update({(row, col, 'LB20') : (row, src, 'LBO0')})
-            db.aliases.update({(row, col, 'LB30') : (row, src, 'LBO0')})
-            db.aliases.update({(row, col, 'LB40') : (row, src, 'LBO1')})
-            db.aliases.update({(row, col, 'LB50') : (row, src, 'LBO1')})
-            db.aliases.update({(row, col, 'LB60') : (row, src, 'LBO1')})
-            db.aliases.update({(row, col, 'LB70') : (row, src, 'LBO1')})
-
-    # taps
-    for row in range(db.rows):
-        for col in tap_cols:
-            db.aliases.update({(row, col, 'LT01') : (0, col, 'LT02')})
-            db.aliases.update({(row, col, 'LT04') : (0, col, 'LT13')})
+            db.aliases.update({(row, col, 'LB01') : (row, src + 1, 'LBO0')})
+            db.aliases.update({(row, col, 'LB11') : (row, src + 0, 'LBO0')})
+            db.aliases.update({(row, col, 'LB21') : (row, src + 3, 'LBO0')})
+            db.aliases.update({(row, col, 'LB31') : (row, src + 2, 'LBO0')})
+            db.aliases.update({(row, col, 'LB41') : (row, src + 1, 'LBO1')})
+            db.aliases.update({(row, col, 'LB51') : (row, src + 0, 'LBO1')})
+            db.aliases.update({(row, col, 'LB61') : (row, src + 3, 'LBO1')})
+            db.aliases.update({(row, col, 'LB71') : (row, src + 2, 'LBO1')})
 
     # type 82, 81 tiles
     # 82 switches lw[0]-lw[6], 81 -- lw[7]
@@ -170,6 +164,48 @@ def make_lw_aliases(fse, dat, db):
     col82 -= 1
     row81 = row82
     col81 = col82 - 1
+
+    # Bel used to enable/disable the fanout of long wires to quadrants
+    bel = db.grid[0][col82].bels.setdefault('BUFS', chipdb.Bel())
+    db.grid[0][col82].pips.setdefault('ILW0', {})['LW0'] = {}
+    db.grid[0][col82].pips.setdefault('ILW1', {})['LW1'] = {}
+    db.grid[0][col82].pips.setdefault('ILW2', {})['LW2'] = {}
+    db.grid[0][col82].pips.setdefault('ILW3', {})['LW3'] = {}
+    db.grid[0][col82].pips.setdefault('ILW4', {})['LW4'] = {}
+    db.grid[0][col82].pips.setdefault('ILW5', {})['LW5'] = {}
+    db.grid[0][col82].pips.setdefault('ILW6', {})['LW6'] = {}
+    db.grid[0][col82].pips.setdefault('ILW7', {})['LW7'] = {}
+    db.aliases.update({ (0, col82, 'LW0') : (row82, col82, 'LW0') })
+    db.aliases.update({ (0, col82, 'LW1') : (row82, col82, 'LW1') })
+    db.aliases.update({ (0, col82, 'LW2') : (row82, col82, 'LW2') })
+    db.aliases.update({ (0, col82, 'LW3') : (row82, col82, 'LW3') })
+    db.aliases.update({ (0, col82, 'LW4') : (row82, col82, 'LW4') })
+    db.aliases.update({ (0, col82, 'LW5') : (row82, col82, 'LW5') })
+    db.aliases.update({ (0, col82, 'LW6') : (row82, col82, 'LW6') })
+    db.aliases.update({ (0, col82, 'LW7') : (row81, col81, 'LW7') })
+
+    # taps
+    for row in range(db.rows):
+        for col in tap_cols:
+            for i in range(4):
+                db.aliases.update({(row, col + i, 'LT01') : (0, col + i, 'LT02')})
+                db.aliases.update({(row, col + i, 'LT04') : (0, col + i, 'LT13')})
+
+    for col in tap_cols:
+        # XXX
+        for dst in ['LT02', 'LT13']:
+            for i in range(4):
+                if dst in db.grid[0][col + i].pips.keys():
+                    for k in [ src for src in db.grid[0][col + i].pips[dst] if src not in ['SS00', 'SS40']]:
+                        del db.grid[0][col + i].pips[dst][k]
+        db.aliases.update({ (0, col + 1, 'SS00') : (0, col82, 'OLW0') })
+        db.aliases.update({ (0, col + 0, 'SS00') : (0, col82, 'OLW1') })
+        db.aliases.update({ (0, col + 3, 'SS00') : (0, col82, 'OLW2') })
+        db.aliases.update({ (0, col + 2, 'SS00') : (0, col82, 'OLW3') })
+        db.aliases.update({ (0, col + 1, 'SS40') : (0, col82, 'OLW4') })
+        db.aliases.update({ (0, col + 0, 'SS40') : (0, col82, 'OLW5') })
+        db.aliases.update({ (0, col + 3, 'SS40') : (0, col82, 'OLW6') })
+        db.aliases.update({ (0, col + 2, 'SS40') : (0, col82, 'OLW7') })
 
     # XXX logic entries
     srcs = {}
@@ -180,42 +216,15 @@ def make_lw_aliases(fse, dat, db):
             db.aliases.update({ (row81, col81, f'UNK{i + 104}') : (row - 1, col -1, 'CLK2')})
 
     # from muxes to spines
-    db.aliases.update({(0, col82, 'LW0') : (row82, col82, 'LW0')})
-    db.aliases.update({(0, col82, 'LW1') : (row82, col82, 'LW1')})
-    db.aliases.update({(0, col82, 'LW2') : (row82, col82, 'LW2')})
-    db.aliases.update({(0, col82, 'LW3') : (row82, col82, 'LW3')})
-    db.aliases.update({(0, col82, 'LW4') : (row82, col82, 'LW4')})
-    db.aliases.update({(0, col82, 'LW5') : (row82, col82, 'LW5')})
-    db.aliases.update({(0, col82, 'LW6') : (row82, col82, 'LW6')})
-    db.aliases.update({(0, col82, 'LW7') : (row81, col81, 'LW7')})
+    #db.aliases.update({(0, col82, 'LW0') : (row82, col82, 'LW0')})
+    #db.aliases.update({(0, col82, 'LW1') : (row82, col82, 'LW1')})
+    #db.aliases.update({(0, col82, 'LW2') : (row82, col82, 'LW2')})
+    #db.aliases.update({(0, col82, 'LW3') : (row82, col82, 'LW3')})
+    #db.aliases.update({(0, col82, 'LW4') : (row82, col82, 'LW4')})
+    #db.aliases.update({(0, col82, 'LW5') : (row82, col82, 'LW5')})
+    #db.aliases.update({(0, col82, 'LW6') : (row82, col82, 'LW6')})
+    #db.aliases.update({(0, col82, 'LW7') : (row81, col81, 'LW7')})
 
-    # combine spines into SS
-    # left
-    db.grid[0][col82].pips.setdefault('SS00', {}).update({'LW_SPINE0': set()})
-    db.grid[0][col82].pips.setdefault('SS00', {}).update({'LW_SPINE1': set()})
-    db.grid[0][col82].pips.setdefault('SS00', {}).update({'LW_SPINE2': set()})
-    db.grid[0][col82].pips.setdefault('SS00', {}).update({'LW_SPINE3': set()})
-    db.grid[0][col82].pips.setdefault('SS40', {}).update({'LW_SPINE4': set()})
-    db.grid[0][col82].pips.setdefault('SS40', {}).update({'LW_SPINE5': set()})
-    db.grid[0][col82].pips.setdefault('SS40', {}).update({'LW_SPINE6': set()})
-    db.grid[0][col82].pips.setdefault('SS40', {}).update({'LW_SPINE7': set()})
-    # right
-    db.grid[0][col82 + 1].pips.setdefault('SS00', {}).update({'LW_SPINE8': set()})
-    db.grid[0][col82 + 1].pips.setdefault('SS00', {}).update({'LW_SPINE9': set()})
-    db.grid[0][col82 + 1].pips.setdefault('SS00', {}).update({'LW_SPINE10': set()})
-    db.grid[0][col82 + 1].pips.setdefault('SS00', {}).update({'LW_SPINE11': set()})
-    db.grid[0][col82 + 1].pips.setdefault('SS40', {}).update({'LW_SPINE12': set()})
-    db.grid[0][col82 + 1].pips.setdefault('SS40', {}).update({'LW_SPINE13': set()})
-    db.grid[0][col82 + 1].pips.setdefault('SS40', {}).update({'LW_SPINE14': set()})
-    db.grid[0][col82 + 1].pips.setdefault('SS40', {}).update({'LW_SPINE15': set()})
-    db.aliases.update({(0, col82 + 1, 'LW_SPINE8') : (0, col82, 'LW_SPINE8')})
-    db.aliases.update({(0, col82 + 1, 'LW_SPINE9') : (0, col82, 'LW_SPINE9')})
-    db.aliases.update({(0, col82 + 1, 'LW_SPINE10') : (0, col82, 'LW_SPINE10')})
-    db.aliases.update({(0, col82 + 1, 'LW_SPINE11') : (0, col82, 'LW_SPINE11')})
-    db.aliases.update({(0, col82 + 1, 'LW_SPINE12') : (0, col82, 'LW_SPINE12')})
-    db.aliases.update({(0, col82 + 1, 'LW_SPINE13') : (0, col82, 'LW_SPINE13')})
-    db.aliases.update({(0, col82 + 1, 'LW_SPINE14') : (0, col82, 'LW_SPINE14')})
-    db.aliases.update({(0, col82 + 1, 'LW_SPINE15') : (0, col82, 'LW_SPINE15')})
 
 name_idx = 0
 def make_name(bel, typ):
