@@ -207,11 +207,12 @@ The `+` marked sources whose locations are known and I will explain how to find 
 | +169 |     |     |     |  X  |  X  |  X  |  X  |     |
 
 The `dat` dictionary has a table `UfbIns`, whose entries have the structure `[row number, column number, pip code]`. Thus the entry `[4, 1, 126]` means that CLK2 pip in cell [4, 1] is an entry point to somewhere.
-Experimentally it is found that CLK2 are the entry points to the long wire system.
+Experimentally it is found that CLK2 are the entry points to the long wire system and it is these points that are marked with a `+` sign in the table above.
 
 The record number in the table `UfbIns` is as the code from the table above minus 104. 
 
-
+# F
+This cell contains a connection to the `SS00` and `SS40` buses of some obscure wires. They cannot be made to be used even if you place all the primitives literally next to the bottom row - the buses in the top row will still be used.
 
 
 
