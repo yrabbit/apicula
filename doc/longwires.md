@@ -214,12 +214,3 @@ The record number in the table `UfbIns` is as the code from the table above minu
 # F
 This cell contains a connection to the `SS00` and `SS40` buses of some obscure wires. They cannot be made to be used even if you place all the primitives literally next to the bottom row - the buses in the top row will still be used.
 
-
-
-
-
-
-
-
-
-
