@@ -28,4 +28,10 @@ wirenumbers = {v: k for k, v in wirenames.items()}
 
 clknames = wirenames.copy()
 clknames.update({n: f"SPINE{n}" for n in range(32)})
-clknames.update({n: f"UNK{n}" for n in range(32, 261)})
+clknames.update({n: f"LWT{n - 32}" for n in range(32, 40)})
+clknames.update({n: f"LWB{n - 40}" for n in range(40, 48)})
+clknames.update({n: f"UNK{n}" for n in range(48, 261)})
+clknames.update({n: f"LWSPINETL{n - 1001}" for n in range(1001, 1009)})
+clknames.update({n: f"LWSPINETR{n - 1009}" for n in range(1009, 1017)})
+clknames.update({n: f"LWSPINEBL{n - 1017}" for n in range(1017, 1025)})
+clknames.update({n: f"LWSPINEBR{n - 1025}" for n in range(1025, 1033)})
