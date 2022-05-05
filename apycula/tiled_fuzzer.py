@@ -19,7 +19,7 @@ from apycula import codegen
 from apycula import bslib
 from apycula import pindef
 from apycula import fuse_h4x
-from apycula.wirenames import wirenames, clknames
+from apycula.wirenames import wirenames, clknames, wirenumbers, clknumbers
 #TODO proper API
 #from apycula import dat19_h4x
 from apycula import tm_h4x
@@ -139,6 +139,38 @@ params = {
         "recode_idx": recode_idx_gw1nz_1, # TODO: check
     },
 }[device]
+
+def get_bufs_bits(fse, ttyp, win, wout):
+    wi = clknumbers[win]
+    wo = clknumbers[wout]
+    fuses = []
+    for rec in fse[ttyp]['wire'][38]:
+        if rec[0] == wi and rec[1] == wo:
+            fuses = chipdb.unpad(fuses[2:])
+    return {fuse_h4x.fuse_lookup(fse, ttyp, f) for f in fuses}
+
+# create aliases and pipes for long wires
+def make_lw_aliases(fse, dat, db):
+    # type 81, 82, 83, 84 tiles have source muxes
+    center_row, col82 = dat['center']
+    center_row -= 1
+    col82 -= 1
+    col81 = col82 - 1
+    col83 = col82 + 1
+    col84 = col82 + 2
+    # type 91 and 92 tiles activate the quadrants
+    col91 = col82
+    last_row = len(db.grid) - 1
+
+    # quadrants activation bels
+    for row, half, ttyp in [(0, 'T', 91), (last_row, 'B', 92)]:
+        bel = db.grid[row][col91].bels.setdefault('BUFS', chipdb.Bel())
+        for idx in range(8):
+            db.grid[row][col91].clock_pips.setdefault(f'LWI{idx}', {})[f'LW{half}{idx}'] = {}
+            db.grid[row][col91].clock_pips.setdefault(f'LWSPINE{half}R{idx}', {})[f'LWO{idx}'] = {}
+            db.grid[row][col91].clock_pips.setdefault(f'LWSPINE{half}L{idx}', {})[f'LWO{idx}'] = {}
+            bel.flags[f'LWSPINE{half}R{idx}'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}R{idx}')
+            bel.flags[f'LWSPINE{half}L{idx}'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}L{idx}')
 
 name_idx = 0
 def make_name(bel, typ):
@@ -1133,6 +1165,10 @@ if __name__ == "__main__":
         bel.portmap['XXX_VSS1'] = wirenames[dat[f'IologicAIn'][42]]
     chipdb.dat_aliases(dat, db)
     chipdb.diff2flag(db)
+
+    # long wires
+    import ipdb; ipdb.set_trace()
+    make_lw_aliases(fse, dat, db)
 
     # must be after diff2flags in order to make clean mask for OPEN_DRAIN
     fse_open_drain(fse, db, pin_locations)
