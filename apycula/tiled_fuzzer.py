@@ -146,7 +146,7 @@ def get_bufs_bits(fse, ttyp, win, wout):
     fuses = []
     for rec in fse[ttyp]['wire'][38]:
         if rec[0] == wi and rec[1] == wo:
-            fuses = chipdb.unpad(fuses[2:])
+            fuses = chipdb.unpad(rec[2:])
     return {fuse_h4x.fuse_lookup(fse, ttyp, f) for f in fuses}
 
 # create aliases and pipes for long wires
@@ -163,14 +163,42 @@ def make_lw_aliases(fse, dat, db):
     last_row = len(db.grid) - 1
 
     # quadrants activation bels
+    # delete direct pips long wire -> spine because the artificial bel will be used,
+    # which replaces this direct pip
     for row, half, ttyp in [(0, 'T', 91), (last_row, 'B', 92)]:
         bel = db.grid[row][col91].bels.setdefault('BUFS', chipdb.Bel())
         for idx in range(8):
-            db.grid[row][col91].clock_pips.setdefault(f'LWI{idx}', {})[f'LW{half}{idx}'] = {}
-            db.grid[row][col91].clock_pips.setdefault(f'LWSPINE{half}R{idx}', {})[f'LWO{idx}'] = {}
+            del db.grid[row][col91].clock_pips[f'LWSPINE{half}L{idx}']
+            del db.grid[row][col91].clock_pips[f'LWSPINE{half}R{idx}']
+            # XXX some exception
+            if half == 'B' and idx == 4:
+                src = f'LWT{idx}'
+            else:
+                src = f'LW{half}{idx}'
+            db.grid[row][col91].clock_pips.setdefault(f'LWI{idx}', {})[src] = {}
             db.grid[row][col91].clock_pips.setdefault(f'LWSPINE{half}L{idx}', {})[f'LWO{idx}'] = {}
-            bel.flags[f'LWSPINE{half}R{idx}'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}R{idx}')
+            db.grid[row][col91].clock_pips.setdefault(f'LWSPINE{half}R{idx}', {})[f'LWO{idx}'] = {}
             bel.flags[f'LWSPINE{half}L{idx}'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}L{idx}')
+            bel.flags[f'LWSPINE{half}R{idx}'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}R{idx}')
+            # aliases for long wire origins (center muxes)
+            # If we have only two quadrants, then do not create aliases in the bottom tile 92,
+            # thereby excluding these wires from the candidates for routing
+            # XXX find a way to determine the number of quadrants
+            if half == 'B' and not device.startswith('GW1N-9'):
+                continue
+            if half == 'T':
+                if idx != 7:
+                    db.aliases.update({(row, col82, src) : (center_row, col82, src)})
+                else:
+                    db.aliases.update({(row, col82, src) : (center_row, col81, src)})
+            else:
+                if idx != 7:
+                    if idx == 4:
+                        db.aliases.update({(row, col82, src) : (center_row, col82, src)})
+                    else:
+                        db.aliases.update({(row, col82, src) : (center_row, col83, src)})
+                else:
+                    db.aliases.update({(row, col82, src) : (center_row, col84, src)})
 
 name_idx = 0
 def make_name(bel, typ):
