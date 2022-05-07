@@ -151,6 +151,7 @@ def get_bufs_bits(fse, ttyp, win, wout):
 
 # create aliases and pipes for long wires
 def make_lw_aliases(fse, dat, db):
+    has_bottom_quadrant = device.startswith('GW1N-9')
     # type 81, 82, 83, 84 tiles have source muxes
     center_row, col82 = dat['center']
     center_row -= 1
@@ -170,21 +171,23 @@ def make_lw_aliases(fse, dat, db):
         for idx in range(8):
             del db.grid[row][col91].clock_pips[f'LWSPINE{half}L{idx}']
             del db.grid[row][col91].clock_pips[f'LWSPINE{half}R{idx}']
-            # XXX some exception
-            if half == 'B' and idx == 4:
-                src = f'LWT{idx}'
-            else:
-                src = f'LW{half}{idx}'
+            src = f'LW{half}{idx}'
             db.grid[row][col91].clock_pips.setdefault(f'LWI{idx}', {})[src] = {}
-            db.grid[row][col91].clock_pips.setdefault(f'LWSPINE{half}L{idx}', {})[f'LWO{idx}'] = {}
+            # XXX some exception
+            if half == 'B' and idx == 3:
+                db.grid[row][col91].clock_pips.setdefault('LWI30', {})['LWT3'] = {}
+                db.grid[row][col91].clock_pips.setdefault('LWSPINEBL3', {})['LWO30'] = {}
+                bel.flags['LWSPINEBL3'] = get_bufs_bits(fse, ttyp, 'LWT3', 'LWSPINEBL3')
+            else:
+                db.grid[row][col91].clock_pips.setdefault(f'LWSPINE{half}L{idx}', {})[f'LWO{idx}'] = {}
+                bel.flags[f'LWSPINE{half}L{idx}'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}L{idx}')
             db.grid[row][col91].clock_pips.setdefault(f'LWSPINE{half}R{idx}', {})[f'LWO{idx}'] = {}
-            bel.flags[f'LWSPINE{half}L{idx}'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}L{idx}')
             bel.flags[f'LWSPINE{half}R{idx}'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}R{idx}')
             # aliases for long wire origins (center muxes)
             # If we have only two quadrants, then do not create aliases in the bottom tile 92,
             # thereby excluding these wires from the candidates for routing
             # XXX find a way to determine the number of quadrants
-            if half == 'B' and not device.startswith('GW1N-9'):
+            if half == 'B' and not has_bottom_quadrant:
                 continue
             if half == 'T':
                 if idx != 7:
@@ -193,12 +196,34 @@ def make_lw_aliases(fse, dat, db):
                     db.aliases.update({(row, col82, src) : (center_row, col81, src)})
             else:
                 if idx != 7:
-                    if idx == 4:
-                        db.aliases.update({(row, col82, src) : (center_row, col82, src)})
-                    else:
-                        db.aliases.update({(row, col82, src) : (center_row, col83, src)})
+                    if idx == 3:
+                        db.aliases.update({(row, col82, 'LWT3') : (center_row, col82, 'LWT3')})
+                    db.aliases.update({(row, col82, src) : (center_row, col83, src)})
                 else:
                     db.aliases.update({(row, col82, src) : (center_row, col84, src)})
+    # branches
+    tap_cols = set()
+    for row in range(db.rows):
+        for col in range(db.cols):
+            src = (col // 4) * 4
+            tap_cols.update({ src })
+            for i, off in enumerate([1, 0, 3, 2]):
+                db.aliases.update({(row, col, f'LB{i}1') : (row, src + off, f'LBO0')})
+                db.aliases.update({(row, col, f'LB{i + 4}1') : (row, src + off, f'LBO1')})
+    # taps
+    for row in range(center_row * 2 + 1):
+        for col in tap_cols:
+            for i in range(4):
+                db.aliases.update({(row, col + i, 'LT01') : (0, col + i, 'LT02')})
+                db.aliases.update({(row, col + i, 'LT04') : (0, col + i, 'LT13')})
+    # bottom quadrants
+    if has_bottom_quadrant:
+        for row in range(center_row * 2 + 1, last_row + 1):
+            for col in tap_cols:
+                for i in range(4):
+                    db.aliases.update({(row, col + i, 'LT01') : (last_row, col + i, 'LT02')})
+                    db.aliases.update({(row, col + i, 'LT04') : (last_row, col + i, 'LT13')})
+
 
 name_idx = 0
 def make_name(bel, typ):
