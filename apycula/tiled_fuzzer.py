@@ -151,7 +151,9 @@ def get_bufs_bits(fse, ttyp, win, wout):
 
 # create aliases and pipes for long wires
 def make_lw_aliases(fse, dat, db):
+    # XXX find a way to determine the number of quadrants
     has_bottom_quadrant = device.startswith('GW1N-9')
+
     # type 81, 82, 83, 84 tiles have source muxes
     center_row, col82 = dat['center']
     center_row -= 1
@@ -186,7 +188,6 @@ def make_lw_aliases(fse, dat, db):
             # aliases for long wire origins (center muxes)
             # If we have only two quadrants, then do not create aliases in the bottom tile 92,
             # thereby excluding these wires from the candidates for routing
-            # XXX find a way to determine the number of quadrants
             if half == 'B' and not has_bottom_quadrant:
                 continue
             if half == 'T':
@@ -223,7 +224,19 @@ def make_lw_aliases(fse, dat, db):
                 for i in range(4):
                     db.aliases.update({(row, col + i, 'LT01') : (last_row, col + i, 'LT02')})
                     db.aliases.update({(row, col + i, 'LT04') : (last_row, col + i, 'LT13')})
-
+    # tap sources
+    rows = { (0, 'T') }
+    if has_bottom_quadrant:
+        rows.update({ (last_row, 'B') })
+    for row, qd in rows:
+        for col in tap_cols:
+            for i, off in enumerate([1, 0, 1, 2]):
+                if col < col91:
+                    half = 'L'
+                else:
+                    half = 'R'
+                db.aliases.update({ (row, col + i, 'SS00') : (row, col91, f'LWSPINE{qd}{half}{i}') })
+                db.aliases.update({ (row, col + i, 'SS40') : (row, col91, f'LWSPINE{qd}{half}{i}') })
 
 name_idx = 0
 def make_name(bel, typ):
@@ -1220,7 +1233,6 @@ if __name__ == "__main__":
     chipdb.diff2flag(db)
 
     # long wires
-    import ipdb; ipdb.set_trace()
     make_lw_aliases(fse, dat, db)
 
     # must be after diff2flags in order to make clean mask for OPEN_DRAIN
