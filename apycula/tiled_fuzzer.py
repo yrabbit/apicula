@@ -157,18 +157,24 @@ def make_lw_aliases(fse, dat, db):
     # type 81, 82, 83, 84 tiles have source muxes
     center_row, col82 = dat['center']
     center_row -= 1
+    last_row = db.rows - 1
     col82 -= 1
     col81 = col82 - 1
     col83 = col82 + 1
     col84 = col82 + 2
     # type 91 and 92 tiles activate the quadrants
+    # XXX GW1NS-4 have different types
+    type91 = fse['header']['grid'][61][0][col82]
+    type92 = fse['header']['grid'][61][last_row][col82]
     col91 = col82
-    last_row = len(db.grid) - 1
 
     # quadrants activation bels
     # delete direct pips long wire -> spine because the artificial bel will be used,
     # which replaces this direct pip
-    for row, half, ttyp in [(0, 'T', 91), (last_row, 'B', 92)]:
+    rows = {(0, 'T', type91)}
+    if has_bottom_quadrant:
+        rows.update({ (last_row, 'B', type92) })
+    for row, half, ttyp in rows:
         bel = db.grid[row][col91].bels.setdefault('BUFS', chipdb.Bel())
         for idx in range(8):
             del db.grid[row][col91].clock_pips[f'LWSPINE{half}L{idx}']
@@ -203,27 +209,36 @@ def make_lw_aliases(fse, dat, db):
                 else:
                     db.aliases.update({(row, col82, src) : (center_row, col84, src)})
     # branches
-    tap_cols = set()
+    tap_cols = []
+    for col in range(db.cols // 4 + 1):
+        src = col * 4
+        tap_cols.append(src)
+    _off = [1, 0, 3, 2]
     for row in range(db.rows):
         for col in range(db.cols):
-            src = (col // 4) * 4
-            tap_cols.update({ src })
-            for i, off in enumerate([1, 0, 3, 2]):
-                db.aliases.update({(row, col, f'LB{i}1') : (row, src + off, f'LBO0')})
-                db.aliases.update({(row, col, f'LB{i + 4}1') : (row, src + off, f'LBO1')})
+            i = col % 4
+            dst = tap_cols[i] + _off[i]
+            db.aliases.update({(row, col, f'LB{i}1') : (row, dst, f'LBO0')})
+            db.aliases.update({(row, col, f'LB{i + 4}1') : (row, dst, f'LBO1')})
     # taps
     for row in range(center_row * 2 + 1):
         for col in tap_cols:
             for i in range(4):
-                db.aliases.update({(row, col + i, 'LT01') : (0, col + i, 'LT02')})
-                db.aliases.update({(row, col + i, 'LT04') : (0, col + i, 'LT13')})
+                dst = col + _off[i]
+                if dst >= db.cols:
+                    break
+                db.aliases.update({(row, dst, 'LT01') : (0, dst, 'LT02')})
+                db.aliases.update({(row, dst, 'LT04') : (0, dst, 'LT13')})
     # bottom quadrants
     if has_bottom_quadrant:
         for row in range(center_row * 2 + 1, last_row + 1):
             for col in tap_cols:
                 for i in range(4):
-                    db.aliases.update({(row, col + i, 'LT01') : (last_row, col + i, 'LT02')})
-                    db.aliases.update({(row, col + i, 'LT04') : (last_row, col + i, 'LT13')})
+                    dst = col + _off[i]
+                    if dst >= db.cols:
+                        break
+                    db.aliases.update({(row, dst, 'LT01') : (last_row, dst, 'LT02')})
+                    db.aliases.update({(row, dst, 'LT04') : (last_row, dst, 'LT13')})
     # tap sources
     rows = { (0, 'T') }
     if has_bottom_quadrant:
