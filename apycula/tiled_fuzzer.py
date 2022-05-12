@@ -175,22 +175,18 @@ def make_lw_aliases(fse, dat, db):
     if has_bottom_quadrant:
         rows.update({ (last_row, 'B', type92) })
     for row, half, ttyp in rows:
-        bel = db.grid[row][col91].bels.setdefault('BUFS', chipdb.Bel())
         for idx in range(8):
+            bel = db.grid[row][col91].bels.setdefault(f'BUFS{idx}', chipdb.Bel())
             del db.grid[row][col91].clock_pips[f'LWSPINE{half}L{idx}']
             del db.grid[row][col91].clock_pips[f'LWSPINE{half}R{idx}']
             src = f'LW{half}{idx}'
             db.grid[row][col91].clock_pips.setdefault(f'LWI{idx}', {})[src] = {}
-            # XXX some exception
-            if half == 'B' and idx == 3:
-                db.grid[row][col91].clock_pips.setdefault('LWI30', {})['LWT3'] = {}
-                db.grid[row][col91].clock_pips.setdefault('LWSPINEBL3', {})['LWO30'] = {}
-                bel.flags['LWSPINEBL3'] = get_bufs_bits(fse, ttyp, 'LWT3', 'LWSPINEBL3')
-            else:
-                db.grid[row][col91].clock_pips.setdefault(f'LWSPINE{half}L{idx}', {})[f'LWO{idx}'] = {}
-                bel.flags[f'LWSPINE{half}L{idx}'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}L{idx}')
+            db.grid[row][col91].clock_pips.setdefault(f'LWSPINE{half}L{idx}', {})[f'LWO{idx}'] = {}
+            bel.flags['L'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}L{idx}')
             db.grid[row][col91].clock_pips.setdefault(f'LWSPINE{half}R{idx}', {})[f'LWO{idx}'] = {}
-            bel.flags[f'LWSPINE{half}R{idx}'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}R{idx}')
+            bel.flags['R'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}R{idx}')
+            bel.portmap['I'] = f'LWI{idx}'
+            bel.portmap['O'] = f'LWO{idx}'
             # aliases for long wire origins (center muxes)
             # If we have only two quadrants, then do not create aliases in the bottom tile 92,
             # thereby excluding these wires from the candidates for routing
@@ -203,8 +199,6 @@ def make_lw_aliases(fse, dat, db):
                     db.aliases.update({(row, col82, src) : (center_row, col81, src)})
             else:
                 if idx != 7:
-                    if idx == 3:
-                        db.aliases.update({(row, col82, 'LWT3') : (center_row, col82, 'LWT3')})
                     db.aliases.update({(row, col82, src) : (center_row, col83, src)})
                 else:
                     db.aliases.update({(row, col82, src) : (center_row, col84, src)})
@@ -250,8 +244,20 @@ def make_lw_aliases(fse, dat, db):
                     half = 'L'
                 else:
                     half = 'R'
-                db.aliases.update({ (row, col + i, 'SS00') : (row, col91, f'LWSPINE{qd}{half}{i}') })
-                db.aliases.update({ (row, col + i, 'SS40') : (row, col91, f'LWSPINE{qd}{half}{i}') })
+                db.aliases.update({ (row, col + off, 'SS00') : (row, col91, f'LWSPINE{qd}{half}{i}') })
+                db.aliases.update({ (row, col + off, 'SS40') : (row, col91, f'LWSPINE{qd}{half}{i + 4}') })
+
+    # logic entries
+    srcs = {}
+    for i, src in enumerate(dat['UfbIns']):
+        row, col, pip = src
+        if pip == 126: # CLK2
+            db.aliases.update({ (center_row, col82, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
+            db.aliases.update({ (center_row, col81, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
+            if has_bottom_quadrant:
+                db.aliases.update({ (center_row, col83, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
+                db.aliases.update({ (center_row, col84, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
+
 
 name_idx = 0
 def make_name(bel, typ):
