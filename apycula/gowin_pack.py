@@ -94,13 +94,14 @@ def place(db, tilemap, bels, cst, args):
         if typ == "BUFS":
             # gather all bits
             bits = set()
-            for b in [b for b in tiledata.bels[f'BUFS{i}'].flags for i in range(8)]:
-                bits.update(b)
+            for i in range(8):
+                for b in tiledata.bels[f'BUFS{i}'].flags.values():
+                    bits.update(b)
             # fuses must be reset in order to activeate so remove them
             active_fuses = 'R'
             if 'L' in parms.keys():
                 active_fuses = 'L'
-            bits.discard(tiledata.bels[f'BUFS{num}'].flags[active_fuses])
+            bits -= tiledata.bels[f'BUFS{num}'].flags[active_fuses]
             for r, c in bits:
                 tile[r][c] = 1
 
