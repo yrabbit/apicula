@@ -210,10 +210,10 @@ def make_lw_aliases(fse, dat, db):
     _off = [1, 0, 3, 2]
     for row in range(db.rows):
         for col in range(db.cols):
-            i = col % 4
-            dst = tap_cols[col // 4] + _off[i]
-            db.aliases.update({(row, col, f'LB{i}1') : (row, dst, f'LBO0')})
-            db.aliases.update({(row, col, f'LB{i + 4}1') : (row, dst, f'LBO1')})
+            for i in range(4):
+                dst = tap_cols[col // 4] + _off[i]
+                db.aliases.update({(row, col, f'LB{i}1') : (row, dst, f'LBO0')})
+                db.aliases.update({(row, col, f'LB{i + 4}1') : (row, dst, f'LBO1')})
     # taps
     for row in range(center_row * 2 + 1):
         for col in tap_cols:
@@ -239,13 +239,19 @@ def make_lw_aliases(fse, dat, db):
         rows.update({ (last_row, 'B') })
     for row, qd in rows:
         for col in tap_cols:
-            for i, off in enumerate([1, 0, 1, 2]):
+            for i, off in enumerate([1, 0, 3, 2]):
+                if col + off >= db.cols:
+                    break
                 if col < col91:
                     half = 'L'
                 else:
                     half = 'R'
                 db.aliases.update({ (row, col + off, 'SS00') : (row, col91, f'LWSPINE{qd}{half}{i}') })
                 db.aliases.update({ (row, col + off, 'SS40') : (row, col91, f'LWSPINE{qd}{half}{i + 4}') })
+                # XXX remove all pips except SS00 and SS40
+                for tap in ['LT02', 'LT13']:
+                    for pip in [p for p in db.grid[row][col + off].pips[tap] if p not in {'SS00', 'SS40'}]:
+                        del db.grid[row][col + off].pips[tap][pip]
 
     # logic entries
     srcs = {}
