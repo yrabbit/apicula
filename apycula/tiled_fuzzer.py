@@ -211,7 +211,7 @@ def make_lw_aliases(fse, dat, db):
     for row in range(db.rows):
         for col in range(db.cols):
             i = col % 4
-            dst = tap_cols[i] + _off[i]
+            dst = tap_cols[col // 4] + _off[i]
             db.aliases.update({(row, col, f'LB{i}1') : (row, dst, f'LBO0')})
             db.aliases.update({(row, col, f'LB{i + 4}1') : (row, dst, f'LBO1')})
     # taps
