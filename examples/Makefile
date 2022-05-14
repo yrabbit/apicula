@@ -54,7 +54,11 @@ blinky-oddr-runber.json: blinky-oddr-runber-synth.json runber-tlvds.cst
 	gowin_pack -d GW1N-1 -o $@ $^
 
 %-tangnano.json: %-tangnano-synth.json tangnano.cst
-	$(NEXTPNR) -v --debug --json $< --write $@ --device GW1N-LV1QN48C6/I5 --cst tangnano.cst
+	$(NEXTPNR) -v --debug --seed=10 --json $< --write $@ --device GW1N-LV1QN48C6/I5 --cst tangnano.cst
+
+%-default-flags-tangnano.json: %-tangnano-synth.json
+	$(NEXTPNR) --json $^ --write $@ --device GW1N-LV1QN48C6/I5 \
+		--cst iob/tangnano-default.cst
 
 %-tangnano1k.fs: %-tangnano1k.json
 	gowin_pack -d GW1NZ-1 -o $@ $^

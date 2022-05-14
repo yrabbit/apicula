@@ -262,8 +262,8 @@ if __name__ == "__main__":
 
     #row3 = 28
     #col3 = 7
-    row3 = 2
-    col3 = 1
+    row3 = 0
+    col3 = 9
     import ipdb; ipdb.set_trace()
     # cmp images
     if len(sys.argv) > 3:

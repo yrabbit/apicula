@@ -28,7 +28,7 @@ def sanitize_name(name):
 
 def get_bels(data):
     later = []
-    belre = re.compile(r"R(\d+)C(\d+)_(?:GSR|SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8|ODDR|OSC[ZFH]?)(\w*)")
+    belre = re.compile(r"R(\d+)C(\d+)_(?:GSR|SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8|ODDR|OSC[ZFH]?|BUFS)(\w*)")
     for cellname, cell in data['modules']['top']['cells'].items():
         bel = cell['attributes']['NEXTPNR_BEL']
         if bel in {"VCC", "GND"}: continue
@@ -91,6 +91,20 @@ def place(db, tilemap, bels, cst, args):
         tile = tilemap[(row-1, col-1)]
         if typ == "GSR":
             pass
+        if typ == "BUFS":
+            # gather all bits
+            bits = set()
+            for i in range(8):
+                for b in tiledata.bels[f'BUFS{i}'].flags.values():
+                    bits.update(b)
+            # fuses must be reset in order to activeate so remove them
+            active_fuses = 'R'
+            if 'L' in parms.keys():
+                active_fuses = 'L'
+            bits -= tiledata.bels[f'BUFS{num}'].flags[active_fuses]
+            for r, c in bits:
+                tile[r][c] = 1
+
         if typ in {'OSC', 'OSCZ', 'OSCF', 'OSCH'}:
             divisor = int(parms['FREQ_DIV'], 2)
             if divisor % 2 == 1:
