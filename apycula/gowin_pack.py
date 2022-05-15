@@ -92,18 +92,21 @@ def place(db, tilemap, bels, cst, args):
         if typ == "GSR":
             pass
         if typ == "BUFS":
+            # XXX This piece may be unnecessary if we assume that all bits are set to 1 by default
             # gather all bits
             bits = set()
             for i in range(8):
                 for b in tiledata.bels[f'BUFS{i}'].flags.values():
                     bits.update(b)
+            for r, c in bits:
+                tile[r][c] = 1
             # fuses must be reset in order to activeate so remove them
             active_fuses = 'R'
             if 'L' in parms.keys():
                 active_fuses = 'L'
-            bits -= tiledata.bels[f'BUFS{num}'].flags[active_fuses]
-            for r, c in bits:
-                tile[r][c] = 1
+            bits2zero = tiledata.bels[f'BUFS{num}'].flags[active_fuses]
+            for r, c in bits2zero:
+                tile[r][c] = 0
 
         if typ in {'OSC', 'OSCZ', 'OSCF', 'OSCH'}:
             divisor = int(parms['FREQ_DIV'], 2)
