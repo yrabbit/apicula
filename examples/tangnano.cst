@@ -7,7 +7,7 @@ IO_LOC "led[2]" 18;
 IO_LOC "key" 15;
 IO_LOC "rst" 14;
 
-//CLOCK_LOC "led[0]" BUFS;
+CLOCK_LOC "led[0]" BUFS;
 CLOCK_LOC "led[1]" BUFS;
 //CLOCK_LOC "led[2]" BUFS;
 
