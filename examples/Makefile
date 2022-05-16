@@ -103,7 +103,7 @@ nanolcd-tangnano-synth.json: nanolcd/TOP.v nanolcd/VGAMod.v
 	$(YOSYS) -D LEDS_NR=8 -D OSC_TYPE_OSC -p "read_verilog $^; synth_gowin -json $@"
 
 %-tangnano-synth.json: %.v
-	$(YOSYS) -D LEDS_NR=3 -D OSC_TYPE_OSCH -p "read_verilog $^; synth_gowin -noalu -json $@"
+	$(YOSYS) -D LEDS_NR=3 -D OSC_TYPE_OSCH -p "read_verilog $^; synth_gowin -json $@"
 
 %-tangnano1k-synth.json: %.v
 	$(YOSYS) -D LEDS_NR=3 -D OSC_TYPE_OSCZ -p "read_verilog $^; synth_gowin -json $@"
