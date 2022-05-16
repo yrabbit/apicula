@@ -93,10 +93,9 @@ def place(db, tilemap, bels, cst, args):
             pass
         if typ == "BUFS":
             # fuses must be reset in order to activeate so remove them
-            active_fuses = 'R'
-            if 'L' in parms.keys():
-                active_fuses = 'L'
-            bits2zero = tiledata.bels[f'BUFS{num}'].flags[active_fuses]
+            bits2zero = set()
+            for fuses in [fuses for fuses in parms.keys() if fuses in {'L', 'R'}]:
+                bits2zero.update(tiledata.bels[f'BUFS{num}'].flags[fuses])
             for r, c in bits2zero:
                 tile[r][c] = 0
 
@@ -289,7 +288,6 @@ def place(db, tilemap, bels, cst, args):
 
 def route(db, tilemap, pips):
     for row, col, src, dest in pips:
-        print(row, col, src, '->', dest)
         tiledata = db.grid[row-1][col-1]
         tile = tilemap[(row-1, col-1)]
 
