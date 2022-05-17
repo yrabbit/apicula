@@ -11,7 +11,7 @@ IO_LOC "rst" 14;
 
 CLOCK_LOC "led[0]" BUFS;
 CLOCK_LOC "led[1]" BUFS;
-//CLOCK_LOC "led[2]" BUFS;
+CLOCK_LOC "led[2]" BUFS;
 
 IO_LOC "LCD_B[0]" 41;
 //IO_LOC "LCD_B[1]" 42;
