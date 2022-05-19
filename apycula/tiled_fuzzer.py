@@ -19,7 +19,7 @@ from apycula import codegen
 from apycula import bslib
 from apycula import pindef
 from apycula import fuse_h4x
-from apycula.wirenames import wirenames, clknames
+from apycula.wirenames import wirenames, clknames, wirenumbers, clknumbers
 #TODO proper API
 #from apycula import dat19_h4x
 from apycula import tm_h4x
@@ -139,6 +139,128 @@ params = {
         "recode_idx": recode_idx_gw1nz_1, # TODO: check
     },
 }[device]
+
+def get_bufs_bits(fse, ttyp, win, wout):
+    wi = clknumbers[win]
+    wo = clknumbers[wout]
+    fuses = []
+    for rec in fse[ttyp]['wire'][38]:
+        if rec[0] == wi and rec[1] == wo:
+            fuses = chipdb.unpad(rec[2:])
+    return {fuse_h4x.fuse_lookup(fse, ttyp, f) for f in fuses}
+
+# create aliases and pipes for long wires
+def make_lw_aliases(fse, dat, db):
+    # XXX find a way to determine the number of quadrants
+    has_bottom_quadrant = device.startswith('GW1N-9')
+
+    # type 81, 82, 83, 84 tiles have source muxes
+    center_row, col82 = dat['center']
+    center_row -= 1
+    last_row = db.rows - 1
+    col82 -= 1
+    col81 = col82 - 1
+    col83 = col82 + 1
+    col84 = col82 + 2
+    # type 91 and 92 tiles activate the quadrants
+    # XXX GW1NS-4 have different types
+    type91 = fse['header']['grid'][61][0][col82]
+    type92 = fse['header']['grid'][61][last_row][col82]
+    col91 = col82
+
+    # quadrants activation bels
+    # delete direct pips long wire -> spine because the artificial bel will be used,
+    # which replaces this direct pip
+    rows = {(0, 'T', type91)}
+    if has_bottom_quadrant:
+        rows.update({ (last_row, 'B', type92) })
+    for row, half, ttyp in rows:
+        for idx in range(8):
+            bel = db.grid[row][col91].bels.setdefault(f'BUFS{idx}', chipdb.Bel())
+            del db.grid[row][col91].clock_pips[f'LWSPINE{half}L{idx}']
+            del db.grid[row][col91].clock_pips[f'LWSPINE{half}R{idx}']
+            src = f'LW{half}{idx}'
+            db.grid[row][col91].clock_pips.setdefault(f'LWI{idx}', {})[src] = {}
+            db.grid[row][col91].clock_pips.setdefault(f'LWSPINE{half}L{idx}', {})[f'LWO{idx}'] = {}
+            bel.flags['L'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}L{idx}')
+            db.grid[row][col91].clock_pips.setdefault(f'LWSPINE{half}R{idx}', {})[f'LWO{idx}'] = {}
+            bel.flags['R'] = get_bufs_bits(fse, ttyp, f'LW{half}{idx}', f'LWSPINE{half}R{idx}')
+            bel.portmap['I'] = f'LWI{idx}'
+            bel.portmap['O'] = f'LWO{idx}'
+            # aliases for long wire origins (center muxes)
+            # If we have only two quadrants, then do not create aliases in the bottom tile 92,
+            # thereby excluding these wires from the candidates for routing
+            if half == 'B' and not has_bottom_quadrant:
+                continue
+            if half == 'T':
+                if idx != 7:
+                    db.aliases.update({(row, col82, src) : (center_row, col82, src)})
+                else:
+                    db.aliases.update({(row, col82, src) : (center_row, col81, src)})
+            else:
+                if idx != 7:
+                    db.aliases.update({(row, col82, src) : (center_row, col83, src)})
+                else:
+                    db.aliases.update({(row, col82, src) : (center_row, col84, src)})
+    # branches
+    # {tap#: {lw#: tap_col}}
+    taps = {}
+    lwL = [1, 0, 3, 2]
+    lwR = [3, 2, 1, 0]
+    if device.startswith('GW1N-9'):
+        lwL = lwR
+
+    right_off = 4 - ((col82 + 1) % 4)
+    for rang, off, lws in [(range(col82 + 1), 0, lwL), (range(col82 + 1, db.cols), right_off, lwR)]:
+        for col in rang:
+            adj_col = col + off
+            tap_col = (adj_col // 4) * 4
+            lw = lws[adj_col % 4]
+            taps.setdefault(tap_col, {})[lw] = col
+
+    for row in range(db.rows):
+        for _, lws in taps.items():
+            for lw, tap in lws.items():
+                tap_row = 0
+                if row > (center_row * 2):
+                    tap_row = last_row
+                db.aliases.update({(row, tap, 'LT01') : (tap_row, tap, 'LT02')})
+                db.aliases.update({(row, tap, 'LT04') : (tap_row, tap, 'LT13')})
+                for col in lws.values():
+                    db.aliases.update({(row, col, f'LB{lw}1') : (row, tap, f'LBO0')})
+                    db.aliases.update({(row, col, f'LB{lw + 4}1') : (row, tap, f'LBO1')})
+
+    # tap sources
+    rows = { (0, 'T') }
+    if has_bottom_quadrant:
+        rows.update({ (last_row, 'B') })
+    for row, qd in rows:
+        for _, lws in taps.items():
+            for lw, tap in lws.items():
+                if tap <= col91:
+                    half = 'L'
+                else:
+                    half = 'R'
+                db.aliases.update({ (row, tap, 'SS00') : (row, col91, f'LWSPINE{qd}{half}{lw}') })
+                db.aliases.update({ (row, tap, 'SS40') : (row, col91, f'LWSPINE{qd}{half}{lw + 4}') })
+                # XXX remove all pips except SS00 and SS40
+                pip2keep = {'SS00', 'SS40'}
+                for tp in ['LT02', 'LT13']:
+                    for pip in [p for p in db.grid[row][tap].pips[tp] if p not in pip2keep]:
+                        del db.grid[row][tap].pips[tp][pip]
+
+
+    # logic entries
+    srcs = {}
+    for i, src in enumerate(dat['UfbIns']):
+        row, col, pip = src
+        if pip == 126: # CLK2
+            db.aliases.update({ (center_row, col82, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
+            db.aliases.update({ (center_row, col81, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
+            if has_bottom_quadrant:
+                db.aliases.update({ (center_row, col83, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
+                db.aliases.update({ (center_row, col84, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
+
 
 name_idx = 0
 def make_name(bel, typ):
@@ -1133,6 +1255,9 @@ if __name__ == "__main__":
         bel.portmap['XXX_VSS1'] = wirenames[dat[f'IologicAIn'][42]]
     chipdb.dat_aliases(dat, db)
     chipdb.diff2flag(db)
+
+    # long wires
+    make_lw_aliases(fse, dat, db)
 
     # must be after diff2flags in order to make clean mask for OPEN_DRAIN
     fse_open_drain(fse, db, pin_locations)
