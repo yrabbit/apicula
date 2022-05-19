@@ -41,12 +41,13 @@ def _io_mode_sort_func(mode):
 
 # noiostd --- this is the case when the function is called
 # with iostd by default, e.g. from the clock fuzzer
-# With normal gowun_unpack io standard is determined first and it is known.
+# With normal gowin_unpack io standard is determined first and it is known.
 def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True):
     # TLVDS takes two BUF bels, so skip the B bels.
     skip_bels = set()
     print((row, col))
     tiledata = db.grid[row][col]
+    clock_pips = {}
     bels = {}
     for name, bel in tiledata.bels.items():
         if name[0:3] == "IOB":
@@ -117,6 +118,16 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                 if name == "RAM16" and not name in bels:
                     continue
                 bels.setdefault(name, set()).add(flag)
+        # revert BUFS flags
+        if name.startswith('BUFS'):
+            flags = bels.get(name, set()) ^ {'R', 'L'}
+            if flags:
+                num = name[4:]
+                half = 'T'
+                if row != 0:
+                    half = 'B'
+                for qd in flags:
+                    clock_pips[f'LWSPINE{half}{qd}{num}'] = f'LW{half}{num}'
         print("flags:", sorted(bels.get(name, set())))
 
     pips = {}
@@ -130,7 +141,6 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             if bits == used_bits and (default or bits):
                 pips[dest] = src
 
-    clock_pips = {}
     for dest, srcs in tiledata.clock_pips.items():
         pip_bits = set().union(*srcs.values())
         used_bits = {(row, col)
@@ -140,6 +150,8 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             # only report connection aliased to by a spine
             if bits == used_bits and (noalias or (row, col, src) in db.aliases):
                 clock_pips[dest] = src
+
+    print(clock_pips)
     return {name: bel for name, bel in bels.items() if name not in skip_bels}, pips, clock_pips
 
 
