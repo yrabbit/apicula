@@ -128,7 +128,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                     half = 'B'
                 for qd in flags:
                     clock_pips[f'LWSPINE{half}{qd}{num}'] = f'LW{half}{num}'
-        print("flags:", sorted(bels.get(name, set())))
+        #print("flags:", sorted(bels.get(name, set())))
 
     pips = {}
     for dest, srcs in tiledata.pips.items():
