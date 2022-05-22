@@ -394,6 +394,8 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
             oddr.portmap['Q1'] = ""
             #oddr.portmap['Q1'] = f"R{row}C{col}_{portmap['Q1']}_IOL"
             mod.wires.update(oddr.portmap.values())
+            # XXX implement ODDR with TBUF
+            oddr.portmap['Q1'] = ""
             mod.primitives[name] = oddr
         elif typ == "IOB":
             try:
