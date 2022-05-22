@@ -279,8 +279,8 @@ if __name__ == "__main__":
 
     #row3 = 28
     #col3 = 7
-    row3 = 0
-    col3 = 15
+    row3 = 9
+    col3 = 18
     import ipdb; ipdb.set_trace()
     # cmp images
     if len(sys.argv) > 3:
@@ -289,6 +289,7 @@ if __name__ == "__main__":
         sec_bm = chipdb.tile_bitmap(db, sec_img)
         diff = img ^ sec_img
         diff_tiles = fuse_h4x.tile_bitmap(fse, diff)
+        sec_tiles = fuse_h4x.tile_bitmap(fse, sec_img)
         print(diff_tiles.keys())
         ttyp = fse['header']['grid'][61][row3][col3]
         # first tiles wo same

@@ -216,55 +216,51 @@ def make_lw_aliases(fse, dat, db):
                 else:
                     db.aliases.update({(row, col82, src) : (center_row, col84, src)})
     # branches
-    tap_cols = []
-    for col in range(db.cols // 4 + 1):
-        src = col * 4
-        tap_cols.append(src)
-    _off = [1, 0, 3, 2]
+    # {tap#: {lw#: tap_col}}
+    taps = {}
+    lwL = [1, 0, 3, 2]
+    lwR = [3, 2, 1, 0]
+    if device.startswith('GW1N-9'):
+        lwL = lwR
+
+    right_off = 4 - ((col82 + 1) % 4)
+    for rang, off, lws in [(range(col82 + 1), 0, lwL), (range(col82 + 1, db.cols), right_off, lwR)]:
+        for col in rang:
+            adj_col = col + off
+            tap_col = (adj_col // 4) * 4
+            lw = lws[adj_col % 4]
+            taps.setdefault(tap_col, {})[lw] = col
+
     for row in range(db.rows):
-        for col in range(db.cols):
-            for i in range(4):
-                dst = tap_cols[col // 4] + _off[i]
-                db.aliases.update({(row, col, f'LB{i}1') : (row, dst, f'LBO0')})
-                db.aliases.update({(row, col, f'LB{i + 4}1') : (row, dst, f'LBO1')})
-    # taps
-    for row in range(center_row * 2 + 1):
-        for col in tap_cols:
-            for i in range(4):
-                dst = col + _off[i]
-                if dst >= db.cols:
-                    break
-                db.aliases.update({(row, dst, 'LT01') : (0, dst, 'LT02')})
-                db.aliases.update({(row, dst, 'LT04') : (0, dst, 'LT13')})
-    # bottom quadrants
-    if has_bottom_quadrant:
-        for row in range(center_row * 2 + 1, last_row + 1):
-            for col in tap_cols:
-                for i in range(4):
-                    dst = col + _off[i]
-                    if dst >= db.cols:
-                        break
-                    db.aliases.update({(row, dst, 'LT01') : (last_row, dst, 'LT02')})
-                    db.aliases.update({(row, dst, 'LT04') : (last_row, dst, 'LT13')})
+        for _, lws in taps.items():
+            for lw, tap in lws.items():
+                tap_row = 0
+                if row > (center_row * 2):
+                    tap_row = last_row
+                db.aliases.update({(row, tap, 'LT01') : (tap_row, tap, 'LT02')})
+                db.aliases.update({(row, tap, 'LT04') : (tap_row, tap, 'LT13')})
+                for col in lws.values():
+                    db.aliases.update({(row, col, f'LB{lw}1') : (row, tap, f'LBO0')})
+                    db.aliases.update({(row, col, f'LB{lw + 4}1') : (row, tap, f'LBO1')})
+
     # tap sources
     rows = { (0, 'T') }
     if has_bottom_quadrant:
         rows.update({ (last_row, 'B') })
     for row, qd in rows:
-        for col in tap_cols:
-            for i, off in enumerate([1, 0, 3, 2]):
-                if col + off >= db.cols:
-                    break
-                if col < col91:
+        for _, lws in taps.items():
+            for lw, tap in lws.items():
+                if tap <= col91:
                     half = 'L'
                 else:
                     half = 'R'
-                db.aliases.update({ (row, col + off, 'SS00') : (row, col91, f'LWSPINE{qd}{half}{i}') })
-                db.aliases.update({ (row, col + off, 'SS40') : (row, col91, f'LWSPINE{qd}{half}{i + 4}') })
+                db.aliases.update({ (row, tap, 'SS00') : (row, col91, f'LWSPINE{qd}{half}{lw}') })
+                db.aliases.update({ (row, tap, 'SS40') : (row, col91, f'LWSPINE{qd}{half}{lw + 4}') })
                 # XXX remove all pips except SS00 and SS40
-                for tap in ['LT02', 'LT13']:
-                    for pip in [p for p in db.grid[row][col + off].pips[tap] if p not in {'SS00', 'SS40'}]:
-                        del db.grid[row][col + off].pips[tap][pip]
+                pip2keep = {'SS00', 'SS40'}
+                for tp in ['LT02', 'LT13']:
+                    for pip in [p for p in db.grid[row][tap].pips[tp] if p not in pip2keep]:
+                        del db.grid[row][tap].pips[tp][pip]
 
     # logic entries
     srcs = {}

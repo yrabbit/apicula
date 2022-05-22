@@ -62,7 +62,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             # Here we don't use a mask common to all modes (it didn't work),
             # instead we try the longest bit sequence first.
             for mode, mode_rec in sorted(bel.iob_flags[iostd].items(),
-                    key = _io_mode_sort_func, reverse = True):
+                key = _io_mode_sort_func, reverse = True):
                 #print(mode, mode_rec.decode_bits)
                 mode_bits = {(row, col)
                              for row, col in mode_rec.decode_bits
@@ -70,7 +70,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                 #print("read", mode_bits)
                 if mode_rec.decode_bits == mode_bits:
                     zeros = zero_bits(mode, bel.iob_flags[iostd])
-                    print("zeros", zeros)
+                    #print("zeros", zeros)
                     used_bits = {tile[row][col] for row, col in zeros}
                     if not any(used_bits):
                         bels.setdefault(name, set()).add(mode)
@@ -92,8 +92,8 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             mode_bits = {(row, col)
                          for row, col in bel.mode_bits
                          if tile[row][col] == 1}
-            print(name, sorted(bel.mode_bits))
-            print("read mode:", sorted(mode_bits))
+            #print(name, sorted(bel.mode_bits))
+            #print("read mode:", sorted(mode_bits))
             for mode, bits in bel.modes.items():
                 print(mode, sorted(bits))
                 if bits == mode_bits and (default or bits):
@@ -128,7 +128,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                     half = 'B'
                 for qd in flags:
                     clock_pips[f'LWSPINE{half}{qd}{num}'] = f'LW{half}{num}'
-        print("flags:", sorted(bels.get(name, set())))
+        #print("flags:", sorted(bels.get(name, set())))
 
     pips = {}
     for dest, srcs in tiledata.pips.items():
@@ -151,7 +151,6 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             if bits == used_bits and (noalias or (row, col, src) in db.aliases):
                 clock_pips[dest] = src
 
-    print(clock_pips)
     return {name: bel for name, bel in bels.items() if name not in skip_bels}, pips, clock_pips
 
 
@@ -467,7 +466,6 @@ def default_device_config():
         "secure_mode": "false"}
 
 def main():
-    import ipdb; ipdb.set_trace()
     parser = argparse.ArgumentParser(description='Unpack Gowin bitstream')
     parser.add_argument('bitstream')
     parser.add_argument('-d', '--device', required=True)
