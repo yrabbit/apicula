@@ -209,6 +209,8 @@ def make_lw_aliases(fse, dat, db):
     lwR = [3, 2, 1, 0]
     if device.startswith('GW1N-9'):
         lwL = lwR
+    if device in {'GW1N-4', 'GW1NS-4'}:
+        lwL = [2, 1, 0, 3]
 
     right_off = 4 - ((col82 + 1) % 4)
     for rang, off, lws in [(range(col82 + 1), 0, lwL), (range(col82 + 1, db.cols), right_off, lwR)]:
