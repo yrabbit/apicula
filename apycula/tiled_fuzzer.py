@@ -1271,24 +1271,12 @@ if __name__ == "__main__":
                 bel.flags.setdefault(flag.upper(), set()).update(loc)
             except ValueError:
                 pass
-    fse_pull_mode(fse, db, pin_locations)
-    fse_slew_rate(fse, db, pin_locations)
-    fse_hysteresis(fse, db, pin_locations)
-    fse_drive(fse, db, pin_locations)
-
-    # bank modes
-    fse_banks(fse, db, corners)
-
     # Fill the IOB encodings from fse tables
     fse_pull_mode(fse, db, pin_locations)
     fse_slew_rate(fse, db, pin_locations)
     fse_hysteresis(fse, db, pin_locations)
     fse_drive(fse, db, pin_locations)
     fse_iologic(fse, db, pin_locations)
-
-    # diff IOB
-    diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
-    fse_diff_iob(fse, db, pin_locations, diff_cap_info);
 
     # diff IOB
     diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
