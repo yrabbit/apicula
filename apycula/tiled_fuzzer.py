@@ -101,42 +101,56 @@ params = {
         "device": "GW1NS-2C-LQFP144-5",
         "partnumber": "GW1NS-UX2CLQ144C5/I4",
         "recode_idx": recode_idx_gw1ns_2,
+        "has_bottom_quadrants": False,                     # XXX find it in the fse/dat
+        "lw_tap": {'L': [1, 0, 3, 2], 'R': [3, 2, 1, 0]},  # XXX find it in the fse/dat
     },
     "GW1NS-4": {
         "package": "QFN48",
         "device": "GW1NSR-4C-QFN48-7",
         "partnumber": "GW1NSR-LV4CQN48PC7/I6",
         "recode_idx": recode_idx_gw1ns_4,
+        "has_bottom_quadrants": False,
+        "lw_tap": {'L': [2, 1, 0, 3], 'R': [2, 2, 1, 0]},
     },
     "GW1N-9": {
         "package": "PBGA256",
         "device": "GW1N-9-PBGA256-6",
         "partnumber": "GW1N-LV9PG256C6/I5",
         "recode_idx": recode_idx_gw1n9,
+        "has_bottom_quadrants": True,
+        "lw_tap": {'L': [3, 2, 1, 0], 'R': [3, 2, 1, 0]},
     },
     "GW1N-9C": {
         "package": "UBGA332",
         "device": "GW1N-9C-UBGA332-6",
         "partnumber": "GW1N-LV9UG332C6/I5",
-        "recode_idx": recode_idx_gw1n9, # TODO: recheck
+        "recode_idx": recode_idx_gw1n9,
+        "has_bottom_quadrants": True,
+        "lw_tap": {'L': [3, 2, 1, 0], 'R': [3, 2, 1, 0]},
     },
     "GW1N-4": {
         "package": "PBGA256",
         "device": "GW1N-4-PBGA256-6",
         "partnumber": "GW1N-LV4PG256C6/I5",
         "recode_idx": recode_idx_gw1n4,
+        "has_bottom_quadrants": False,
+        "lw_tap": {'L': [2, 1, 0, 3], 'R': [3, 2, 1, 0]},
     },
     "GW1N-1": {
         "package": "LQFP144",
         "device": "GW1N-1-LQFP144-6",
         "partnumber": "GW1N-LV1LQ144C6/I5",
         "recode_idx": recode_idx_gw1n1,
+        "has_bottom_quadrants": False,
+        "lw_tap": {'L': [1, 0, 3, 2], 'R': [3, 2, 1, 0]},
     },
     "GW1NZ-1": {
         "package": "QFN48",
         "device": "GW1NZ-1-QFN48-6",
         "partnumber": "GW1NZ-LV1QN48C6/I5",
-        "recode_idx": recode_idx_gw1nz_1, # TODO: check
+        "recode_idx": recode_idx_gw1nz_1,
+        "has_bottom_quadrants": False,
+        "lw_tap": {'L': [1, 0, 3, 2], 'R': [3, 2, 1, 0]},
     },
 }[device]
 
@@ -151,9 +165,6 @@ def get_bufs_bits(fse, ttyp, win, wout):
 
 # create aliases and pipes for long wires
 def make_lw_aliases(fse, dat, db):
-    # XXX find a way to determine the number of quadrants
-    has_bottom_quadrant = device.startswith('GW1N-9')
-
     # type 81, 82, 83, 84 tiles have source muxes
     center_row, col82 = dat['center']
     center_row -= 1
@@ -172,7 +183,7 @@ def make_lw_aliases(fse, dat, db):
     # delete direct pips long wire -> spine because the artificial bel will be used,
     # which replaces this direct pip
     rows = {(0, 'T', type91)}
-    if has_bottom_quadrant:
+    if device.has_bottom_quadrants:
         rows.update({ (last_row, 'B', type92) })
     for row, half, ttyp in rows:
         for idx in range(8):
@@ -205,12 +216,8 @@ def make_lw_aliases(fse, dat, db):
     # branches
     # {tap#: {lw#: tap_col}}
     taps = {}
-    lwL = [1, 0, 3, 2]
-    lwR = [3, 2, 1, 0]
-    if device.startswith('GW1N-9'):
-        lwL = lwR
-    if device in {'GW1N-4', 'GW1NS-4'}:
-        lwL = [2, 1, 0, 3]
+    lwL = device.lw_tap['L']
+    lwR = device.lw_tap['R']
 
     right_off = 4 - ((col82 + 1) % 4)
     for rang, off, lws in [(range(col82 + 1), 0, lwL), (range(col82 + 1, db.cols), right_off, lwR)]:
