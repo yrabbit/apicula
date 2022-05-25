@@ -183,7 +183,7 @@ def make_lw_aliases(fse, dat, db):
     # delete direct pips long wire -> spine because the artificial bel will be used,
     # which replaces this direct pip
     rows = {(0, 'T', type91)}
-    if device.has_bottom_quadrants:
+    if params['has_bottom_quadrants']:
         rows.update({ (last_row, 'B', type92) })
     for row, half, ttyp in rows:
         for idx in range(8):
@@ -201,7 +201,7 @@ def make_lw_aliases(fse, dat, db):
             # aliases for long wire origins (center muxes)
             # If we have only two quadrants, then do not create aliases in the bottom tile 92,
             # thereby excluding these wires from the candidates for routing
-            if half == 'B' and not has_bottom_quadrant:
+            if half == 'B' and not params['has_bottom_quadrants']:
                 continue
             if half == 'T':
                 if idx != 7:
@@ -216,8 +216,8 @@ def make_lw_aliases(fse, dat, db):
     # branches
     # {tap#: {lw#: tap_col}}
     taps = {}
-    lwL = device.lw_tap['L']
-    lwR = device.lw_tap['R']
+    lwL = params['lw_tap']['L']
+    lwR = params['lw_tap']['R']
 
     right_off = 4 - ((col82 + 1) % 4)
     for rang, off, lws in [(range(col82 + 1), 0, lwL), (range(col82 + 1, db.cols), right_off, lwR)]:
@@ -241,7 +241,7 @@ def make_lw_aliases(fse, dat, db):
 
     # tap sources
     rows = { (0, 'T') }
-    if has_bottom_quadrant:
+    if params['has_bottom_quadrants']:
         rows.update({ (last_row, 'B') })
     for row, qd in rows:
         for _, lws in taps.items():
@@ -266,7 +266,7 @@ def make_lw_aliases(fse, dat, db):
         if pip == 126: # CLK2
             db.aliases.update({ (center_row, col82, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
             db.aliases.update({ (center_row, col81, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
-            if has_bottom_quadrant:
+            if params['has_bottom_quadrants']:
                 db.aliases.update({ (center_row, col83, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
                 db.aliases.update({ (center_row, col84, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
 
