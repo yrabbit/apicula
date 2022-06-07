@@ -254,12 +254,16 @@ if __name__ == "__main__":
     with open(f"/home/rabbit/src/apicula/apycula/{device}.pickle", "rb") as f:
         db = pickle.load(f)
 
+    wires = set()
     for ttyp in [t for t in fse.keys() if f != 'header']:
         if 'wire' not in fse[ttyp].keys() or 2 not in fse[ttyp]['wire'].keys():
             continue
+        for w in dat['X11s']:
+            wires.add(wirenames[w])
         for rr in fse[ttyp]['wire'][2]:
             src = rr[0]
             dst = rr[1]
             if src in dat['X11s'] or dst in dat['X11s']:
                 print(f'found [{ttyp}]{src}->{dst}')
                 break
+    print(wires)
