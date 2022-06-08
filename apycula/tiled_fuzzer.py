@@ -114,8 +114,8 @@ params = {
         "device": "GW1NS-2C-LQFP144-5",
         "partnumber": "GW1NS-UX2CLQ144C5/I4",
         "recode_idx": recode_idx_gw1ns_2,
-        "has_bottom_quadrants": False,                     # XXX find it in the fse/dat
-        "lw_tap": {'L': [1, 0, 3, 2], 'R': [3, 2, 1, 0]},  # XXX find it in the fse/dat
+        "has_bottom_quadrants": False,
+        "lw_taps": [1, 0, 3, 2],
     },
     "GW1NS-4": {
         "package": "QFN48",
@@ -123,7 +123,7 @@ params = {
         "partnumber": "GW1NSR-LV4CQN48PC7/I6",
         "recode_idx": recode_idx_gw1ns_4,
         "has_bottom_quadrants": False,
-        "lw_tap": {'L': [2, 1, 0, 3], 'R': [2, 2, 1, 0]},
+        "lw_taps": [2, 1, 0, 3],
     },
     "GW1N-9": {
         "package": "PBGA256",
@@ -131,7 +131,7 @@ params = {
         "partnumber": "GW1N-LV9PG256C6/I5",
         "recode_idx": recode_idx_gw1n9,
         "has_bottom_quadrants": True,
-        "lw_tap": {'L': [3, 2, 1, 0], 'R': [3, 2, 1, 0]},
+        "lw_taps": [3, 2, 1, 0],
     },
     "GW1N-9C": {
         "package": "UBGA332",
@@ -139,7 +139,7 @@ params = {
         "partnumber": "GW1N-LV9UG332C6/I5",
         "recode_idx": recode_idx_gw1n9,
         "has_bottom_quadrants": True,
-        "lw_tap": {'L': [3, 2, 1, 0], 'R': [3, 2, 1, 0]},
+        "lw_taps": [3, 2, 1, 0],
     },
     "GW1N-4": {
         "package": "PBGA256",
@@ -147,7 +147,7 @@ params = {
         "partnumber": "GW1N-LV4PG256C6/I5",
         "recode_idx": recode_idx_gw1n4,
         "has_bottom_quadrants": False,
-        "lw_tap": {'L': [2, 1, 0, 3], 'R': [3, 2, 1, 0]},
+        "lw_taps": [2, 1, 0, 3],
     },
     "GW1N-1": {
         "package": "LQFP144",
@@ -155,7 +155,7 @@ params = {
         "partnumber": "GW1N-LV1LQ144C6/I5",
         "recode_idx": recode_idx_gw1n1,
         "has_bottom_quadrants": False,
-        "lw_tap": {'L': [1, 0, 3, 2], 'R': [3, 2, 1, 0]},
+        "lw_taps": [1, 0, 3, 2],
     },
     "GW1NZ-1": {
         "package": "QFN48",
@@ -163,7 +163,7 @@ params = {
         "partnumber": "GW1NZ-LV1QN48C6/I5",
         "recode_idx": recode_idx_gw1nz_1,
         "has_bottom_quadrants": False,
-        "lw_tap": {'L': [1, 0, 3, 2], 'R': [3, 2, 1, 0]},
+        "lw_taps": [1, 0, 3, 2],
     },
 }[device]
 
@@ -227,49 +227,47 @@ def make_lw_aliases(fse, dat, db):
                 else:
                     db.aliases.update({(row, col82, src) : (center_row, col84, src)})
     # branches
-    # {tap#: {lw#: tap_col}}
+    # {lw#: {tap_col: {cols}}
     taps = {}
-    lwL = params['lw_tap']['L']
-    lwR = params['lw_tap']['R']
+    lw_taps = params['lw_taps']
 
-    right_off = 4 - ((col82 + 1) % 4)
-    for rang, off, lws in [(range(col82 + 1), 0, lwL), (range(col82 + 1, db.cols), right_off, lwR)]:
-        for col in rang:
-            adj_col = col + off
-            tap_col = (adj_col // 4) * 4
-            lw = lws[adj_col % 4]
-            taps.setdefault(tap_col, {})[lw] = col
+    for lw in range(4):
+        tap_col = lw_taps[lw]
+        for col in range(db.cols):
+            if (col > tap_col + 2) and (tap_col + 4 < db.cols):
+                tap_col += 4
+            taps.setdefault(lw, {}).setdefault(tap_col, set()).add(col)
 
     for row in range(db.rows):
-        for _, lws in taps.items():
-            for lw, tap in lws.items():
+        for lw, tap_desc in taps.items():
+            for tap_col, cols in tap_desc.items():
                 tap_row = 0
                 if row > (center_row * 2):
                     tap_row = last_row
-                db.aliases.update({(row, tap, 'LT01') : (tap_row, tap, 'LT02')})
-                db.aliases.update({(row, tap, 'LT04') : (tap_row, tap, 'LT13')})
-                for col in lws.values():
-                    db.aliases.update({(row, col, f'LB{lw}1') : (row, tap, f'LBO0')})
-                    db.aliases.update({(row, col, f'LB{lw + 4}1') : (row, tap, f'LBO1')})
+                db.aliases.update({(row, tap_col, 'LT01') : (tap_row, tap_col, 'LT02')})
+                db.aliases.update({(row, tap_col, 'LT04') : (tap_row, tap_col, 'LT13')})
+                for col in cols:
+                    db.aliases.update({(row, col, f'LB{lw}1') : (row, tap_col, f'LBO0')})
+                    db.aliases.update({(row, col, f'LB{lw + 4}1') : (row, tap_col, f'LBO1')})
 
     # tap sources
     rows = { (0, 'T') }
     if params['has_bottom_quadrants']:
         rows.update({ (last_row, 'B') })
     for row, qd in rows:
-        for _, lws in taps.items():
-            for lw, tap in lws.items():
-                if tap <= col91:
+        for lw, tap_desc in taps.items():
+            for tap_col, cols in tap_desc.items():
+                if tap_col <= col91:
                     half = 'L'
                 else:
                     half = 'R'
-                db.aliases.update({ (row, tap, 'SS00') : (row, col91, f'LWSPINE{qd}{half}{lw}') })
-                db.aliases.update({ (row, tap, 'SS40') : (row, col91, f'LWSPINE{qd}{half}{lw + 4}') })
+                db.aliases.update({ (row, tap_col, 'SS00') : (row, col91, f'LWSPINE{qd}{half}{lw}') })
+                db.aliases.update({ (row, tap_col, 'SS40') : (row, col91, f'LWSPINE{qd}{half}{lw + 4}') })
                 # XXX remove all pips except SS00 and SS40
                 pip2keep = {'SS00', 'SS40'}
                 for tp in ['LT02', 'LT13']:
-                    for pip in [p for p in db.grid[row][tap].pips[tp] if p not in pip2keep]:
-                        del db.grid[row][tap].pips[tp][pip]
+                    for pip in [p for p in db.grid[row][tap_col].pips[tp] if p not in pip2keep]:
+                        del db.grid[row][tap_col].pips[tp][pip]
 
     # logic entries
     srcs = {}

@@ -92,7 +92,7 @@ def place(db, tilemap, bels, cst, args):
         if typ == "GSR":
             pass
         if typ == "BUFS":
-            # fuses must be reset in order to activeate so remove them
+            # fuses must be reset in order to activate so remove them
             bits2zero = set()
             for fuses in [fuses for fuses in parms.keys() if fuses in {'L', 'R'}]:
                 bits2zero.update(tiledata.bels[f'BUFS{num}'].flags[fuses])
