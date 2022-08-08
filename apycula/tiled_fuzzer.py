@@ -265,12 +265,6 @@ def make_lw_aliases(fse, dat, db):
             if params['has_bottom_quadrants']:
                 db.aliases.update({ (center_row, col83, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
                 db.aliases.update({ (center_row, col84, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
-=======
-    },
-}[device]
-
->>>>>>> master
-
 
 name_idx = 0
 def make_name(bel, typ):
