@@ -114,56 +114,42 @@ params = {
         "device": "GW1NS-2C-LQFP144-5",
         "partnumber": "GW1NS-UX2CLQ144C5/I4",
         "recode_idx": recode_idx_gw1ns_2,
-        "has_bottom_quadrants": False,
-        "lw_taps": [1, 0, 3, 2],
     },
     "GW1NS-4": {
         "package": "QFN48",
         "device": "GW1NSR-4C-QFN48-7",
         "partnumber": "GW1NSR-LV4CQN48PC7/I6",
         "recode_idx": recode_idx_gw1ns_4,
-        "has_bottom_quadrants": False,
-        "lw_taps": [2, 1, 0, 3],
     },
     "GW1N-9": {
         "package": "PBGA256",
         "device": "GW1N-9-PBGA256-6",
         "partnumber": "GW1N-LV9PG256C6/I5",
         "recode_idx": recode_idx_gw1n9,
-        "has_bottom_quadrants": True,
-        "lw_taps": [3, 2, 1, 0],
     },
     "GW1N-9C": {
         "package": "UBGA332",
         "device": "GW1N-9C-UBGA332-6",
         "partnumber": "GW1N-LV9UG332C6/I5",
         "recode_idx": recode_idx_gw1n9,
-        "has_bottom_quadrants": True,
-        "lw_taps": [3, 2, 1, 0],
     },
     "GW1N-4": {
         "package": "PBGA256",
         "device": "GW1N-4-PBGA256-6",
         "partnumber": "GW1N-LV4PG256C6/I5",
         "recode_idx": recode_idx_gw1n4,
-        "has_bottom_quadrants": False,
-        "lw_taps": [2, 1, 0, 3],
     },
     "GW1N-1": {
         "package": "LQFP144",
         "device": "GW1N-1-LQFP144-6",
         "partnumber": "GW1N-LV1LQ144C6/I5",
         "recode_idx": recode_idx_gw1n1,
-        "has_bottom_quadrants": False,
-        "lw_taps": [1, 0, 3, 2],
     },
     "GW1NZ-1": {
         "package": "QFN48",
         "device": "GW1NZ-1-QFN48-6",
         "partnumber": "GW1NZ-LV1QN48C6/I5",
         "recode_idx": recode_idx_gw1nz_1,
-        "has_bottom_quadrants": False,
-        "lw_taps": [1, 0, 3, 2],
     },
 }[device]
 
@@ -279,6 +265,11 @@ def make_lw_aliases(fse, dat, db):
             if params['has_bottom_quadrants']:
                 db.aliases.update({ (center_row, col83, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
                 db.aliases.update({ (center_row, col84, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
+=======
+    },
+}[device]
+
+>>>>>>> master
 
 
 name_idx = 0
