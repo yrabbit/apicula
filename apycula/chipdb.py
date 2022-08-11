@@ -457,7 +457,14 @@ def json_pinout(device):
     else:
         raise Exception("unsupported device")
 
-
+_pll_inputs = [(5, 'CLKFB'), (6, 'FBDSEL0'), (7, 'FBDSEL1'), (8, 'FBDSEL2'), (9, 'FBDSEL3'),
+               (10, 'FBDSEL4'), (11, 'FBDSEL5'),
+               (12, 'IDSEL0'), (13, 'IDSEL1'), (14, 'IDSEL2'), (15, 'IDSEL3'), (16, 'IDSEL4'),
+               (17, 'IDSEL5'),
+               (18, 'ODSEL0'), (19, 'ODSEL1'), (20, 'ODSEL2'), (21, 'ODSEL3'), (22, 'ODSEL4'),
+               (24, 'PSDA0'), (25, 'PSDA1'), (26, 'PSDA2'), (27, 'PSDA3'),
+               (28, 'DUTYDA0'), (29, 'DUTYDA1'), (30, 'DUTYDA2'), (31, 'DUTYDA3'),
+               (32, 'FDLY0'), (33, 'FDLY1'), (34, 'FDLY2'), (35, 'FDLY3')]
 def dat_portmap(dat, dev):
     for row in dev.grid:
         for tile in row:
@@ -481,7 +488,9 @@ def dat_portmap(dat, dev):
                         oe = wirenames[dat[f'Iobuf{pin}OE']]
                         bel.portmap['OE'] = oe
                 elif name == 'rPLLa':
-                    pass
+                    for idx, nam in _pll_inputs:
+                        wire = wirenames[dat['PllIn'][idx]]
+                        bel.portmap[nam] = wire
                 elif name == 'rPLLb':
                     reset = wirenames[dat['PllIn'][0]]
                     bel.portmap['RESET'] = reset
