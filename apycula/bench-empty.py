@@ -87,6 +87,9 @@ def route_bits(db, row, col):
     for w in db.grid[row][col].pips.values():
         for v in w.values():
             bits.update(v)
+    for w in db.grid[row][col].clock_pips.values():
+        for v in w.values():
+            bits.update(v)
     _route_mem.setdefault((row, col), bits)
     return bits
 
@@ -277,10 +280,10 @@ if __name__ == "__main__":
                     print(ttyp, src)
     """
 
-    #row3 = 28
-    #col3 = 7
-    row3 = 28
-    col3 = 5
+    row3 = 0
+    col3 = 18
+    #row3 = 0
+    #col3 = 17
     import ipdb; ipdb.set_trace()
     # cmp images
     if len(sys.argv) > 3:
