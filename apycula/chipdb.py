@@ -145,6 +145,16 @@ def fse_pips(fse, ttyp, table=2, wn=wirenames):
 
     return pips
 
+# make PLL bels
+def fse_pll(device, fse, ttyp):
+    bels = {}
+    if device == 'GW1N-1':
+        if ttyp == 89:
+            bels.setdefault('rPLLb', Bel())
+        else:
+            bels.setdefault('rPLLa', Bel())
+    return bels
+
 # add the ALU mode
 # new_mode_bits: string like "0110000010011010"
 def add_alu_mode(base_mode, modes, lut, new_alu_mode, new_mode_bits):
@@ -354,6 +364,8 @@ def from_fse(device, fse):
             tile.bels = fse_luts(fse, ttyp)
         if 51 in fse[ttyp]['shortval']:
             tile.bels = fse_osc(device, fse, ttyp)
+        if ttyp in [88, 89]:
+            tile.bels = fse_pll(device, fse, ttyp)
         tiles[ttyp] = tile
 
     dev.grid = [[tiles[ttyp] for ttyp in row] for row in fse['header']['grid'][61]]
@@ -468,6 +480,15 @@ def dat_portmap(dat, dev):
                         bel.portmap['I'] = out
                         oe = wirenames[dat[f'Iobuf{pin}OE']]
                         bel.portmap['OE'] = oe
+                elif name == 'rPLLa':
+                    pass
+                elif name == 'rPLLb':
+                    reset = wirenames[dat['PllIn'][0]]
+                    bel.portmap['RESET'] = reset
+                    reset_p = wirenames[dat['PllIn'][1]]
+                    bel.portmap['RESET_P'] = reset_p
+                    odsel5 = wirenames[dat['PllIn'][23]]
+                    bel.portmap['ODSEL5'] = odsel5
 
 def dat_aliases(dat, dev):
     for row in dev.grid:
