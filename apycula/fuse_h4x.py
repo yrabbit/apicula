@@ -139,6 +139,19 @@ def fuse_lookup(d, ttyp, fuse):
         col = num % 100
         return row, col
 
+# get the fuse bits from the table
+# data = fse[ttyp][table][idx]
+def get_fuse_bits(fse, ttyp, key0, key1, data):
+    bits = set()
+    for k0, k1, *fuses in data:
+        if key0 == k0 and key1 == k1:
+            for f in [f for f in fuses if f != -1]:
+                coord = fuse_lookup(fse, ttyp, f)
+                bits.update({coord})
+            break
+    return bits
+
+
 def tile_bitmap(d, bitmap, empty=False):
     tiles = d['header']['grid'][61]
     width = sum([d[i]['width'] for i in tiles[0]])
