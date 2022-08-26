@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Set, Tuple, Union, ByteString
+from itertools import chain
 import re
 from functools import reduce
 from collections import namedtuple
@@ -31,6 +32,12 @@ class IOBMode:
     decode_bits: Set[Coord] = field(default_factory = set)
     flags: Dict[str, IOBFlag] = field(default_factory = dict)
 
+# parameter, allowed values and their bits
+@dataclass
+class Param:
+    decode_bits: Set[Coord] = field(default_factory = set)
+    vals: Dict[str, Set[Coord]] = field(default_factory = dict)
+
 @dataclass
 class Bel:
     """Respresents a Basic ELement
@@ -38,6 +45,9 @@ class Bel:
     and the specified portmap"""
     # there can be zero or more flags
     flags: Dict[Union[int, str], Set[Coord]] = field(default_factory=dict)
+    # parameters, these are like flags, but take values from the range, not on/off
+    # parameters, these are like flags, but take values from the range, not on/off
+    params: Dict[str, Param] = field(default_factory=dict)
     # { iostd: { mode : IOBMode}}
     iob_flags: Dict[str, Dict[str, IOBMode]] = field(default_factory=dict)
     lvcmos121518_bits: Set[Coord] = field(default_factory = set)
@@ -145,14 +155,46 @@ def fse_pips(fse, ttyp, table=2, wn=wirenames):
 
     return pips
 
+# make mask for param
+def make_param_decode_mask(param):
+    param.decode_bits = set()
+    for bits in param.vals.values():
+        param.decode_bits.update(bits)
+
 # make PLL bels
 def fse_pll(device, fse, ttyp):
     bels = {}
     if device == 'GW1N-1':
+        data = fse[ttyp]['shortval'][35]
         if ttyp == 89:
-            bels.setdefault('rPLLb', Bel())
+            bel = bels.setdefault('RPLLB', Bel())
+            bel.flags['DYN_FBDIV_SEL'] = fuse.get_fuse_bits(fse, ttyp, 99, 0, data)
+            bel.flags['DYN_IDIV_SEL'] = fuse.get_fuse_bits(fse, ttyp, 240, 0, data)
+            bel.flags['DYN_IDIV_SEL'] = fuse.get_fuse_bits(fse, ttyp, 240, 0, data)
+            param = bel.params.setdefault('FBDIV_SEL', Param())
+            for i in range(0, 63):
+                param.vals[i] = fuse.get_fuse_bits(fse, ttyp, i + 36, 0, data)
+            make_param_decode_mask(param)
         else:
-            bels.setdefault('rPLLa', Bel())
+            bel = bels.setdefault('RPLLA', Bel())
+            bel.flags['CLKOUT_BYPASS'] = fuse.get_fuse_bits(fse, ttyp, 1, 0, data)
+            bel.flags['CLKOUTD_BYPASS'] = fuse.get_fuse_bits(fse, ttyp, 2, 0, data)
+            bel.flags['CLKOUTP_BYPASS'] = fuse.get_fuse_bits(fse, ttyp, 3, 0, data)
+            bel.flags['CLKOUTD3_SRC'] = fuse.get_fuse_bits(fse, ttyp, 6, 0, data)
+            bel.flags['CLKOUTD_SRC'] = fuse.get_fuse_bits(fse, ttyp, 9, 0, data)
+            bel.flags['DYN_ODIV_SEL'] = fuse.get_fuse_bits(fse, ttyp, 272, 0, data)
+            for i in range(2, 15):
+                bel.flags[f'DUTYDA_SEL#{i}'] = fuse.get_fuse_bits(fse, ttyp, i + 14, 0, data)
+            bel.flags['PSDA_SEL#0'] = {}
+            for i in range(1, 16):
+                bel.flags[f'PSDA_SEL#{i}'] = fuse.get_fuse_bits(fse, ttyp, i + 286, 0, data)
+            bel.flags['DYN_SDIV_SEL#0'] = {}
+            for i in range(1, 65):
+                bel.flags[f'DYN_SDIV_SEL#{i * 2}'] = fuse.get_fuse_bits(fse, ttyp, i + 308, 0, data)
+            bel.flags['ODIV_SEL#128'] = {}
+            for i,val in enumerate([2, 4, 8, 16, 32, 48, 64, 80, 96, 112]):
+                bel.flags[f'DYN_SDIV_SEL#{val}'] = fuse.get_fuse_bits(fse, ttyp, i + 262, 0, data)
+
     return bels
 
 # add the ALU mode
@@ -194,13 +236,7 @@ def fse_luts(fse, ttyp):
         for i in range(2):
             alu_idx = cls * 2 + i
             bel = luts.setdefault(f"ALU{alu_idx}", Bel())
-            mode = set()
-            for key0, key1, *fuses in data:
-                if key0 == 1 and key1 == 0:
-                    for f in (f for f in fuses if f != -1):
-                        coord = fuse.fuse_lookup(fse, ttyp, f)
-                        mode.update({coord})
-                    break
+            mode = fuse.get_fuse_bits(fse, ttyp, 1, 0, data)
             lut = luts[f"LUT{alu_idx}"]
             # ADD    INIT="0011 0000 1100 1100"
             #              add   0   add  carry
@@ -457,6 +493,8 @@ def json_pinout(device):
     else:
         raise Exception("unsupported device")
 
+
+
 _pll_inputs = [(5, 'CLKFB'), (6, 'FBDSEL0'), (7, 'FBDSEL1'), (8, 'FBDSEL2'), (9, 'FBDSEL3'),
                (10, 'FBDSEL4'), (11, 'FBDSEL5'),
                (12, 'IDSEL0'), (13, 'IDSEL1'), (14, 'IDSEL2'), (15, 'IDSEL3'), (16, 'IDSEL4'),
@@ -465,6 +503,7 @@ _pll_inputs = [(5, 'CLKFB'), (6, 'FBDSEL0'), (7, 'FBDSEL1'), (8, 'FBDSEL2'), (9,
                (24, 'PSDA0'), (25, 'PSDA1'), (26, 'PSDA2'), (27, 'PSDA3'),
                (28, 'DUTYDA0'), (29, 'DUTYDA1'), (30, 'DUTYDA2'), (31, 'DUTYDA3'),
                (32, 'FDLY0'), (33, 'FDLY1'), (34, 'FDLY2'), (35, 'FDLY3')]
+_pll_outputs = [(0, 'CLKOUT'), (1, 'LOCK'), (2, 'CLKOUTP'), (3, 'CLKOUTD'), (4, 'CLKOUTD3')]
 def dat_portmap(dat, dev):
     for row in dev.grid:
         for tile in row:
@@ -487,11 +526,15 @@ def dat_portmap(dat, dev):
                         bel.portmap['I'] = out
                         oe = wirenames[dat[f'Iobuf{pin}OE']]
                         bel.portmap['OE'] = oe
-                elif name == 'rPLLa':
+                elif name == 'RPLLA':
                     for idx, nam in _pll_inputs:
                         wire = wirenames[dat['PllIn'][idx]]
                         bel.portmap[nam] = wire
-                elif name == 'rPLLb':
+                    for idx, nam in _pll_outputs:
+                        wire = wirenames[dat['PllOut'][idx]]
+                        bel.portmap[nam] = wire
+                    bel.portmap['CLKIN'] = wirenames[126];
+                elif name == 'RPLLB':
                     reset = wirenames[dat['PllIn'][0]]
                     bel.portmap['RESET'] = reset
                     reset_p = wirenames[dat['PllIn'][1]]
