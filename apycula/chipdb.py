@@ -93,6 +93,15 @@ class Device:
     cmd_hdr: List[ByteString] = field(default_factory=list)
     cmd_ftr: List[ByteString] = field(default_factory=list)
     template: np.ndarray = None
+    # allowable values of bel attributes
+    # {table_name: [(attr_id, attr_value)]}
+    logicinfo: Dict[str, List[Tuple[int, int]]] = field(default_factory=dict)
+    # fuses for a pair of the "features" (or pairs of parameter values)
+    # {ttype: {table_name: {(feature_A, feature_B): {bits}}}
+    shortval: Dict[int, Dict[str, Dict[Tuple[int, int], Set[Coord]]]] = field(default_factory=dict)
+    # fuses for 16 of the "features"
+    # {ttype: {table_name: {(feature_0, feature_1, ..., feature_15): {bits}}}
+    longval: Dict[int, Dict[str, Dict[Tuple[int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int], Set[Coord]]]] = field(default_factory=dict)
     # always-connected dest, src aliases
     aliases: Dict[Tuple[int, int, str], Tuple[int, int, str]] = field(default_factory=dict)
 
@@ -354,37 +363,89 @@ def fse_osc(device, fse, ttyp):
 
     return osc
 
-# XXX This is not a nice way, I will replace it with automatic creation of banks
-# in the very near future.
-def set_banks(device, db):
+def set_banks(fse, db):
     # fill the bank# : corner tile table
     w = db.cols - 1
     h = db.rows - 1
-    if device == 'GW1NZ-1':
-        db.grid[0][0].bels.setdefault('BANK0', Bel())
-        db.grid[0][w].bels.setdefault('BANK1', Bel())
-    elif device == 'GW1NS-2':
-        db.grid[0][0].bels.setdefault('BANK0', Bel())
-        db.grid[0][w].bels.setdefault('BANK1', Bel())
-        db.grid[h][w].bels.setdefault('BANK2', Bel())
-        db.grid[0][0].bels.setdefault('BANK3', Bel())
-    elif device == 'GW1NS-4':
-        db.grid[0][0].bels.setdefault('BANK0', Bel())
-        db.grid[0][w].bels.setdefault('BANK1', Bel())
-        db.grid[h][w].bels.setdefault('BANK2', Bel())
-        db.grid[h][w].bels.setdefault('BANK3', Bel())
-    elif device == 'GW1N-9':
-        db.grid[0][0].bels.setdefault('BANK0', Bel())
-        db.grid[0][w].bels.setdefault('BANK1', Bel())
-        db.grid[h][w].bels.setdefault('BANK2', Bel())
-        db.grid[h][0].bels.setdefault('BANK3', Bel())
-        db.grid[0][0].bels.setdefault('BANK10', Bel())
-        db.grid[0][0].bels.setdefault('BANK30', Bel())
-    else:
-        db.grid[0][0].bels.setdefault('BANK0', Bel())
-        db.grid[0][w].bels.setdefault('BANK1', Bel())
-        db.grid[h][w].bels.setdefault('BANK2', Bel())
-        db.grid[h][0].bels.setdefault('BANK3', Bel())
+    for row, col in [(0, 0), (0, w), (h, 0), (h, w)]:
+        ttyp = fse['header']['grid'][61][row][col]
+        if 'longval' in fse[ttyp].keys():
+            if 37 in fse[ttyp]['longval'].keys():
+                for rd in fse[ttyp]['longval'][37]:
+                    db.grid[row][col].bels.setdefault(f"BANK{rd[0]}", Bel())
+
+_known_logic_tables = {
+            8:  'DCS',
+            9:  'GSR',
+            10: 'IOLOGIC',
+            11: 'IOB',
+            12: 'SLICE',
+            13: 'BSRAM',
+            14: 'DSP',
+            15: 'PLL',
+            62: 'USB',
+        }
+
+_known_tables = {
+             4: 'CONST',
+             5: 'LUT',
+            21: 'IOLOGICA',
+            22: 'IOLOGICB',
+            23: 'IOBA',
+            24: 'IOBB',
+            25: 'CLS0',
+            26: 'CLS1',
+            27: 'CLS2',
+            28: 'CLS3',
+            35: 'PLL',
+            37: 'BANK',
+            40: 'IOBC',
+            41: 'IOBD',
+            42: 'IOBE',
+            43: 'IOBF',
+            44: 'IOBG',
+            45: 'IOBH',
+            46: 'IOBI',
+            47: 'IOBJ',
+            53: 'DLLDEL0',
+            54: 'DLLDEL1',
+            56: 'DLL0',
+            64: 'USB',
+            66: 'EFLASH',
+            68: 'ADC',
+            80: 'DLL1',
+        }
+
+def fse_fill_logic_tables(dev, fse):
+    # logicinfo
+    for ltable in fse['header']['logicinfo'].keys():
+        if ltable in _known_logic_tables.keys():
+            table = dev.logicinfo.setdefault(_known_logic_tables[ltable], [])
+        else:
+            table = dev.logicinfo.setdefault(f"unknown_{ltable}", [])
+        for attr, val, _ in fse['header']['logicinfo'][ltable]:
+            table.append((attr, val))
+    # shortval
+    ttypes = {t for row in fse['header']['grid'][61] for t in row}
+    for ttyp in ttypes:
+        if 'shortval' in fse[ttyp].keys():
+            ttyp_rec = dev.shortval.setdefault(ttyp, {})
+            for stable in fse[ttyp]['shortval'].keys():
+                if stable in _known_tables:
+                    table = ttyp_rec.setdefault(_known_tables[stable], {})
+                else:
+                    table = ttyp_rec.setdefault(f"unknown_{stable}", {})
+                for f_a, f_b, *fuses in fse[ttyp]['shortval'][stable]:
+                    table[(f_a, f_b)] = {fuse.fuse_lookup(fse, ttyp, f) for f in unpad(fuses)}
+        if 'longval' in fse[ttyp].keys():
+            ttyp_rec = dev.longval.setdefault(ttyp, {})
+            for ltable in fse[ttyp]['longval'].keys():
+                if ltable in _known_tables:
+                    table = ttyp_rec.setdefault(_known_tables[ltable], {})
+                else:
+                    table = ttyp_rec.setdefault(f"unknown_{ltable}", {})
+                for f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, *fuses in fse[ttyp]['longval'][ltable]:
+                    table[(f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15)] = {fuse.fuse_lookup(fse, ttyp, f) for f in unpad(fuses)}
 
 def from_fse(device, fse):
     dev = Device()
@@ -404,8 +465,65 @@ def from_fse(device, fse):
             tile.bels = fse_pll(device, fse, ttyp)
         tiles[ttyp] = tile
 
+    fse_fill_logic_tables(dev, fse)
     dev.grid = [[tiles[ttyp] for ttyp in row] for row in fse['header']['grid'][61]]
     return dev
+
+# get fuses for attr/val set using short/longval table
+# returns:
+#  (True, bits' set)
+#  (False, problem attr/val set)
+def get_table_fuses(attrs, table):
+    rem_attrs = set()
+    rem_attrs.update(attrs)
+    bits = set()
+    for key, fuses in table.items():
+        # all 16 "features" must be present to be able to use a set of bits from the record
+        have_all_16 = True
+        for attrval in key:
+            if attrval == 0: # no "feature"
+                continue
+            if attrval > 0:
+                # this "feature" must present
+                if attrval not in attrs:
+                    have_all_16 = False
+                    break
+                continue
+            if attrval < 0:
+                # this "feature" is set by default and can only be unset
+                if abs(attrval) in attrs:
+                    have_all_16 = False
+                    rem_attrs = rem_attrs - {abs(attrval)}
+                    break
+        if not have_all_16:
+            continue
+        rem_attrs = rem_attrs - {av for av in key if av != 0}
+        bits.update(fuses)
+    if rem_attrs:
+       return (False, rem_attrs)
+    return (True, bits)
+
+# get fuses for attr/val set using shortval table for ttyp
+# returns:
+#  (True, bits' set)
+#  (False, problem attr/val set)
+def get_shortval_fuses(dev, ttyp, attrs, table_name):
+    return get_table_fuses(attrs, dev.shortval[ttyp][table_name])
+
+# get fuses for attr/val set using longval table for ttyp
+# returns:
+#  (True, bits' set)
+#  (False, problem attr/val set)
+def get_longval_fuses(dev, ttyp, attrs, table_name):
+    return get_table_fuses(attrs, dev.longval[ttyp][table_name])
+
+# add the attribute/value pair into an set, which is then passed to
+# get_longval_fuses() and get_shortval_fuses()
+def add_attr_val(dev, logic_table, attrs, attr, val):
+    for idx, attr_val in enumerate(dev.logicinfo[logic_table]):
+        if attr_val[0] == attr and attr_val[1] == val:
+            attrs.add(idx)
+            break
 
 def get_pins(device):
     if device not in {"GW1N-1", "GW1NZ-1", "GW1N-4", "GW1N-9", "GW1NR-9", "GW1N-9C", "GW1NR-9C", "GW1NS-2", "GW1NS-2C", "GW1NS-4", "GW1NSR-4C"}:
@@ -759,4 +877,5 @@ def loc2bank(db, row, col):
         else:
             bank = db.pin_bank[name + 'B']
     return bank
+
 
