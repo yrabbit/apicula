@@ -18,6 +18,7 @@ from wirenames import wirenames, clknames
 from PIL import Image, ImageDraw
 from shutil import copytree
 
+from apycula import attrids
 from apycula import codegen
 from apycula import bslib
 from apycula import pindef
