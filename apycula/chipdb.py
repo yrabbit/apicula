@@ -32,12 +32,6 @@ class IOBMode:
     decode_bits: Set[Coord] = field(default_factory = set)
     flags: Dict[str, IOBFlag] = field(default_factory = dict)
 
-# parameter, allowed values and their bits
-@dataclass
-class Param:
-    decode_bits: Set[Coord] = field(default_factory = set)
-    vals: Dict[str, Set[Coord]] = field(default_factory = dict)
-
 @dataclass
 class Bel:
     """Respresents a Basic ELement
@@ -46,8 +40,6 @@ class Bel:
     # there can be zero or more flags
     flags: Dict[Union[int, str], Set[Coord]] = field(default_factory=dict)
     # parameters, these are like flags, but take values from the range, not on/off
-    # parameters, these are like flags, but take values from the range, not on/off
-    params: Dict[str, Param] = field(default_factory=dict)
     # { iostd: { mode : IOBMode}}
     iob_flags: Dict[str, Dict[str, IOBMode]] = field(default_factory=dict)
     lvcmos121518_bits: Set[Coord] = field(default_factory = set)
@@ -74,6 +66,7 @@ class Tile:
     for this specific tile type"""
     width: int
     height: int
+    ttyp: int
     # a mapping from dest, source wire to bit coordinates
     pips: Dict[str, Dict[str, Set[Coord]]] = field(default_factory=dict)
     clock_pips: Dict[str, Dict[str, Set[Coord]]] = field(default_factory=dict)
@@ -174,36 +167,10 @@ def make_param_decode_mask(param):
 def fse_pll(device, fse, ttyp):
     bels = {}
     if device == 'GW1N-1':
-        data = fse[ttyp]['shortval'][35]
         if ttyp == 89:
             bel = bels.setdefault('RPLLB', Bel())
-            bel.flags['DYN_FBDIV_SEL'] = fuse.get_fuse_bits(fse, ttyp, 99, 0, data)
-            bel.flags['DYN_IDIV_SEL'] = fuse.get_fuse_bits(fse, ttyp, 240, 0, data)
-            bel.flags['DYN_IDIV_SEL'] = fuse.get_fuse_bits(fse, ttyp, 240, 0, data)
-            param = bel.params.setdefault('FBDIV_SEL', Param())
-            for i in range(0, 63):
-                param.vals[i] = fuse.get_fuse_bits(fse, ttyp, i + 36, 0, data)
-            make_param_decode_mask(param)
         else:
             bel = bels.setdefault('RPLLA', Bel())
-            bel.flags['CLKOUT_BYPASS'] = fuse.get_fuse_bits(fse, ttyp, 1, 0, data)
-            bel.flags['CLKOUTD_BYPASS'] = fuse.get_fuse_bits(fse, ttyp, 2, 0, data)
-            bel.flags['CLKOUTP_BYPASS'] = fuse.get_fuse_bits(fse, ttyp, 3, 0, data)
-            bel.flags['CLKOUTD3_SRC'] = fuse.get_fuse_bits(fse, ttyp, 6, 0, data)
-            bel.flags['CLKOUTD_SRC'] = fuse.get_fuse_bits(fse, ttyp, 9, 0, data)
-            bel.flags['DYN_ODIV_SEL'] = fuse.get_fuse_bits(fse, ttyp, 272, 0, data)
-            for i in range(2, 15):
-                bel.flags[f'DUTYDA_SEL#{i}'] = fuse.get_fuse_bits(fse, ttyp, i + 14, 0, data)
-            bel.flags['PSDA_SEL#0'] = {}
-            for i in range(1, 16):
-                bel.flags[f'PSDA_SEL#{i}'] = fuse.get_fuse_bits(fse, ttyp, i + 286, 0, data)
-            bel.flags['DYN_SDIV_SEL#0'] = {}
-            for i in range(1, 65):
-                bel.flags[f'DYN_SDIV_SEL#{i * 2}'] = fuse.get_fuse_bits(fse, ttyp, i + 308, 0, data)
-            bel.flags['ODIV_SEL#128'] = {}
-            for i,val in enumerate([2, 4, 8, 16, 32, 48, 64, 80, 96, 112]):
-                bel.flags[f'DYN_SDIV_SEL#{val}'] = fuse.get_fuse_bits(fse, ttyp, i + 262, 0, data)
-
     return bels
 
 # add the ALU mode
@@ -454,7 +421,7 @@ def from_fse(device, fse):
     for ttyp in ttypes:
         w = fse[ttyp]['width']
         h = fse[ttyp]['height']
-        tile = Tile(w, h)
+        tile = Tile(w, h, ttyp)
         tile.pips = fse_pips(fse, ttyp, 2, wirenames)
         tile.clock_pips = fse_pips(fse, ttyp, 38, clknames)
         if 5 in fse[ttyp]['shortval']:
@@ -470,50 +437,38 @@ def from_fse(device, fse):
     return dev
 
 # get fuses for attr/val set using short/longval table
-# returns:
-#  (True, bits' set)
-#  (False, problem attr/val set)
+# returns a bit set
 def get_table_fuses(attrs, table):
-    rem_attrs = set()
-    rem_attrs.update(attrs)
     bits = set()
     for key, fuses in table.items():
         # all 16 "features" must be present to be able to use a set of bits from the record
-        have_all_16 = True
+        have_full_key = True
         for attrval in key:
             if attrval == 0: # no "feature"
                 continue
             if attrval > 0:
                 # this "feature" must present
                 if attrval not in attrs:
-                    have_all_16 = False
+                    have_full_key = False
                     break
                 continue
             if attrval < 0:
                 # this "feature" is set by default and can only be unset
                 if abs(attrval) in attrs:
-                    have_all_16 = False
-                    rem_attrs = rem_attrs - {abs(attrval)}
+                    have_full_key = False
                     break
-        if not have_all_16:
+        if not have_full_key:
             continue
-        rem_attrs = rem_attrs - {av for av in key if av != 0}
         bits.update(fuses)
-    if rem_attrs:
-       return (False, rem_attrs)
-    return (True, bits)
+    return bits
 
 # get fuses for attr/val set using shortval table for ttyp
-# returns:
-#  (True, bits' set)
-#  (False, problem attr/val set)
+# returns a bit set
 def get_shortval_fuses(dev, ttyp, attrs, table_name):
     return get_table_fuses(attrs, dev.shortval[ttyp][table_name])
 
 # get fuses for attr/val set using longval table for ttyp
-# returns:
-#  (True, bits' set)
-#  (False, problem attr/val set)
+# returns a bit set
 def get_longval_fuses(dev, ttyp, attrs, table_name):
     return get_table_fuses(attrs, dev.longval[ttyp][table_name])
 
@@ -557,20 +512,16 @@ def json_pinout(device):
             "GW1N-4": pins
         }, bank_pins)
     elif device == "GW1NS-4":
-        pkgs, pins, bank_pins = get_pins("GW1NS-4")
-        pkgs_c, pins_c, bank_pins_c = get_pins("GW1NS-4C")
         pkgs_sr, pins_sr, bank_pins_sr = get_pins("GW1NSR-4C")
+        pkgs, pins, bank_pins = get_pins("GW1NS-4")
         res = {}
         res.update(pkgs)
-        res.update(pkgs_c)
         res.update(pkgs_sr)
         res_bank_pins = {}
         res_bank_pins.update(bank_pins)
-        res_bank_pins.update(bank_pins_c)
         res_bank_pins.update(bank_pins_sr)
         return (res, {
             "GW1NS-4": pins,
-            "GW1NS-4C": pins_c,
             "GW1NSR-4C": pins_sr
         }, res_bank_pins)
     elif device == "GW1N-9":
@@ -662,7 +613,7 @@ def dat_portmap(dat, dev):
                     for idx, nam in _pll_outputs:
                         wire = wirenames[dat['PllOut'][idx]]
                         bel.portmap[nam] = wire
-                    bel.portmap['CLKIN'] = wirenames[126];
+                    bel.portmap['CLKIN'] = wirenames[124];
                 elif name == 'RPLLB':
                     reset = wirenames[dat['PllIn'][0]]
                     bel.portmap['RESET'] = reset
