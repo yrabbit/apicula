@@ -66,6 +66,9 @@ class Tile:
     for this specific tile type"""
     width: int
     height: int
+    # At the time of packing/unpacking the information about the types of cells
+    # is already lost, it is critical to work through the 'logicinfo' table so
+    # store it.
     ttyp: int
     # a mapping from dest, source wire to bit coordinates
     pips: Dict[str, Dict[str, Set[Coord]]] = field(default_factory=dict)
@@ -81,7 +84,8 @@ class Device:
     grid: List[List[Tile]] = field(default_factory=list)
     timing: Dict[str, Dict[str, List[float]]] = field(default_factory=dict)
     packages: Dict[str, Tuple[str, str, str]] = field(default_factory=dict)
-    pinout: Dict[str, Dict[str, Dict[str, str]]] = field(default_factory=dict)
+    # {variant: {package: {pin#: (pin_name, [cfgs])}}}
+    pinout: Dict[str, Dict[str, Dict[str, Tuple[str, List[str]]]]] = field(default_factory=dict)
     pin_bank: Dict[str, int] = field(default_factory = dict)
     cmd_hdr: List[ByteString] = field(default_factory=list)
     cmd_ftr: List[ByteString] = field(default_factory=list)
@@ -157,16 +161,11 @@ def fse_pips(fse, ttyp, table=2, wn=wirenames):
 
     return pips
 
-# make mask for param
-def make_param_decode_mask(param):
-    param.decode_bits = set()
-    for bits in param.vals.values():
-        param.decode_bits.update(bits)
-
 # make PLL bels
 def fse_pll(device, fse, ttyp):
     bels = {}
-    if device == 'GW1N-1':
+    # XXX use second grid in order to find PLL ttypes
+    if device in ['GW1N-1',  'GW1NZ-1']:
         if ttyp == 89:
             bel = bels.setdefault('RPLLB', Bel())
         else:

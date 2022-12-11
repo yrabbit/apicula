@@ -1,17 +1,14 @@
 from multiprocessing.dummy import Pool
-from PIL import Image
-import numpy as np
 import pickle
 import json
 import re
 from apycula import tiled_fuzzer
 from apycula import codegen
 from apycula import pindef
-from apycula import bslib
 from apycula import chipdb
 from apycula import fuse_h4x
 from apycula import gowin_unpack
-from apycula.wirenames import wirenames, clknames, wirenumbers, clknumbers
+from apycula.wirenames import clknumbers
 
 def dff(mod, cst, row, col, clk=None):
     "make a dff with optional clock"
@@ -431,14 +428,15 @@ def make_lw_aliases(fse, dat, db, quads, clks):
 
     # logic entries
     srcs = {}
-    for i, src in enumerate(dat['UfbIns']):
+    for i, src in dat['CmuxIns'].items():
         row, col, pip = src
         if pip == 126: # CLK2
-            db.aliases.update({ (center_row, col82, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
-            db.aliases.update({ (center_row, col81, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
+            idx = int(i)
+            db.aliases.update({ (center_row, col82, f'UNK{idx + 80}'): (row - 1, col -1, 'CLK2')})
+            db.aliases.update({ (center_row, col81, f'UNK{idx + 80}'): (row - 1, col -1, 'CLK2')})
             if has_bottom_quadrants:
-                db.aliases.update({ (center_row, col83, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
-                db.aliases.update({ (center_row, col84, f'UNK{i + 104}'): (row - 1, col -1, 'CLK2')})
+                db.aliases.update({ (center_row, col83, f'UNK{idx + 80}'): (row - 1, col -1, 'CLK2')})
+                db.aliases.update({ (center_row, col84, f'UNK{idx + 80}'): (row - 1, col -1, 'CLK2')})
 
 if __name__ == "__main__":
     quads = quadrants()
