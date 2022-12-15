@@ -284,7 +284,9 @@ if __name__ == "__main__":
     row3 = 0
     col3 = 18
     #row3 = 0
-    col3 = 17
+    #col3 = 17
+    row3 = 2
+    col3 = 12
     import ipdb; ipdb.set_trace()
     # cmp images
     if len(sys.argv) > 3:
@@ -309,17 +311,19 @@ if __name__ == "__main__":
         for df in get_bits(fuse_h4x.tile_bitmap(fse, img, True)[(row3, col3, ttyp)]):
             fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
         print('first fuses:', sorted(fuses))
-        print('second bits:', sorted(get_bits(fuse_h4x.tile_bitmap(fse, sec_img)[(row3, col3, ttyp)])))
+        if (row3, col3, ttyp) in fuse_h4x.tile_bitmap(fse, sec_img).keys():
+            print('second bits:', sorted(get_bits(fuse_h4x.tile_bitmap(fse, sec_img)[(row3, col3, ttyp)])))
         fuses = set()
         for df in get_bits(diff_tiles[(row3, col3, ttyp)]):
             fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
         print("all diff:")
         print(sorted(fuses))
         print("second:")
-        for df in sorted(get_bits(fuse_h4x.tile_bitmap(fse, sec_img, True)[(row3, col3, ttyp)])):
-            if df in get_bits(diff_tiles[(row3, col3, ttyp)]):
-                fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
-        print(sorted(fuses))
+        if (row3, col3, ttyp) in fuse_h4x.tile_bitmap(fse, sec_img).keys():
+            for df in sorted(get_bits(fuse_h4x.tile_bitmap(fse, sec_img, True)[(row3, col3, ttyp)])):
+                if df in get_bits(diff_tiles[(row3, col3, ttyp)]):
+                    fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
+            print(sorted(fuses))
 
     row = row3
     col = col3
@@ -348,23 +352,24 @@ if __name__ == "__main__":
     print('route:', sorted(fuses))
 
 
-    rbits = route_bits(db, row, col)
-    r, c = np.where(sec_bm[(row, col)] == 1)
-    tile = set(zip(r, c))
-    bits = tile# - rbits
-    fuses = set()
-    for df in sorted(bits):
-        fs = get_fuse_num(ttyp, df[0] * 100 + df[1])
-        if fs not in consts:
-            fuses.update({fs})
-    print("all second bits:")
-    #print(sorted(bits))
-    print(sorted(fuses))
-    fuses = set()
-    for df in sorted(bits):
-        if df in rbits:
-            fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
-    print('route:', sorted(fuses))
+    if (row3, col3, ttyp) in fuse_h4x.tile_bitmap(fse, sec_img).keys():
+        rbits = route_bits(db, row, col)
+        r, c = np.where(sec_bm[(row, col)] == 1)
+        tile = set(zip(r, c))
+        bits = tile# - rbits
+        fuses = set()
+        for df in sorted(bits):
+            fs = get_fuse_num(ttyp, df[0] * 100 + df[1])
+            if fs not in consts:
+                fuses.update({fs})
+        print("all second bits:")
+        #print(sorted(bits))
+        print(sorted(fuses))
+        fuses = set()
+        for df in sorted(bits):
+            if df in rbits:
+                fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
+        print('route:', sorted(fuses))
     print(row, col, ttyp)
 
     import ipdb; ipdb.set_trace()
