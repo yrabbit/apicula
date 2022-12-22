@@ -541,6 +541,14 @@ def place(db, tilemap, bels, cst, args):
         for row, col in bits:
             btile[row][col] = 1
 
+# The vertical columns of long wires can receive a signal from either the upper
+# or the lower end of the column.
+# The default source is the top end of the column, but if optimum routing has
+# resulted in the bottom end of the column being used, the top end must be
+# electrically disconnected by setting special fuses.
+def secure_long_wires(db, tilemap, pips):
+    return
+
 def route(db, tilemap, pips):
     for row, col, src, dest in pips:
         tiledata = db.grid[row-1][col-1]
@@ -557,6 +565,8 @@ def route(db, tilemap, pips):
             continue
         for row, col in bits:
             tile[row][col] = 1
+    # short-circuit prevention
+    secure_long_wires(db, tilemap, pips)
 
 def header_footer(db, bs, compress):
     """
