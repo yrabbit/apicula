@@ -549,7 +549,7 @@ def place(db, tilemap, bels, cst, args):
 def secure_long_wires(db, tilemap, row, col, src, dest):
     if device in {"GW1N-1"}:
         # the column runs across the entire height of the chip from the first to the last row
-        check_row = db.rows - 1
+        check_row = db.rows
         fuse_row = 0
         if row == check_row and dest in {'LT02', 'LT13'}:
             tiledata = db.grid[fuse_row][col - 1]
