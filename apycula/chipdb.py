@@ -178,7 +178,7 @@ def fse_alonenode(fse, ttyp, table = 6):
 def fse_pll(device, fse, ttyp):
     bels = {}
     # XXX use second grid in order to find PLL ttypes
-    if device in ['GW1N-1',  'GW1NZ-1']:
+    if device in ['GW1N-1',  'GW1NZ-1', 'GW1NS-4']:
         if ttyp == 89:
             bel = bels.setdefault('RPLLB', Bel())
         else:
@@ -617,7 +617,7 @@ _pll_inputs = [(5, 'CLKFB'), (6, 'FBDSEL0'), (7, 'FBDSEL1'), (8, 'FBDSEL2'), (9,
                (28, 'DUTYDA0'), (29, 'DUTYDA1'), (30, 'DUTYDA2'), (31, 'DUTYDA3'),
                (32, 'FDLY0'), (33, 'FDLY1'), (34, 'FDLY2'), (35, 'FDLY3')]
 _pll_outputs = [(0, 'CLKOUT'), (1, 'LOCK'), (2, 'CLKOUTP'), (3, 'CLKOUTD'), (4, 'CLKOUTD3')]
-def dat_portmap(dat, dev):
+def dat_portmap(dat, dev, device):
     for row in dev.grid:
         for tile in row:
             for name, bel in tile.bels.items():
@@ -646,7 +646,7 @@ def dat_portmap(dat, dev):
                         bel.portmap['D1'] = d1
                         tx = wirenames[dat[f'Iologic{pin}In'][27]]
                         bel.portmap['TX'] = tx
-                elif name == 'RPLLA':
+                elif name == 'RPLLA' and device in {"GW1N-1", "GW1NZ-1"}:
                     for idx, nam in _pll_inputs:
                         wire = wirenames[dat['PllIn'][idx]]
                         bel.portmap[nam] = wire
@@ -654,7 +654,7 @@ def dat_portmap(dat, dev):
                         wire = wirenames[dat['PllOut'][idx]]
                         bel.portmap[nam] = wire
                     bel.portmap['CLKIN'] = wirenames[124];
-                elif name == 'RPLLB':
+                elif name == 'RPLLB' and device in {"GW1N-1", "GW1NZ-1"}:
                     reset = wirenames[dat['PllIn'][0]]
                     bel.portmap['RESET'] = reset
                     reset_p = wirenames[dat['PllIn'][1]]
