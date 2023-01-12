@@ -183,10 +183,8 @@ def fse_pll(device, fse, ttyp):
         else:
             bel = bels.setdefault('RPLLA', Bel())
     elif device in {'GW1NS-4'}:
-        if ttyp == 89:
-            bel = bels.setdefault('PLLVR1', Bel())
-        else:
-            bel = bels.setdefault('PLLVR0', Bel())
+        if ttyp in {88, 89}:
+            bel = bels.setdefault('PLLVR', Bel())
     return bels
 
 # add the ALU mode
@@ -627,8 +625,8 @@ _pll_inputs = [(5, 'CLKFB'), (6, 'FBDSEL0'), (7, 'FBDSEL1'), (8, 'FBDSEL2'), (9,
                (32, 'FDLY0'), (33, 'FDLY1'), (34, 'FDLY2'), (35, 'FDLY3')]
 _pll_outputs = [(0, 'CLKOUT'), (1, 'LOCK'), (2, 'CLKOUTP'), (3, 'CLKOUTD'), (4, 'CLKOUTD3')]
 def dat_portmap(dat, dev, device):
-    for row in dev.grid:
-        for tile in row:
+    for row, row_dat in enumerate(dev.grid):
+        for col, tile in enumerate(row_dat):
             for name, bel in tile.bels.items():
                 if bel.portmap: continue
                 if name.startswith("IOB"):
@@ -670,18 +668,19 @@ def dat_portmap(dat, dev, device):
                     bel.portmap['RESET_P'] = reset_p
                     odsel5 = wirenames[dat['PllIn'][23]]
                     bel.portmap['ODSEL5'] = odsel5
-                elif name in {'PLLVR0', 'PLLVR1'}:
-                    # some of the PLLVR inputs are in a special cell (9, 37),
-                    # so we create auxiliary bels there
-                    pll_idx = name[5];
-                    aux_bel = dev.grid[9][37].bels.setdefault(f'PLLVRA{pll_idx}', Bel())
+                elif name == 'PLLVR':
+                    pll_idx = 0
+                    if col != 27:
+                        pll_idx = 1
                     for idx, nam in _pll_inputs:
                         pin_row = dat[f'SpecPll{pll_idx}Ins'][idx * 3 + 0]
                         wire = wirenames[dat[f'SpecPll{pll_idx}Ins'][idx * 3 + 2]]
                         if pin_row == 1:
                             bel.portmap[nam] = wire
                         else:
-                            aux_bel.portmap[nam] = wire
+                            # some of the PLLVR inputs are in a special cell (9, 37),
+                            bel.portmap[nam] = f'PLLVR{wire}'
+                            dev.aliases[row, col, f'PLLVR{wire}'] = (9, 37, wire)
                     for idx, nam in _pll_outputs:
                         wire = wirenames[dat[f'SpecPll{pll_idx}Outs'][idx]]
                         bel.portmap[nam] = wire
@@ -691,14 +690,15 @@ def dat_portmap(dat, dev, device):
                     reset_p = wirenames[dat[f'SpecPll{pll_idx}Ins'][1]]
                     bel.portmap['RESET_P'] = reset_p
                     odsel5 = wirenames[dat[f'SpecPll{pll_idx}Ins'][23]]
-                    aux_bel.portmap['ODSEL5'] = odsel5
+                    bel.portmap['ODSEL5'] = f'PLLVR{odsel5}'
+                    dev.aliases[row, col, f'PLLVR{odsel5}'] = (9, 37, odsel5)
                     # VREN pin is placed in another cell
-                    vren_bel = dev.grid[0][37].bels.setdefault(f'PLLVRB{pll_idx}', Bel())
                     if pll_idx == 0:
-                        vren_bel.portmap['VREN'] = 'D0'
+                        vren = 'D0'
                     else:
-                        vren_bel.portmap['VREN'] = 'B0'
-
+                        vren = 'B0'
+                    bel.portmap['VREN'] = f'PLLVR{vren}'
+                    dev.aliases[row, col, f'PLLVR{vren}'] = (0, 37, vren)
 
 def dat_aliases(dat, dev):
     for row in dev.grid:
