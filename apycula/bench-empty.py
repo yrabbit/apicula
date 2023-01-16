@@ -282,11 +282,9 @@ if __name__ == "__main__":
     """
 
     row3 = 0
-    col3 = 18
+    col3 = 36
     #row3 = 0
     #col3 = 17
-    row3 = 4
-    col3 = 6
     import ipdb; ipdb.set_trace()
     # cmp images
     if len(sys.argv) > 3:
@@ -367,11 +365,13 @@ if __name__ == "__main__":
         print("all second bits:")
         #print(sorted(bits))
         print(sorted(fuses))
+        all_fuses = fuses.copy()
         fuses = set()
         for df in sorted(bits):
             if df in rbits:
                 fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
         print('route:', sorted(fuses))
+        print('func:', sorted(all_fuses - fuses))
     print(row, col, ttyp)
 
     import ipdb; ipdb.set_trace()
