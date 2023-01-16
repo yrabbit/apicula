@@ -35,7 +35,7 @@ def sanitize_name(name):
 
 def get_bels(data):
     later = []
-    belre = re.compile(r"R(\d+)C(\d+)_(?:GSR|SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8|ODDR|OSC[ZFH]?|BUFS|RAMW|RPLL[AB])(\w*)")
+    belre = re.compile(r"R(\d+)C(\d+)_(?:GSR|SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8|ODDR|OSC[ZFH]?|BUFS|RAMW|RPLL[AB]|PLLVR)(\w*)")
     for cellname, cell in data['modules']['top']['cells'].items():
         if cell['type'].startswith('DUMMY_') :
             continue
@@ -184,7 +184,7 @@ def set_pll_attrs(db, typ, attrs):
     pll_inattrs = add_pll_default_attrs(attrs)
     pll_attrs = _default_pll_internal_attrs.copy()
 
-    if typ not in ['RPLL']:
+    if typ not in {'RPLL', 'PLLVR'}:
         raise Exception(f"PLL type {typ} is not supported for now")
 
     # parse attrs
@@ -505,6 +505,12 @@ def place(db, tilemap, bels, cst, args):
                 tile[r][c] = 1
         elif typ.startswith('RPLL'):
             pll_attrs = set_pll_attrs(db, 'RPLL', parms)
+            bits = get_shortval_fuses(db, tiledata.ttyp, pll_attrs, 'PLL')
+            #print(typ, bits)
+            for r, c in bits:
+                tile[r][c] = 1
+        elif typ == 'PLLVR':
+            pll_attrs = set_pll_attrs(db, 'PLLVR', parms)
             bits = get_shortval_fuses(db, tiledata.ttyp, pll_attrs, 'PLL')
             #print(typ, bits)
             for r, c in bits:
