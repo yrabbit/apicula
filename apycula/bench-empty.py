@@ -311,17 +311,17 @@ if __name__ == "__main__":
         print('first fuses:', sorted(fuses))
         if (row3, col3, ttyp) in fuse_h4x.tile_bitmap(fse, sec_img).keys():
             print('second bits:', sorted(get_bits(fuse_h4x.tile_bitmap(fse, sec_img)[(row3, col3, ttyp)])))
+        rbits = route_bits(db, row3, col3)
         fuses = set()
+        func_fuses = set()
         for df in get_bits(diff_tiles[(row3, col3, ttyp)]):
             fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
-        print("all diff:")
-        print(sorted(fuses))
-        print("second:")
-        if (row3, col3, ttyp) in fuse_h4x.tile_bitmap(fse, sec_img).keys():
-            for df in sorted(get_bits(fuse_h4x.tile_bitmap(fse, sec_img, True)[(row3, col3, ttyp)])):
-                if df in get_bits(diff_tiles[(row3, col3, ttyp)]):
-                    fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
-            print(sorted(fuses))
+            if df not in rbits:
+                func_fuses.update({get_fuse_num(ttyp, df[0] * 100 + df[1])})
+        print("=====================================")
+        print("all diff:", sorted(fuses))
+        print("func diff:", sorted(func_fuses))
+        print("=====================================")
 
     row = row3
     col = col3
@@ -329,7 +329,7 @@ if __name__ == "__main__":
     consts = set()
     if 'const' in fse[ttyp].keys():
         consts = {item for sublist in fse[ttyp]['const'][4] for item in sublist}
-    print(consts)
+    print("consts:", consts)
 
     rbits = route_bits(db, row, col)
     r, c = np.where(bm[(row, col)] == 1)
