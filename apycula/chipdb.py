@@ -370,6 +370,7 @@ _known_logic_tables = {
             13: 'BSRAM',
             14: 'DSP',
             15: 'PLL',
+            59: 'CFG',
             62: 'USB',
         }
 
@@ -397,6 +398,7 @@ _known_tables = {
             53: 'DLLDEL0',
             54: 'DLLDEL1',
             56: 'DLL0',
+            60: 'CFG',
             64: 'USB',
             66: 'EFLASH',
             68: 'ADC',
@@ -682,14 +684,14 @@ def dat_portmap(dat, dev, device):
                             bel.portmap[nam] = f'PLLVR{wire}'
                             dev.aliases[row, col, f'PLLVR{wire}'] = (9, 37, wire)
                     for idx, nam in _pll_outputs:
-                        wire = wirenames[dat[f'SpecPll{pll_idx}Outs'][idx]]
+                        wire = wirenames[dat[f'SpecPll{pll_idx}Outs'][idx * 3 + 2]]
                         bel.portmap[nam] = wire
                     bel.portmap['CLKIN'] = wirenames[124];
-                    reset = wirenames[dat[f'SpecPll{pll_idx}Ins'][0]]
+                    reset = wirenames[dat[f'SpecPll{pll_idx}Ins'][0 + 2]]
                     bel.portmap['RESET'] = reset
-                    reset_p = wirenames[dat[f'SpecPll{pll_idx}Ins'][1]]
+                    reset_p = wirenames[dat[f'SpecPll{pll_idx}Ins'][1 * 3 + 2]]
                     bel.portmap['RESET_P'] = reset_p
-                    odsel5 = wirenames[dat[f'SpecPll{pll_idx}Ins'][23]]
+                    odsel5 = wirenames[dat[f'SpecPll{pll_idx}Ins'][23 * 3 + 2]]
                     bel.portmap['ODSEL5'] = f'PLLVR{odsel5}'
                     dev.aliases[row, col, f'PLLVR{odsel5}'] = (9, 37, odsel5)
                     # VREN pin is placed in another cell
@@ -697,8 +699,8 @@ def dat_portmap(dat, dev, device):
                         vren = 'D0'
                     else:
                         vren = 'B0'
-                    bel.portmap['VREN'] = f'PLLVR{vren}'
-                    dev.aliases[row, col, f'PLLVR{vren}'] = (0, 37, vren)
+                    bel.portmap['VREN'] = f'PLLVRV{vren}'
+                    dev.aliases[row, col, f'PLLVRV{vren}'] = (0, 37, vren)
 
 def dat_aliases(dat, dev):
     for row in dev.grid:
