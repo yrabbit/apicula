@@ -680,7 +680,12 @@ def dat_portmap(dat, dev, device):
                         if pin_row == 1:
                             bel.portmap[nam] = wire
                         else:
-                            # some of the PLLVR inputs are in a special cell (9, 37),
+                            # some of the PLLVR inputs are in a special cell
+                            # (9, 37), here we create aliases where the
+                            # destination is the ports of the primitive, but
+                            # you should keep in mind that nextpnr is designed
+                            # so that it will not use such aliases. They have
+                            # to be taken care of separately.
                             bel.portmap[nam] = f'PLLVR{wire}'
                             dev.aliases[row, col, f'PLLVR{wire}'] = (9, 37, wire)
                     for idx, nam in _pll_outputs:
