@@ -180,12 +180,14 @@ _default_pll_internal_attrs = {
 }
 
 # typ - PLL type (RPLL, etc)
-def set_pll_attrs(db, typ, attrs):
+def set_pll_attrs(db, typ, idx, attrs):
     pll_inattrs = add_pll_default_attrs(attrs)
     pll_attrs = _default_pll_internal_attrs.copy()
 
     if typ not in {'RPLL', 'PLLVR'}:
         raise Exception(f"PLL type {typ} is not supported for now")
+    if typ == 'PLLVR':
+        pll_attrs[['PLLVCC0', 'PLLVCC1'][idx]] = 'ENABLE'
 
     # parse attrs
     for attr, val in pll_inattrs.items():
@@ -504,13 +506,16 @@ def place(db, tilemap, bels, cst, args):
             for r, c in bits:
                 tile[r][c] = 1
         elif typ.startswith('RPLL'):
-            pll_attrs = set_pll_attrs(db, 'RPLL', parms)
+            pll_attrs = set_pll_attrs(db, 'RPLL', 0,  parms)
             bits = get_shortval_fuses(db, tiledata.ttyp, pll_attrs, 'PLL')
             #print(typ, bits)
             for r, c in bits:
                 tile[r][c] = 1
         elif typ == 'PLLVR':
-            pll_attrs = set_pll_attrs(db, 'PLLVR', parms)
+            idx = 0
+            if col != 28:
+                idx = 1
+            pll_attrs = set_pll_attrs(db, 'PLLVR', idx, parms)
             bits = get_shortval_fuses(db, tiledata.ttyp, pll_attrs, 'PLL')
             #print(typ, bits)
             for r, c in bits:
