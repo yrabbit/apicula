@@ -520,7 +520,7 @@ def place(db, tilemap, bels, cst, args):
             #print(typ, bits)
             for r, c in bits:
                 tile[r][c] = 1
-            # only for 4C
+            # only for 4C, we know exactly where CFG is
             cfg_type = 51
             bits = get_shortval_fuses(db, cfg_type, pll_attrs, 'PLL')
             cfg_tile = tilemap[(0, 37)]

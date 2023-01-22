@@ -19,7 +19,7 @@ all: attosoc-tec0117.fs nanolcd-tangnano.fs blinky-tec0117.fs blinky-runber.fs \
 	pll-52-tangnano.fs pll-80-tangnano.fs \
 	pll-54-tangnano1k.fs pll-81-tangnano1k.fs \
 	pll-dyn-tangnano.fs pll-dyn-tangnano1k.fs \
-	pll-nanolcd-tangnano.fs
+	pll-nanolcd-tangnano.fs pll-tangnano4k.fs
 
 unpacked: attosoc-tec0117-unpacked.v nanolcd-tangnano-unpacked.v blinky-tec0117-unpacked.v blinky-runber-unpacked.v \
 	blinky-tangnano-unpacked.v blinky-honeycomb-unpacked.v shift-tec0117-unpacked.v shift-runber-unpacked.v \
@@ -38,7 +38,7 @@ unpacked: attosoc-tec0117-unpacked.v nanolcd-tangnano-unpacked.v blinky-tec0117-
 	pll-52-tangnano-unpacked.v pll-80-tangnano-unpacked.v \
 	pll-54-tangnano1k-unpacked.v pll-81-tangnano1k-unpacked.v \
 	pll-dyn-tangnano-unpacked.v pll-dyn-tangnano1k-unpacked.v \
-	pll-nanolcd-tangnano-unpacked.v
+	pll-nanolcd-tangnano-unpacked.v pll-tangnano4k-unpacked.v
 	
 clean: 
 	rm -f *.json *.fs *-unpacked.v
@@ -83,6 +83,9 @@ blinky-oddr-runber.json: blinky-oddr-runber-synth.json runber-tlvds.cst
 
 %-tangnano4k.json: %-tangnano4k-synth.json tangnano4k.cst
 	$(NEXTPNR) --debug -v --seed=1 --json $< --write $@ --device GW1NSR-LV4CQN48PC7/I6 --cst tangnano4k.cst
+
+pll-tangnano4k.json: pll-tangnano4k-synth.json tangnano4k.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1NSR-LV4CQN48PC7/I6 --cst tangnano4k.cst
 
 %-tangnano9k.fs: %-tangnano9k.json
 	gowin_pack -d GW1N-9C -o $@ $^
@@ -139,6 +142,9 @@ pll-%-tangnano1k-synth.json: pll/GW1NZ-1-%.vh pll.v
 	$(YOSYS) -D LEDS_NR=3 -D OSC_TYPE_OSCZ -p "read_verilog $^; synth_gowin -json $@"
 
 %-tangnano4k-synth.json: %.v
+	$(YOSYS) -D LEDS_NR=6 -D OSC_TYPE_OSCZ -p "read_verilog $^; synth_gowin -json $@"
+
+pll-tangnano4k-synth.json: pll-tangnano4k.v pllvr.v
 	$(YOSYS) -D LEDS_NR=6 -D OSC_TYPE_OSCZ -p "read_verilog $^; synth_gowin -json $@"
 
 %-tangnano9k-synth.json: %.v
