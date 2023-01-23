@@ -683,7 +683,7 @@ def dat_portmap(dat, dev, device):
                     offx = 1
                     if col > dat['center'][1] - 1:
                         offx = -1
-                    for idx, nam in _pll_inputs:
+                    for idx, nam in chain(_pll_inputs, [(23, 'ODSEL5'), (0, 'RESET'), (1, 'RESET_P')]):
                         wire = wirenames[dat['PllIn'][idx]]
                         off = dat['PllInDlt'][idx] * offx
                         if off == 0:
