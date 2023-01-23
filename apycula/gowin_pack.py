@@ -507,7 +507,9 @@ def place(db, tilemap, bels, cst, args):
                 tile[r][c] = 1
         elif typ.startswith('RPLL'):
             pll_attrs = set_pll_attrs(db, 'RPLL', 0,  parms)
-            bits = get_shortval_fuses(db, tiledata.ttyp, pll_attrs, 'PLL')
+            bits = set()
+            if 'PLL' in db.shortval[tiledata.ttyp].keys():
+                bits = get_shortval_fuses(db, tiledata.ttyp, pll_attrs, 'PLL')
             #print(typ, bits)
             for r, c in bits:
                 tile[r][c] = 1
@@ -516,6 +518,7 @@ def place(db, tilemap, bels, cst, args):
             if col != 28:
                 idx = 1
             pll_attrs = set_pll_attrs(db, 'PLLVR', idx, parms)
+            if 'PLL' in db.shortval[tiledata.ttyp].keys():
             bits = get_shortval_fuses(db, tiledata.ttyp, pll_attrs, 'PLL')
             #print(typ, bits)
             for r, c in bits:
