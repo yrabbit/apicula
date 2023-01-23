@@ -185,6 +185,11 @@ def fse_pll(device, fse, ttyp):
     elif device in {'GW1NS-4'}:
         if ttyp in {88, 89}:
             bel = bels.setdefault('PLLVR', Bel())
+    elif device in {'GW1N-9C'}:
+        if ttyp in {86, 87}:
+            bel = bels.setdefault('RPLLA', Bel())
+        else:
+            bel = bels.setdefault('RPLLB', Bel())
     return bels
 
 # add the ALU mode
@@ -476,7 +481,7 @@ def from_fse(device, fse):
         if 51 in fse[ttyp]['shortval']:
             tile.bels = fse_osc(device, fse, ttyp)
         # XXX GW1N(Z)-1 and GW1NS-4 for now
-        if ttyp in [88, 89]:
+        if ttyp in [74, 75, 76, 77, 78, 79, 86, 87, 88, 89]:
             tile.bels = fse_pll(device, fse, ttyp)
         tiles[ttyp] = tile
 
@@ -655,7 +660,7 @@ def dat_portmap(dat, dev, device):
                         bel.portmap['D1'] = d1
                         tx = wirenames[dat[f'Iologic{pin}In'][27]]
                         bel.portmap['TX'] = tx
-                elif name == 'RPLLA':
+                elif name == 'RPLLA' and device in {'GW1N-1', 'GW1NZ-1'}:
                     for idx, nam in _pll_inputs:
                         wire = wirenames[dat['PllIn'][idx]]
                         bel.portmap[nam] = wire
@@ -663,13 +668,49 @@ def dat_portmap(dat, dev, device):
                         wire = wirenames[dat['PllOut'][idx]]
                         bel.portmap[nam] = wire
                     bel.portmap['CLKIN'] = wirenames[124];
-                elif name == 'RPLLB':
+                elif name == 'RPLLB' and device in {'GW1N-1', 'GW1NZ-1'}:
                     reset = wirenames[dat['PllIn'][0]]
                     bel.portmap['RESET'] = reset
                     reset_p = wirenames[dat['PllIn'][1]]
                     bel.portmap['RESET_P'] = reset_p
                     odsel5 = wirenames[dat['PllIn'][23]]
                     bel.portmap['ODSEL5'] = odsel5
+                elif name == 'RPLLA' and device in {'GW1N-9C'}:
+                    # XXX remake the GW1N-1 and GW1NZ-1 families in a similar manner
+                    # The PllInDlt table seems to indicate in which cell the
+                    # inputs are actually located.
+                    # two mirrored PLLs
+                    offx = 1
+                    if col > dat['center'][1] - 1:
+                        offx = -1
+                    for idx, nam in _pll_inputs:
+                        wire = wirenames[dat['PllIn'][idx]]
+                        off = dat['PllInDlt'][idx] * offx
+                        if off == 0:
+                            bel.portmap[nam] = wire
+                        else:
+                            # not our cell, make an alias
+                            bel.portmap[nam] = f'rPLL{wire}'
+                            dev.aliases[row, col, f'rPLL{wire}'] = (row, col + off, wire)
+                    for idx, nam in _pll_outputs:
+                        wire = wirenames[dat['PllOut'][idx]]
+                        off = dat['PllOutDlt'][idx] * offx
+                        if off == 0:
+                            bel.portmap[nam] = wire
+                        else:
+                            # not our cell, make an alias
+                            bel.portmap[nam] = f'rPLL{wire}'
+                            dev.aliases[row, col, f'rPLL{wire}'] = (row, col + off, wire)
+                    # clock input
+                    nam = 'CLKIN'
+                    wire = wirenames[dat['PllClkin'][1][0]]
+                    off = dat['PllClkin'][1][1] * offx
+                    if off == 0:
+                        bel.portmap[nam] = wire
+                    else:
+                        # not our cell, make an alias
+                        bel.portmap[nam] = f'rPLL{wire}'
+                        dev.aliases[row, col, f'rPLL{wire}'] = (row, col + off, wire)
                 elif name == 'PLLVR':
                     pll_idx = 0
                     if col != 27:
