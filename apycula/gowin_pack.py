@@ -518,7 +518,6 @@ def place(db, tilemap, bels, cst, args):
             if col != 28:
                 idx = 1
             pll_attrs = set_pll_attrs(db, 'PLLVR', idx, parms)
-            if 'PLL' in db.shortval[tiledata.ttyp].keys():
             bits = get_shortval_fuses(db, tiledata.ttyp, pll_attrs, 'PLL')
             #print(typ, bits)
             for r, c in bits:
