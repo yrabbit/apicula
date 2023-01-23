@@ -19,7 +19,7 @@ all: attosoc-tec0117.fs nanolcd-tangnano.fs blinky-tec0117.fs blinky-runber.fs \
 	pll-52-tangnano.fs pll-80-tangnano.fs \
 	pll-54-tangnano1k.fs pll-81-tangnano1k.fs \
 	pll-dyn-tangnano.fs pll-dyn-tangnano1k.fs \
-	pll-nanolcd-tangnano.fs pll-tangnano4k.fs
+	pll-nanolcd-tangnano.fs pll-nanolcd-tangnano9k.fs pll-tangnano4k.fs
 
 unpacked: attosoc-tec0117-unpacked.v nanolcd-tangnano-unpacked.v blinky-tec0117-unpacked.v blinky-runber-unpacked.v \
 	blinky-tangnano-unpacked.v blinky-honeycomb-unpacked.v shift-tec0117-unpacked.v shift-runber-unpacked.v \
@@ -38,7 +38,7 @@ unpacked: attosoc-tec0117-unpacked.v nanolcd-tangnano-unpacked.v blinky-tec0117-
 	pll-52-tangnano-unpacked.v pll-80-tangnano-unpacked.v \
 	pll-54-tangnano1k-unpacked.v pll-81-tangnano1k-unpacked.v \
 	pll-dyn-tangnano-unpacked.v pll-dyn-tangnano1k-unpacked.v \
-	pll-nanolcd-tangnano-unpacked.v pll-tangnano4k-unpacked.v
+	pll-nanolcd-tangnano-unpacked.v pll-nanolcd-tangnano9k-unpacked.v pll-tangnano4k-unpacked.v
 	
 clean: 
 	rm -f *.json *.fs *-unpacked.v
@@ -109,6 +109,9 @@ nanolcd-tangnano-synth.json: nanolcd/TOP.v nanolcd/VGAMod.v
 	$(YOSYS) -p "read_verilog $^; synth_gowin -json $@"
 
 pll-nanolcd-tangnano-synth.json: pll-nanolcd/TOP.v pll-nanolcd/VGAMod.v
+	$(YOSYS) -p "read_verilog $^; synth_gowin -noalu -json $@"
+
+pll-nanolcd-tangnano9k-synth.json: pll-nanolcd/TOP.v pll-nanolcd/VGAMod.v
 	$(YOSYS) -p "read_verilog $^; synth_gowin -noalu -json $@"
 
 %-tec0117-synth.json: %.v
