@@ -724,7 +724,7 @@ def fix_pll_ports(pll):
                 pll.portmap.pop(f'{portname}{n}')
 
 def fix_plls(db, mod):
-    for pll_name, pll in [pr for pr in mod.primitives.items() if pr[1].typ == 'rPLL']:
+    for pll_name, pll in [pr for pr in mod.primitives.items() if pr[1].typ in {'rPLL', 'PLLVR'}]:
         if 'INSEL' not in pll.params.keys():
             del mod.primitives[pll_name]
             continue

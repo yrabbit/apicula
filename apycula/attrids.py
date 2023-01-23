@@ -604,7 +604,7 @@ pll_attrvals = {
 # config
 cfg_attrids = {
         'GSR':              2,
-        'POR':              24, // power on reset
+        'POR':              24, # power on reset
     }
 
 cfg_attrvals = {
