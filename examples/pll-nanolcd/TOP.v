@@ -81,7 +81,7 @@ assign led[2] = LED_B;
 		.LCD_R		(	LCD_R		)
 	);
 
-	assign		LCD_CLK		=	CLK_SYS;
+	assign		LCD_CLK		=	CLK_PIX;
 
     //RGB LED TEST
     reg 	[31:0] Count;
