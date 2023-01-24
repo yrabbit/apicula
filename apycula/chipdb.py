@@ -453,7 +453,13 @@ _pll_loc = {
     'TLPLL0CLK2': (0, 27, 'F6'), 'TLPLL0CLK3': (0, 27, 'F7'),
     'TRPLL0CLK0': (0, 36, 'F4'), 'TRPLL0CLK1': (0, 36, 'F5'),
     'TRPLL0CLK2': (0, 36, 'F6'), 'TRPLL0CLK3': (0, 36, 'F7'), },
+ 'GW1N-9C':
+   {'TLPLL0CLK0': (9, 2, 'F4'), 'TLPLL0CLK1': (9, 2, 'F5'),
+    'TLPLL0CLK2': (9, 2, 'F6'), 'TLPLL0CLK3': (9, 2, 'F7'),
+    'TRPLL0CLK0': (9, 44, 'F4'), 'TRPLL0CLK1': (9, 44, 'F5'),
+    'TRPLL0CLK2': (9, 44, 'F6'), 'TRPLL0CLK3': (9, 44, 'F7'), },
 }
+
 def fse_create_pll_clock_aliases(db, device):
     # we know exactly where the PLL is and therefore know which aliases to create
     for row in range(db.rows):
@@ -461,7 +467,7 @@ def fse_create_pll_clock_aliases(db, device):
             for w_dst, w_srcs in db.grid[row][col].clock_pips.items():
                 for w_src in w_srcs.keys():
                     # XXX
-                    if device in {'GW1N-1', 'GW1NZ-1', 'GW1NS-4'}:
+                    if device in {'GW1N-1', 'GW1NZ-1', 'GW1NS-4', 'GW1N-9C'}:
                         if w_src in _pll_loc[device].keys():
                             db.aliases[(row, col, w_src)] = _pll_loc[device][w_src]
 
