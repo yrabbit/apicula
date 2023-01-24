@@ -281,8 +281,8 @@ if __name__ == "__main__":
                     print(ttyp, src)
     """
 
-    row3 = 0
-    col3 = 27
+    row3 = 9
+    col3 = 43
     #row3 = 0
     #col3 = 17
     import ipdb; ipdb.set_trace()
