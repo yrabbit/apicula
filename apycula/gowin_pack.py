@@ -33,6 +33,16 @@ def sanitize_name(name):
         return retname
     return f"\{retname} "
 
+def extra_pll_bels(cell, row, col, num):
+    # rPLL can occupy several cells, add them depending on the chip
+    if device == 'GW1N-9C':
+        offx = 1;
+        if col > 28:
+            offx = -1
+        for off in [1, 2, 3]:
+            yield ('RPLLB', int(row), int(col) + offx * off, num,
+                cell['parameters'], cell['attributes'], sanitize_name(cellname) + f'B{off}')
+
 def get_bels(data):
     later = []
     belre = re.compile(r"R(\d+)C(\d+)_(?:GSR|SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8|ODDR|OSC[ZFH]?|BUFS|RAMW|RPLL[AB]|PLLVR)(\w*)")
@@ -51,6 +61,8 @@ def get_bels(data):
         if 'DIFF' in cell['attributes'].keys():
             later.append((cellname, cell, row, col, num))
             continue
+        if cell['type'].startswith('RPLLA'):
+            yield from extra_pll_bels(cell, row, col, num)
         yield (cell['type'], int(row), int(col), num,
                 cell['parameters'], cell['attributes'], sanitize_name(cellname))
 
