@@ -39,8 +39,8 @@ rPLL pll(
 		.PSDA({GND,GND,GND,GND}),
 		.FDLY({GND,GND,GND,GND})
 	);
-	defparam pll.DEVICE = "GW1NR-9C";
-	defparam pll.FCLKIN = "27";
+	defparam pll.DEVICE = `PLL_DEVICE;
+	defparam pll.FCLKIN = `PLL_FCLKIN;
 	defparam pll.FBDIV_SEL = 9;
 	defparam pll.IDIV_SEL =  2;
 	defparam pll.ODIV_SEL =  8;           // 90MHz sys clock

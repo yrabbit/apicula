@@ -111,10 +111,10 @@ tonegen-tec0117-synth.json: tonegen/top.v tonegen/sddac.v tonegen/cordic.v
 nanolcd-tangnano-synth.json: nanolcd/TOP.v nanolcd/VGAMod.v
 	$(YOSYS) -p "read_verilog $^; synth_gowin -json $@"
 
-pll-nanolcd-tangnano-synth.json: pll-nanolcd/TOP.v pll-nanolcd/VGAMod.v
+pll-nanolcd-tangnano-synth.json: pll/GW1N-1-dyn.vh pll-nanolcd/TOP.v pll-nanolcd/VGAMod.v
 	$(YOSYS) -p "read_verilog $^; synth_gowin -noalu -json $@"
 
-pll-nanolcd-tangnano9k-synth.json: pll-nanolcd/TOP.v pll-nanolcd/VGAMod.v
+pll-nanolcd-tangnano9k-synth.json: pll/GW1N-9C-dyn.vh pll-nanolcd/TOP.v pll-nanolcd/VGAMod.v
 	$(YOSYS) -p "read_verilog $^; synth_gowin -noalu -json $@"
 
 %-tec0117-synth.json: %.v
