@@ -33,7 +33,7 @@ def sanitize_name(name):
         return retname
     return f"\{retname} "
 
-def extra_pll_bels(cell, row, col, num):
+def extra_pll_bels(cell, row, col, num, cellname):
     # rPLL can occupy several cells, add them depending on the chip
     if device == 'GW1N-9C':
         offx = 1;
@@ -62,7 +62,7 @@ def get_bels(data):
             later.append((cellname, cell, row, col, num))
             continue
         if cell['type'].startswith('RPLLA'):
-            yield from extra_pll_bels(cell, row, col, num)
+            yield from extra_pll_bels(cell, row, col, num, cellname)
         yield (cell['type'], int(row), int(col), num,
                 cell['parameters'], cell['attributes'], sanitize_name(cellname))
 
