@@ -12,7 +12,8 @@ module TOP
 	output	[5:0]	LCD_G,
 	output	[4:0]	LCD_B,
 
-	output [2:0] led
+	output [2:0] led,
+	output sig9
 
 );
 
@@ -27,6 +28,9 @@ module TOP
         .oscout(oscout_o) //output oscout
     );
 */
+
+assign sig9 = CLK_PIX;
+
 rPLL pll(
 	    .CLKOUT(CLK_SYS),  // 90MHz
 		.CLKIN(clk),
