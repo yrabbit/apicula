@@ -696,8 +696,8 @@ def dat_portmap(dat, dev, device):
                             bel.portmap[nam] = wire
                         else:
                             # not our cell, make an alias
-                            bel.portmap[nam] = f'rPLL{wire}'
-                            dev.aliases[row, col, f'rPLL{wire}'] = (row, col + off, wire)
+                            bel.portmap[nam] = f'rPLL{nam}{wire}'
+                            dev.aliases[row, col, f'rPLL{nam}{wire}'] = (row, col + off, wire)
                     for idx, nam in _pll_outputs:
                         wire = wirenames[dat['PllOut'][idx]]
                         off = dat['PllOutDlt'][idx] * offx
@@ -705,8 +705,8 @@ def dat_portmap(dat, dev, device):
                             bel.portmap[nam] = wire
                         else:
                             # not our cell, make an alias
-                            bel.portmap[nam] = f'rPLL{wire}'
-                            dev.aliases[row, col, f'rPLL{wire}'] = (row, col + off, wire)
+                            bel.portmap[nam] = f'rPLL{nam}{wire}'
+                            dev.aliases[row, col, f'rPLL{nam}{wire}'] = (row, col + off, wire)
                     # clock input
                     nam = 'CLKIN'
                     wire = wirenames[dat['PllClkin'][1][0]]
@@ -715,8 +715,8 @@ def dat_portmap(dat, dev, device):
                         bel.portmap[nam] = wire
                     else:
                         # not our cell, make an alias
-                        bel.portmap[nam] = f'rPLL{wire}'
-                        dev.aliases[row, col, f'rPLL{wire}'] = (row, col + off, wire)
+                        bel.portmap[nam] = f'rPLL{nam}{wire}'
+                        dev.aliases[row, col, f'rPLL{nam}{wire}'] = (row, col + off, wire)
                 elif name == 'PLLVR':
                     pll_idx = 0
                     if col != 27:
@@ -733,8 +733,8 @@ def dat_portmap(dat, dev, device):
                             # you should keep in mind that nextpnr is designed
                             # so that it will not use such aliases. They have
                             # to be taken care of separately.
-                            bel.portmap[nam] = f'PLLVR{wire}'
-                            dev.aliases[row, col, f'PLLVR{wire}'] = (9, 37, wire)
+                            bel.portmap[nam] = f'PLLVR{nam}{wire}'
+                            dev.aliases[row, col, f'PLLVR{nam}{wire}'] = (9, 37, wire)
                     for idx, nam in _pll_outputs:
                         wire = wirenames[dat[f'SpecPll{pll_idx}Outs'][idx * 3 + 2]]
                         bel.portmap[nam] = wire
@@ -744,8 +744,8 @@ def dat_portmap(dat, dev, device):
                     reset_p = wirenames[dat[f'SpecPll{pll_idx}Ins'][1 * 3 + 2]]
                     bel.portmap['RESET_P'] = reset_p
                     odsel5 = wirenames[dat[f'SpecPll{pll_idx}Ins'][23 * 3 + 2]]
-                    bel.portmap['ODSEL5'] = f'PLLVR{odsel5}'
-                    dev.aliases[row, col, f'PLLVR{odsel5}'] = (9, 37, odsel5)
+                    bel.portmap['ODSEL5'] = f'PLLVRODSEL5{odsel5}'
+                    dev.aliases[row, col, f'PLLVRODSEL5{odsel5}'] = (9, 37, odsel5)
                     # VREN pin is placed in another cell
                     if pll_idx == 0:
                         vren = 'D0'
