@@ -178,17 +178,17 @@ def fse_alonenode(fse, ttyp, table = 6):
 def fse_pll(device, fse, ttyp):
     bels = {}
     if device in {'GW1N-1',  'GW1NZ-1'}:
-        if ttyp == 89:
-            bel = bels.setdefault('RPLLB', Bel())
-        else:
+        if ttyp == 88:
             bel = bels.setdefault('RPLLA', Bel())
+        elif ttyp == 89:
+            bel = bels.setdefault('RPLLB', Bel())
     elif device in {'GW1NS-4'}:
         if ttyp in {88, 89}:
             bel = bels.setdefault('PLLVR', Bel())
     elif device in {'GW1N-9C'}:
         if ttyp in {86, 87}:
             bel = bels.setdefault('RPLLA', Bel())
-        else:
+        elif ttyp in {74, 75, 76, 77, 78, 79}:
             bel = bels.setdefault('RPLLB', Bel())
     return bels
 
@@ -633,6 +633,7 @@ _pll_inputs = [(5, 'CLKFB'), (6, 'FBDSEL0'), (7, 'FBDSEL1'), (8, 'FBDSEL2'), (9,
                (12, 'IDSEL0'), (13, 'IDSEL1'), (14, 'IDSEL2'), (15, 'IDSEL3'), (16, 'IDSEL4'),
                (17, 'IDSEL5'),
                (18, 'ODSEL0'), (19, 'ODSEL1'), (20, 'ODSEL2'), (21, 'ODSEL3'), (22, 'ODSEL4'),
+               (23, 'ODSEL5'), (0, 'RESET'), (1, 'RESET_P'),
                (24, 'PSDA0'), (25, 'PSDA1'), (26, 'PSDA2'), (27, 'PSDA3'),
                (28, 'DUTYDA0'), (29, 'DUTYDA1'), (30, 'DUTYDA2'), (31, 'DUTYDA3'),
                (32, 'FDLY0'), (33, 'FDLY1'), (34, 'FDLY2'), (35, 'FDLY3')]
@@ -666,30 +667,15 @@ def dat_portmap(dat, dev, device):
                         bel.portmap['D1'] = d1
                         tx = wirenames[dat[f'Iologic{pin}In'][27]]
                         bel.portmap['TX'] = tx
-                elif name == 'RPLLA' and device in {'GW1N-1', 'GW1NZ-1'}:
-                    for idx, nam in _pll_inputs:
-                        wire = wirenames[dat['PllIn'][idx]]
-                        bel.portmap[nam] = wire
-                    for idx, nam in _pll_outputs:
-                        wire = wirenames[dat['PllOut'][idx]]
-                        bel.portmap[nam] = wire
-                    bel.portmap['CLKIN'] = wirenames[124];
-                elif name == 'RPLLB' and device in {'GW1N-1', 'GW1NZ-1'}:
-                    reset = wirenames[dat['PllIn'][0]]
-                    bel.portmap['RESET'] = reset
-                    reset_p = wirenames[dat['PllIn'][1]]
-                    bel.portmap['RESET_P'] = reset_p
-                    odsel5 = wirenames[dat['PllIn'][23]]
-                    bel.portmap['ODSEL5'] = odsel5
-                elif name == 'RPLLA' and device in {'GW1N-9C'}:
-                    # XXX remake the GW1N-1 and GW1NZ-1 families in a similar manner
+                elif name == 'RPLLA':
                     # The PllInDlt table seems to indicate in which cell the
                     # inputs are actually located.
-                    # two mirrored PLLs
                     offx = 1
-                    if col > dat['center'][1] - 1:
-                        offx = -1
-                    for idx, nam in chain(_pll_inputs, [(23, 'ODSEL5'), (0, 'RESET'), (1, 'RESET_P')]):
+                    if device in {'GW1N-9C'}:
+                        # two mirrored PLLs
+                        if col > dat['center'][1] - 1:
+                            offx = -1
+                    for idx, nam in _pll_inputs:
                         wire = wirenames[dat['PllIn'][idx]]
                         off = dat['PllInDlt'][idx] * offx
                         if off == 0:

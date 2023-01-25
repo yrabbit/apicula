@@ -35,11 +35,15 @@ def sanitize_name(name):
 
 def extra_pll_bels(cell, row, col, num, cellname):
     # rPLL can occupy several cells, add them depending on the chip
+    offx = 1;
     if device == 'GW1N-9C':
-        offx = 1;
         if int(col) > 28:
             offx = -1
         for off in [1, 2, 3]:
+            yield ('RPLLB', int(row), int(col) + offx * off, num,
+                cell['parameters'], cell['attributes'], sanitize_name(cellname) + f'B{off}')
+    elif device in {'GW1N-1', 'GW1NZ-1'}:
+        for off in [1]:
             yield ('RPLLB', int(row), int(col) + offx * off, num,
                 cell['parameters'], cell['attributes'], sanitize_name(cellname) + f'B{off}')
 
