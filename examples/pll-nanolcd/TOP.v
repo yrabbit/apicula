@@ -41,8 +41,8 @@ rPLL pll(
 	);
 	defparam pll.DEVICE = `PLL_DEVICE;
 	defparam pll.FCLKIN = `PLL_FCLKIN;
-	defparam pll.FBDIV_SEL = 9;
-	defparam pll.IDIV_SEL =  2;
+	defparam pll.FBDIV_SEL = `PLL_FBDIV_SEL_LCD;
+	defparam pll.IDIV_SEL =  `PLL_IDIV_SEL_LCD;
 	defparam pll.ODIV_SEL =  8;           // 90MHz sys clock
 	defparam pll.CLKFB_SEL="internal";
 	defparam pll.CLKOUTD3_SRC="CLKOUT";

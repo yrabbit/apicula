@@ -30,6 +30,8 @@ IO_LOC "LCD_R[2]" 73;
 IO_LOC "LCD_R[3]" 72;
 IO_LOC "LCD_R[4]" 71;
 IO_LOC "LCD_SYNC" 34;
+IO_LOC "LCD_XR"   32;
+IO_LOC "LCD_XL"   39;
 
 
 // true LVDS pins
