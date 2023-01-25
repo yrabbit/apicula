@@ -39,7 +39,7 @@ unpacked: attosoc-tec0117-unpacked.v nanolcd-tangnano-unpacked.v blinky-tec0117-
 	pll-52-tangnano-unpacked.v pll-80-tangnano-unpacked.v \
 	pll-54-tangnano1k-unpacked.v pll-81-tangnano1k-unpacked.v \
 	pll-dyn-tangnano-unpacked.v pll-dyn-tangnano1k-unpacked.v \
-	pll2-dyn-tangnano9k-unpacked.v \
+	pll2-tangnano9k-unpacked.v \
 	pll-nanolcd-tangnano-unpacked.v pll-nanolcd-tangnano9k-unpacked.v pll-tangnano4k-unpacked.v
 	
 clean: 
@@ -66,7 +66,7 @@ blinky-oddr-runber.json: blinky-oddr-runber-synth.json runber-tlvds.cst
 	gowin_pack -d GW1N-1 -o $@ $^
 
 %-tangnano.json: %-tangnano-synth.json tangnano.cst
-	$(NEXTPNR) --json $< --write $@ --device GW1N-LV1QN48C6/I5 --cst tangnano.cst
+	$(NEXTPNR) -v --debug --json $< --write $@ --device GW1N-LV1QN48C6/I5 --cst tangnano.cst
 
 %-tangnano1k.fs: %-tangnano1k.json
 	gowin_pack -d GW1NZ-1 -o $@ $^
@@ -81,7 +81,7 @@ blinky-oddr-runber.json: blinky-oddr-runber-synth.json runber-tlvds.cst
 	$(NEXTPNR) --json $< --write $@ --device GW1NSR-LV4CQN48PC7/I6 --cst tangnano4k.cst
 
 pll-tangnano4k.json: pll-tangnano4k-synth.json tangnano4k.cst
-	$(NEXTPNR) --json $< --write $@ --device GW1NSR-LV4CQN48PC7/I6 --cst tangnano4k.cst
+	$(NEXTPNR) -v --debug --json $< --write $@ --device GW1NSR-LV4CQN48PC7/I6 --cst tangnano4k.cst
 
 %-tangnano9k.fs: %-tangnano9k.json
 	gowin_pack -d GW1N-9C -o $@ $^
