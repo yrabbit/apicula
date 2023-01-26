@@ -726,12 +726,6 @@ def dat_portmap(dat, dev, device):
                         bel.portmap[nam] = wire
                     bel.portmap['CLKIN'] = wirenames[124];
                     reset = wirenames[dat[f'SpecPll{pll_idx}Ins'][0 + 2]]
-                    bel.portmap['RESET'] = reset
-                    reset_p = wirenames[dat[f'SpecPll{pll_idx}Ins'][1 * 3 + 2]]
-                    bel.portmap['RESET_P'] = reset_p
-                    odsel5 = wirenames[dat[f'SpecPll{pll_idx}Ins'][23 * 3 + 2]]
-                    bel.portmap['ODSEL5'] = f'PLLVRODSEL5{odsel5}'
-                    dev.aliases[row, col, f'PLLVRODSEL5{odsel5}'] = (9, 37, odsel5)
                     # VREN pin is placed in another cell
                     if pll_idx == 0:
                         vren = 'D0'

@@ -66,7 +66,7 @@ blinky-oddr-runber.json: blinky-oddr-runber-synth.json runber-tlvds.cst
 	gowin_pack -d GW1N-1 -o $@ $^
 
 %-tangnano.json: %-tangnano-synth.json tangnano.cst
-	$(NEXTPNR) -v --debug --json $< --write $@ --device GW1N-LV1QN48C6/I5 --cst tangnano.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1N-LV1QN48C6/I5 --cst tangnano.cst
 
 %-tangnano1k.fs: %-tangnano1k.json
 	gowin_pack -d GW1NZ-1 -o $@ $^
@@ -81,7 +81,7 @@ blinky-oddr-runber.json: blinky-oddr-runber-synth.json runber-tlvds.cst
 	$(NEXTPNR) --json $< --write $@ --device GW1NSR-LV4CQN48PC7/I6 --cst tangnano4k.cst
 
 pll-tangnano4k.json: pll-tangnano4k-synth.json tangnano4k.cst
-	$(NEXTPNR) -v --debug --json $< --write $@ --device GW1NSR-LV4CQN48PC7/I6 --cst tangnano4k.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1NSR-LV4CQN48PC7/I6 --cst tangnano4k.cst
 
 %-tangnano9k.fs: %-tangnano9k.json
 	gowin_pack -d GW1N-9C -o $@ $^
@@ -90,7 +90,7 @@ pll-nanolcd-tangnano9k.fs: pll-nanolcd-tangnano9k.json
 	gowin_pack -d GW1N-9C --sspi_as_gpio --mspi_as_gpio -o $@ $^
 
 %-tangnano9k.json: %-tangnano9k-synth.json tangnano9k.cst
-	$(NEXTPNR) -v --debug --json $< --write $@ --device GW1NR-LV9QN88PC6/I5 --family GW1N-9C --cst tangnano9k.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1NR-LV9QN88PC6/I5 --family GW1N-9C --cst tangnano9k.cst
 
 %-honeycomb.fs: %-honeycomb.json
 	gowin_pack -d GW1NS-2 -o $@ $<
