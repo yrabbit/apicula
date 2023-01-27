@@ -714,13 +714,8 @@ def dat_portmap(dat, dev, device):
                             # you should keep in mind that nextpnr is designed
                             # so that it will not use such aliases. They have
                             # to be taken care of separately.
-<<<<<<< HEAD
-                            bel.portmap[nam] = f'PLLVR{wire}'
-                            dev.aliases[row, col, f'PLLVR{wire}'] = (9, 37, wire)
-=======
                             bel.portmap[nam] = f'PLLVR{nam}{wire}'
                             dev.aliases[row, col, f'PLLVR{nam}{wire}'] = (9, 37, wire)
->>>>>>> stage-2-wip
                     for idx, nam in _pll_outputs:
                         wire = wirenames[dat[f'SpecPll{pll_idx}Outs'][idx * 3 + 2]]
                         bel.portmap[nam] = wire
