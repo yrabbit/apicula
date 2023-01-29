@@ -36,7 +36,7 @@ def sanitize_name(name):
 def extra_pll_bels(cell, row, col, num, cellname):
     # rPLL can occupy several cells, add them depending on the chip
     offx = 1;
-    if device == 'GW1N-9C':
+    if device in {'GW1N-9C', 'GW1N-9'}:
         if int(col) > 28:
             offx = -1
         for off in [1, 2, 3]:
@@ -528,7 +528,7 @@ def place(db, tilemap, bels, cst, args):
             bits = set()
             if 'PLL' in db.shortval[tiledata.ttyp].keys():
                 bits = get_shortval_fuses(db, tiledata.ttyp, pll_attrs, 'PLL')
-            #print(typ, bits)
+            print(typ, tiledata.ttyp, bits)
             for r, c in bits:
                 tile[r][c] = 1
         elif typ == 'PLLVR':
@@ -700,6 +700,7 @@ def main():
     tilemap = chipdb.tile_bitmap(db, db.template, empty=True)
     cst = codegen.Constraints()
     bels = get_bels(pnr)
+    import ipdb; ipdb.set_trace()
     place(db, tilemap, bels, cst, args)
     pips = get_pips(pnr)
     route(db, tilemap, pips)
