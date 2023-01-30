@@ -128,10 +128,10 @@ pll2-tangnano9k-synth.json: pll/GW1N-9C-dyn.vh pll2.v pll/rpll.v
 %-runber-synth.json: %.v
 	$(YOSYS) -D LEDS_NR=8 -D OSC_TYPE_OSC -p "read_verilog $^; synth_gowin -json $@"
 
-pll-%-tangnano-synth.json: pll/GW1N-1-%.vh pll/rpll.v
+pll-%-tangnano-synth.json: pll/GW1N-1-%.vh pll.v pll/rpll.v
 	$(YOSYS) -D LEDS_NR=3 -p "read_verilog $^; synth_gowin -json $@"
 
-pll-%-tangnano1k-synth.json: pll/GW1NZ-1-%.vh pll/rpll.v
+pll-%-tangnano1k-synth.json: pll/GW1NZ-1-%.vh pll.v pll/rpll.v
 	$(YOSYS) -D LEDS_NR=3 -p "read_verilog $^; synth_gowin -json $@"
 
 %-tangnano-synth.json: %.v
