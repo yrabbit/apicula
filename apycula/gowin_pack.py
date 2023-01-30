@@ -42,7 +42,7 @@ def extra_pll_bels(cell, row, col, num, cellname):
         for off in [1, 2, 3]:
             yield ('RPLLB', int(row), int(col) + offx * off, num,
                 cell['parameters'], cell['attributes'], sanitize_name(cellname) + f'B{off}')
-    elif device in {'GW1N-1', 'GW1NZ-1'}:
+    elif device in {'GW1N-1', 'GW1NZ-1', 'GW1N-4'}:
         for off in [1]:
             yield ('RPLLB', int(row), int(col) + offx * off, num,
                 cell['parameters'], cell['attributes'], sanitize_name(cellname) + f'B{off}')
@@ -700,7 +700,6 @@ def main():
     tilemap = chipdb.tile_bitmap(db, db.template, empty=True)
     cst = codegen.Constraints()
     bels = get_bels(pnr)
-    import ipdb; ipdb.set_trace()
     place(db, tilemap, bels, cst, args)
     pips = get_pips(pnr)
     route(db, tilemap, pips)
