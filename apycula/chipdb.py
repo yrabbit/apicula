@@ -183,6 +183,8 @@ def fse_pll(device, fse, ttyp):
             bel = bels.setdefault('RPLLA', Bel())
         elif ttyp == 89:
             bel = bels.setdefault('RPLLB', Bel())
+    elif device in {'GW1NS-2'}:
+        bel = bels.setdefault('RPLLA', Bel())
     elif device in {'GW1NS-4'}:
         if ttyp in {88, 89}:
             bel = bels.setdefault('PLLVR', Bel())
