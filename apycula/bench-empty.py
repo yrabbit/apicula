@@ -283,7 +283,7 @@ if __name__ == "__main__":
 
     row3 = db.rows - 1
     col3 = db.cols - 1
-    row3 = 16
+    #row3 = 16
     #col3 = 17
     import ipdb; ipdb.set_trace()
     # cmp images
