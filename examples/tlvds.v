@@ -5,6 +5,7 @@ module top (
     input clk,
     output tlvds_p,
     output tlvds_n,
+	input key
 );
 
 reg [24:0] ctr_q;
@@ -19,7 +20,8 @@ always @(posedge clk)
 assign ctr_d = ctr_q + 1'b1;
 assign i_tick = |ctr_q[24:23];
 
-TLVDS_OBUF diff_buf(
+TLVDS_TBUF diff_buf(
+		.OEN(~key),
         .O(tlvds_p),
         .OB(tlvds_n),
         .I(i_tick)

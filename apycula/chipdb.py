@@ -16,22 +16,6 @@ mode_attr_sep = '&'
 # can be either tiles or bits within tiles
 Coord = Tuple[int, int]
 
-# IOB flag descriptor
-# bitmask and possible values
-@dataclass
-class IOBFlag:
-    mask: Set[Coord] = field(default_factory = set)
-    options: Dict[str, Set[Coord]] = field(default_factory = dict)
-
-# IOB mode descriptor
-# bits and flags
-# encode bits include all default flag values
-@dataclass
-class IOBMode:
-    encode_bits: Set[Coord] = field(default_factory = set)
-    decode_bits: Set[Coord] = field(default_factory = set)
-    flags: Dict[str, IOBFlag] = field(default_factory = dict)
-
 @dataclass
 class Bel:
     """Respresents a Basic ELement
@@ -39,19 +23,12 @@ class Bel:
     and the specified portmap"""
     # there can be zero or more flags
     flags: Dict[Union[int, str], Set[Coord]] = field(default_factory=dict)
-    # parameters, these are like flags, but take values from the range, not on/off
-    # { iostd: { mode : IOBMode}}
-    iob_flags: Dict[str, Dict[str, IOBMode]] = field(default_factory=dict)
-    lvcmos121518_bits: Set[Coord] = field(default_factory = set)
     # this Bel is IOBUF and needs routing to become IBUF or OBUF
     simplified_iob: bool = field(default = False)
     # differential signal capabilities info
     is_diff:      bool = field(default = False)
     is_true_lvds: bool = field(default = False)
-    # banks
-    bank_mask: Set[Coord] = field(default_factory=set)
-    bank_flags: Dict[str, Set[Coord]] = field(default_factory=dict)
-    bank_input_only_modes: Dict[str, str] = field(default_factory=dict)
+    is_diff_p:    bool = field(default = False)
     # there can be only one mode, modes are exclusive
     modes: Dict[Union[int, str], Set[Coord]] = field(default_factory=dict)
     portmap: Dict[str, str] = field(default_factory=dict)
@@ -164,6 +141,30 @@ def fse_pips(fse, ttyp, table=2, wn=wirenames):
 
     return pips
 
+_supported_hclk_wires = {'SPINE2', 'SPINE3', 'SPINE4', 'SPINE5', 'SPINE10', 'SPINE11',
+                         'SPINE12', 'SPINE13', 'SPINE16', 'SPINE17', 'SPINE18', 'SPINE19',
+                         'VSS', 'VCC', 'PCLKT0', 'PCLKT1', 'PCLKB0', 'PCLKB1',
+                         'PCLKL0', 'PCLKL1','PCLKR0', 'PCLKR1',
+                         'TBDHCLK0', 'TBDHCLK1', 'TBDHCLK2', 'TBDHCLK3', 'BBDHCLK0',
+                         'BBDHCLK1', 'BBDHCLK2', 'BBDHCLK3', 'LBDHCLK0', 'LBDHCLK1',
+                         'LBDHCLK2', 'LBDHCLK3', 'RBDHCLK0', 'RBDHCLK1', 'RBDHCLK2',
+                         'RBDHCLK3',
+                         }
+# Some chips at least -9C treat these wires as the same
+_xxx_hclk_wires = {'SPINE16': 'SPINE2', 'SPINE18': 'SPINE4'}
+def fse_hclk_pips(fse, ttyp, aliases):
+    pips = fse_pips(fse, ttyp, table = 48, wn = clknames)
+    res = {}
+    for dest, src_fuses in pips.items():
+        if dest not in _supported_hclk_wires:
+            continue
+        for src, fuses in src_fuses.items():
+            if src in _supported_hclk_wires:
+                res.setdefault(dest, {})[src] = fuses
+                if src in _xxx_hclk_wires.keys():
+                    aliases.update({src: _xxx_hclk_wires[src]})
+    return res
+
 def fse_alonenode(fse, ttyp, table = 6):
     pips = {}
     if 'alonenode' in fse[ttyp].keys():
@@ -184,7 +185,8 @@ def fse_pll(device, fse, ttyp):
         elif ttyp == 89:
             bel = bels.setdefault('RPLLB', Bel())
     elif device in {'GW1NS-2'}:
-        bel = bels.setdefault('RPLLA', Bel())
+        if ttyp in {87}:
+            bel = bels.setdefault('RPLLA', Bel())
     elif device in {'GW1NS-4'}:
         if ttyp in {88, 89}:
             bel = bels.setdefault('PLLVR', Bel())
@@ -209,7 +211,7 @@ def add_alu_mode(base_mode, modes, lut, new_alu_mode, new_mode_bits):
         if bit == '0':
             alu_mode.update(lut.flags[15 - i])
 
-# also make ALUs and shadow RAM
+# also make DFFs, ALUs and shadow RAM
 def fse_luts(fse, ttyp):
     data = fse[ttyp]['shortval'][5]
 
@@ -237,6 +239,17 @@ def fse_luts(fse, ttyp):
         except KeyError:
             continue
         for i in range(2):
+            # DFF
+            bel = luts.setdefault(f"DFF{cls * 2 + i}", Bel())
+            bel.portmap = {
+                # D inputs hardwired to LUT F
+                'Q'  : f"Q{cls * 2 + i}",
+                'CLK': f"CLK{cls}",
+                'LSR': f"LSR{cls}", # set/reset
+                'CE' : f"CE{cls}", # clock enable
+            }
+
+            # ALU
             alu_idx = cls * 2 + i
             bel = luts.setdefault(f"ALU{alu_idx}", Bel())
             mode = fuse.get_fuse_bits(fse, ttyp, 1, 0, data)
@@ -318,7 +331,7 @@ def fse_luts(fse, ttyp):
 def fse_osc(device, fse, ttyp):
     osc = {}
 
-    if device in {'GW1N-4', 'GW1N-9', 'GW1N-9C'}:
+    if device in {'GW1N-4', 'GW1N-9', 'GW1N-9C', 'GW2A-18'}:
         bel = osc.setdefault(f"OSC", Bel())
     elif device in {'GW1NZ-1', 'GW1NS-4'}:
         bel = osc.setdefault(f"OSCZ", Bel())
@@ -326,35 +339,13 @@ def fse_osc(device, fse, ttyp):
         bel = osc.setdefault(f"OSCF", Bel())
     elif device == 'GW1N-1':
         bel = osc.setdefault(f"OSCH", Bel())
+    elif device == 'GW2AN-18':
+        bel = osc.setdefault(f"OSCW", Bel())
+    elif device == 'GW1N-2':
+        bel = osc.setdefault(f"OSCO", Bel())
     else:
         raise Exception(f"Oscillator not yet supported on {device}")
-
     bel.portmap = {}
-
-    if device in {'GW1N-1', 'GW1N-4', 'GW1N-9', 'GW1N-9C', 'GW1NS-2', 'GW1NS-4'}:
-        bel.portmap['OSCOUT'] = "Q4"
-    elif device == 'GW1NZ-1':
-        bel.portmap['OSCOUT'] = "OF3"
-
-    if device == 'GW1NS-2':
-        bel.portmap['OSCEN'] = "B3"
-    elif device == 'GW1NS-4':
-        bel.portmap['OSCEN'] = "D6"
-    elif device == 'GW1NZ-1':
-        bel.portmap['OSCEN'] = "A6"
-
-    data = fse[ttyp]['shortval'][51]
-
-    for i in range(64):
-        bel.modes.setdefault(i+1, set())
-
-    for key0, key1, *fuses in data:
-        if key0 <= 64 and key1 == 0:
-            mode = bel.modes[key0]
-            for f in (f for f in fuses if f != -1):
-                coord = fuse.fuse_lookup(fse, ttyp, f)
-                mode.update({coord})
-
     return osc
 
 def set_banks(fse, db):
@@ -378,12 +369,14 @@ _known_logic_tables = {
             14: 'DSP',
             15: 'PLL',
             59: 'CFG',
-            62: 'USB',
+            62: 'OSC',
+            63: 'USB',
         }
 
 _known_tables = {
              4: 'CONST',
              5: 'LUT',
+            20: 'GSR',
             21: 'IOLOGICA',
             22: 'IOLOGICB',
             23: 'IOBA',
@@ -402,6 +395,7 @@ _known_tables = {
             45: 'IOBH',
             46: 'IOBI',
             47: 'IOBJ',
+            51: 'OSC',
             53: 'DLLDEL0',
             54: 'DLLDEL1',
             56: 'DLL0',
@@ -410,6 +404,7 @@ _known_tables = {
             66: 'EFLASH',
             68: 'ADC',
             80: 'DLL1',
+            82: 'POWERSAVE',
         }
 
 def fse_fill_logic_tables(dev, fse):
@@ -443,6 +438,210 @@ def fse_fill_logic_tables(dev, fse):
                 for f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, *fuses in fse[ttyp]['longval'][ltable]:
                     table[(f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15)] = {fuse.fuse_lookup(fse, ttyp, f) for f in unpad(fuses)}
 
+_hclk_in = {
+            'TBDHCLK0': 0,  'TBDHCLK1': 1,  'TBDHCLK2': 2,  'TBDHCLK3': 3,
+            'BBDHCLK0': 4,  'BBDHCLK1': 5,  'BBDHCLK2': 6,  'BBDHCLK3': 7,
+            'LBDHCLK0': 8,  'LBDHCLK1': 9,  'LBDHCLK2': 10, 'LBDHCLK3': 11,
+            'RBDHCLK0': 12, 'RBDHCLK1': 13, 'RBDHCLK2': 14, 'RBDHCLK3': 15}
+def fse_create_hclk_aliases(db, device, dat):
+    for row in range(db.rows):
+        for col in range(db.cols):
+            for src_fuses in db.grid[row][col].clock_pips.values():
+                for src in src_fuses.keys():
+                    if src in _hclk_in.keys():
+                        source = dat['CmuxIns'][str(90 + _hclk_in[src])]
+                        db.aliases[(row, col, src)] = (source[0] - 1, source[1] - 1, wirenames[source[2]])
+    # hclk->fclk
+    # top
+    row = 0
+    if device == 'GW1N-1':
+        for col in range(1, db.cols - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'CLK2': {}}
+    elif device in {'GW1NZ-1'}:
+        for col in range(1, 10):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (0, 5, 'SPINE10')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (0, 5, 'SPINE12')
+        for col in range(10, db.cols - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (0, 5, 'SPINE11')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (0, 5, 'SPINE13')
+    elif device in {'GW1N-4'}:
+        for col in range(1, db.cols - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'CLK2': {}}
+    elif device in {'GW1NS-4'}:
+        for col in range(1, 11):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (row, 18, 'SPINE10')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (row, 18, 'SPINE12')
+        for col in range(11, db.cols - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (row, 18, 'SPINE11')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (row, 18, 'SPINE13')
+    elif device in {'GW1N-9'}:
+        for col in range(1, 28):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (row, 0, 'SPINE10')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (row, db.cols - 1, 'SPINE12')
+        for col in range(28, db.cols - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (row, 0, 'SPINE11')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (row, db.cols - 1, 'SPINE13')
+    elif device in {'GW1N-9C'}:
+        for col in range(1, db.cols - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (0, db.cols - 1, 'SPINE11')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (0, db.cols - 1, 'SPINE13')
+
+    # right
+    col = db.cols - 1
+    if device == 'GW1N-1':
+        for row in range(1, db.rows - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'CLK2': {}}
+    elif device in {'GW1NZ-1'}:
+        for row in range(1, 5):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (5, col, 'SPINE10')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (5, col, 'SPINE12')
+        for row in range(6, db.rows - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (5, col, 'SPINE11')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (5, col, 'SPINE13')
+    elif device in {'GW1N-4'}:
+        for row in range(1, db.rows - 1):
+            if row not in {8, 9, 10, 11}:
+                db.grid[row][col].clock_pips['FCLK'] = {'CLK2': {}}
+        for row in range(1, 9):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (9, col, 'SPINE12')
+        for row in range(10, db.rows - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (9, col, 'SPINE13')
+    elif device in {'GW1NS-4'}:
+        for row in range(1, 9):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (9, col, 'SPINE10')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (9, col, 'SPINE12')
+        for row in range(9, db.rows - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (9, col, 'SPINE11')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (9, col, 'SPINE13')
+    elif device in {'GW1N-9'}:
+        for row in range(1, 19):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (18, col, 'SPINE10')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (18, col, 'SPINE12')
+        for row in range(19, db.rows - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (18, col, 'SPINE11')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (18, col, 'SPINE13')
+    elif device in {'GW1N-9C'}:
+        for row in range(1, db.rows - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (18, col, 'SPINE11')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (18, col, 'SPINE13')
+
+    # left
+    col = 0
+    if device == 'GW1N-1':
+        for row in range(1, db.rows - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'CLK2': {}}
+    elif device in {'GW1N-4'}:
+        for row in range(1, db.rows - 1):
+            if row not in {8, 9, 10, 11}:
+                db.grid[row][col].clock_pips['FCLK'] = {'CLK2': {}}
+        for row in range(1, 9):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (9, col, 'SPINE12')
+        for row in range(10, db.rows - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (9, col, 'SPINE13')
+    elif device in {'GW1N-9'}:
+        for row in range(1, 19):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (18, col, 'SPINE10')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (18, col, 'SPINE12')
+        for row in range(19, db.rows - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (18, col, 'SPINE11')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (18, col, 'SPINE13')
+    elif device in {'GW1N-9C'}:
+        for row in range(1, db.rows - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (18, 0, 'SPINE11')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (18, 0, 'SPINE13')
+
+    # bottom
+    row = db.rows - 1
+    if device == 'GW1N-1':
+        for col in range(1, 10):
+            if col not in {8, 9}:
+                db.grid[row][col].clock_pips['FCLK'] = {'CLK2': {}}
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (row, db.cols -1, 'SPINE12')
+        for col in range(10, db.cols - 1):
+            if col not in {10, 11}:
+                db.grid[row][col].clock_pips['FCLK'] = {'CLK2': {}}
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (row, db.cols - 1, 'SPINE13')
+    elif device in {'GW1N-4'}:
+        for col in range(1, 19):
+            if col not in {17, 18}:
+                db.grid[row][col].clock_pips['FCLK'] = {'CLK2': {}}
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (row, db.cols -1, 'SPINE12')
+        for col in range(19, db.cols - 1):
+            if col not in {19, 20}:
+                db.grid[row][col].clock_pips['FCLK'] = {'CLK2': {}}
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (row, db.cols - 1, 'SPINE13')
+    elif device in {'GW1NS-4'}:
+        db.aliases[(row, 17, 'SPINE2')] = (row, 16, 'SPINE2')
+        for col in range(1, 16):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (row, 17, 'SPINE10')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (row, 20, 'SPINE12')
+        for col in range(21, db.cols - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (row, 17, 'SPINE11')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (row, 20, 'SPINE13')
+    elif device in {'GW1N-9'}:
+        for col in range(1, 28):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (row, 0, 'SPINE10')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (row, db.cols - 1, 'SPINE12')
+        for col in range(28, db.cols - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (row, 0, 'SPINE11')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (row, db.cols - 1, 'SPINE13')
+    elif device in {'GW1N-9C'}:
+        for col in range(1, db.cols - 1):
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK0': {}}
+            db.aliases[(row, col, 'HCLK0')] = (row, 0, 'SPINE11')
+            db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
+            db.aliases[(row, col, 'HCLK1')] = (row, db.cols - 1, 'SPINE13')
+
 _pll_loc = {
  'GW1N-1':
    {'TRPLL0CLK0': (0, 17, 'F4'), 'TRPLL0CLK1': (0, 17, 'F5'),
@@ -450,6 +649,9 @@ _pll_loc = {
  'GW1NZ-1':
    {'TRPLL0CLK0': (0, 17, 'F4'), 'TRPLL0CLK1': (0, 17, 'F5'),
     'TRPLL0CLK2': (0, 17, 'F6'), 'TRPLL0CLK3': (0, 17, 'F7'), },
+ 'GW1NS-2':
+   {'TRPLL0CLK0': (5, 19, 'F4'), 'TRPLL0CLK1': (5, 19, 'F7'),
+    'TRPLL0CLK2': (5, 19, 'F5'), 'TRPLL0CLK3': (5, 19, 'F6'), },
  'GW1N-4':
    {'TLPLL0CLK0': (0, 9, 'F4'), 'TLPLL0CLK1': (0, 9, 'F7'),
     'TLPLL0CLK2': (0, 9, 'F6'), 'TLPLL0CLK3': (0, 9, 'F5'),
@@ -479,11 +681,34 @@ def fse_create_pll_clock_aliases(db, device):
             for w_dst, w_srcs in db.grid[row][col].clock_pips.items():
                 for w_src in w_srcs.keys():
                     # XXX
-                    if device in {'GW1N-1', 'GW1NZ-1', 'GW1NS-4', 'GW1N-4', 'GW1N-9C', 'GW1N-9'}:
+                    if device in {'GW1N-1', 'GW1NZ-1', 'GW1NS-2', 'GW1NS-4', 'GW1N-4', 'GW1N-9C', 'GW1N-9'}:
                         if w_src in _pll_loc[device].keys():
                             db.aliases[(row, col, w_src)] = _pll_loc[device][w_src]
 
-def from_fse(device, fse):
+def fse_iologic(device, fse, ttyp):
+    bels = {}
+    # some iocells nave no iologic
+    if ttyp in {48, 49, 50, 51}:
+        return bels
+    if device in {'GW1N-1', 'GW1NZ-1', 'GW1NS-2', 'GW1N-4', 'GW1NS-4'} and ttyp in {86, 87}:
+        return bels
+    if device in {'GW1NS-4'} and ttyp in {86, 87, 135, 136, 137, 138}:
+        return bels
+    if 'shortval' in fse[ttyp].keys():
+        if 21 in fse[ttyp]['shortval'].keys():
+            bels['IOLOGICA'] = Bel()
+        if 22 in fse[ttyp]['shortval'].keys():
+            bels['IOLOGICB'] = Bel()
+    # 16bit
+    if device in {'GW1NS-4'} and ttyp in {142, 144, 59}:
+            bels['OSER16'] = Bel()
+            bels['IDES16'] = Bel()
+    if device in {'GW1N-9', 'GW1N-9C'} and ttyp in {52, 66}:
+            bels['OSER16'] = Bel()
+            bels['IDES16'] = Bel()
+    return bels
+
+def from_fse(device, fse, dat):
     dev = Device()
     ttypes = {t for row in fse['header']['grid'][61] for t in row}
     tiles = {}
@@ -493,6 +718,7 @@ def from_fse(device, fse):
         tile = Tile(w, h, ttyp)
         tile.pips = fse_pips(fse, ttyp, 2, wirenames)
         tile.clock_pips = fse_pips(fse, ttyp, 38, clknames)
+        tile.clock_pips.update(fse_hclk_pips(fse, ttyp, tile.aliases))
         tile.alonenode_6 = fse_alonenode(fse, ttyp, 6)
         if 5 in fse[ttyp]['shortval']:
             tile.bels = fse_luts(fse, ttyp)
@@ -500,11 +726,13 @@ def from_fse(device, fse):
             tile.bels = fse_osc(device, fse, ttyp)
         if ttyp in [74, 75, 76, 77, 78, 79, 86, 87, 88, 89]:
             tile.bels = fse_pll(device, fse, ttyp)
+        tile.bels.update(fse_iologic(device, fse, ttyp))
         tiles[ttyp] = tile
 
     fse_fill_logic_tables(dev, fse)
     dev.grid = [[tiles[ttyp] for ttyp in row] for row in fse['header']['grid'][61]]
     fse_create_pll_clock_aliases(dev, device)
+    fse_create_hclk_aliases(dev, device, dat)
     return dev
 
 # get fuses for attr/val set using short/longval table
@@ -512,11 +740,11 @@ def from_fse(device, fse):
 def get_table_fuses(attrs, table):
     bits = set()
     for key, fuses in table.items():
-        # all 16 "features" must be present to be able to use a set of bits from the record
+        # all 2/16 "features" must be present to be able to use a set of bits from the record
         have_full_key = True
         for attrval in key:
             if attrval == 0: # no "feature"
-                continue
+                break
             if attrval > 0:
                 # this "feature" must present
                 if attrval not in attrs:
@@ -543,6 +771,12 @@ def get_shortval_fuses(dev, ttyp, attrs, table_name):
 def get_longval_fuses(dev, ttyp, attrs, table_name):
     return get_table_fuses(attrs, dev.longval[ttyp][table_name])
 
+# get bank fuses
+# The table for banks is different in that the first element in it is the
+# number of the bank, thus allowing the repetition of elements in the key
+def get_bank_fuses(dev, ttyp, attrs, table_name, bank_num):
+    return get_table_fuses(attrs, {k[1:]:val for k, val in dev.longval[ttyp][table_name].items() if k[0] == bank_num})
+
 # add the attribute/value pair into an set, which is then passed to
 # get_longval_fuses() and get_shortval_fuses()
 def add_attr_val(dev, logic_table, attrs, attr, val):
@@ -552,7 +786,7 @@ def add_attr_val(dev, logic_table, attrs, attr, val):
             break
 
 def get_pins(device):
-    if device not in {"GW1N-1", "GW1NZ-1", "GW1N-4", "GW1N-9", "GW1NR-9", "GW1N-9C", "GW1NR-9C", "GW1NS-2", "GW1NS-2C", "GW1NS-4", "GW1NSR-4C"}:
+    if device not in {"GW1N-1", "GW1NZ-1", "GW1N-4", "GW1N-9", "GW1NR-9", "GW1N-9C", "GW1NR-9C", "GW1NS-2", "GW1NS-2C", "GW1NS-4", "GW1NSR-4C", "GW2A-18"}:
         raise Exception(f"unsupported device {device}")
     pkgs = pindef.all_packages(device)
     res = {}
@@ -634,10 +868,13 @@ def json_pinout(device):
             "GW1NS-2": pins,
             "GW1NS-2C": pins_c
         }, res_bank_pins)
+    if device == "GW2A-18":
+        pkgs, pins, bank_pins = get_pins("GW2A-18")
+        return (pkgs, {
+            "GW2A-18": pins
+        }, bank_pins)
     else:
         raise Exception("unsupported device")
-
-
 
 _pll_inputs = [(5, 'CLKFB'), (6, 'FBDSEL0'), (7, 'FBDSEL1'), (8, 'FBDSEL2'), (9, 'FBDSEL3'),
                (10, 'FBDSEL4'), (11, 'FBDSEL5'),
@@ -649,6 +886,44 @@ _pll_inputs = [(5, 'CLKFB'), (6, 'FBDSEL0'), (7, 'FBDSEL1'), (8, 'FBDSEL2'), (9,
                (28, 'DUTYDA0'), (29, 'DUTYDA1'), (30, 'DUTYDA2'), (31, 'DUTYDA3'),
                (32, 'FDLY0'), (33, 'FDLY1'), (34, 'FDLY2'), (35, 'FDLY3')]
 _pll_outputs = [(0, 'CLKOUT'), (1, 'LOCK'), (2, 'CLKOUTP'), (3, 'CLKOUTD'), (4, 'CLKOUTD3')]
+_iologic_inputs =  [(0, 'D'), (1, 'D0'), (2, 'D1'), (3, 'D2'), (4, 'D3'), (5, 'D4'),
+                    (6, 'D5'), (7, 'D6'), (8, 'D7'), (9, 'D8'), (10, 'D9'), (11, 'D10'),
+                    (12, 'D11'), (13, 'D12'), (14, 'D13'), (15, 'D14'), (16, 'D15'),
+                    (17, 'CLK'), (18, 'ICLK'), (19, 'PCLK'), (20, 'FCLK'), (21, 'TCLK'),
+                    (22, 'MCLK'), (23, 'SET'), (24, 'RESET'), (25, 'PRESET'), (26, 'CLEAR'),
+                    (27, 'TX'), (28, 'TX0'), (29, 'TX1'), (30, 'TX2'), (31, 'TX3'),
+                    (32, 'WADDR0'), (33, 'WADDR1'), (34, 'WADDR2'), (35, 'RADDR0'),
+                    (36, 'RADDR1'), (37, 'RADDR2'), (38, 'CALIB'), (39, 'DI'), (40, 'SETN'),
+                    (41, 'SDTAP'), (42, 'VALUE'), (43, 'DASEL'), (44, 'DASEL0'), (45, 'DASEL1'),
+                    (46, 'DAADJ'), (47, 'DAADJ0'), (48, 'DAADJ1')]
+_iologic_outputs = [(0, 'Q'),  (1, 'Q0'), (2, 'Q1'), (3, 'Q2'), (4, 'Q3'), (5, 'Q4'),
+                    (6, 'Q5'), (7, 'Q6'), (8, 'Q7'), (9, 'Q8'), (10, 'Q9'), (11, 'Q10'),
+                    (12, 'Q11'), (13, 'Q12'), (14, 'Q13'), (15, 'Q14'), (16, 'Q15'),
+                    (17, 'DO'), (18, 'DF'), (19, 'LAG'), (20, 'LEAD'), (21, 'DAO')]
+_oser16_inputs =  [(19, 'PCLK'), (20, 'FCLK'), (25, 'RESET')]
+_oser16_fixed_inputs = {'D0': 'A0', 'D1': 'A1', 'D2': 'A2', 'D3': 'A3', 'D4': 'C1',
+                        'D5': 'C0', 'D6': 'D1', 'D7': 'D0', 'D8': 'C3', 'D9': 'C2',
+                        'D10': 'B4', 'D11': 'B5', 'D12': 'A0', 'D13': 'A1', 'D14': 'A2',
+                        'D15': 'A3'}
+_oser16_outputs = [(1, 'Q0')]
+_ides16_inputs = [(19, 'PCLK'), (20, 'FCLK'), (38, 'CALIB'), (25, 'RESET'), (0, 'D')]
+_ides16_fixed_outputs = { 'Q0': 'F2', 'Q1': 'F3', 'Q2': 'F4', 'Q3': 'F5', 'Q4': 'Q0',
+                          'Q5': 'Q1', 'Q6': 'Q2', 'Q7': 'Q3', 'Q8': 'Q4', 'Q9': 'Q5', 'Q10': 'F0',
+                         'Q11': 'F1', 'Q12': 'F2', 'Q13': 'F3', 'Q14': 'F4', 'Q15': 'F5'}
+# (osc-type, devices) : ({local-ports}, {aliases})
+_osc_ports = {('OSCZ', 'GW1NZ-1'): ({}, {'OSCOUT' : (0, 5, 'OF3'), 'OSCEN': (0, 2, 'A6')}),
+              ('OSCZ', 'GW1NS-4'): ({'OSCOUT': 'Q4', 'OSCEN': 'D6'}, {}),
+              ('OSCF', 'GW1NS-2'): ({}, {'OSCOUT': (10, 19, 'Q4'), 'OSCEN': (13, 19, 'B3')}),
+              ('OSCH', 'GW1N-1'):  ({'OSCOUT': 'Q4'}, {}),
+              ('OSC',  'GW1N-4'):  ({'OSCOUT': 'Q4'}, {}),
+              ('OSC',  'GW1N-9'):  ({'OSCOUT': 'Q4'}, {}),
+              ('OSC',  'GW1N-9C'):  ({'OSCOUT': 'Q4'}, {}),
+              # XXX check this!
+              ('OSC',  'GW2A-18'):  ({'OSCOUT': 'Q4'}, {}),
+              # XXX unsupported boards, pure theorizing
+              ('OSCO', 'GW1N-2'):  ({'OSCOUT': 'Q7'}, {'OSCEN': (9, 1, 'B4')}),
+              ('OSCW', 'GW2AN-18'):  ({'OSCOUT': 'Q4'}, {}),
+              }
 def dat_portmap(dat, dev, device):
     for row, row_dat in enumerate(dev.grid):
         for col, tile in enumerate(row_dat):
@@ -671,13 +946,41 @@ def dat_portmap(dat, dev, device):
                         bel.portmap['I'] = out
                         oe = wirenames[dat[f'Iobuf{pin}OE']]
                         bel.portmap['OE'] = oe
-                elif name.startswith("ODDR"):
-                        d0 = wirenames[dat[f'Iologic{pin}In'][1]]
-                        bel.portmap['D0'] = d0
-                        d1 = wirenames[dat[f'Iologic{pin}In'][2]]
-                        bel.portmap['D1'] = d1
-                        tx = wirenames[dat[f'Iologic{pin}In'][27]]
-                        bel.portmap['TX'] = tx
+                elif name.startswith("IOLOGIC"):
+                    buf = name[-1]
+                    for idx, nam in _iologic_inputs:
+                        w_idx = dat[f'Iologic{buf}In'][idx]
+                        if w_idx >= 0:
+                            bel.portmap[nam] = wirenames[w_idx]
+                        elif nam == 'FCLK':
+                            # dummy Input, we'll make a special pips for it
+                            bel.portmap[nam] = "FCLK"
+                    for idx, nam in _iologic_outputs:
+                        w_idx = dat[f'Iologic{buf}Out'][idx]
+                        if w_idx >= 0:
+                            bel.portmap[nam] = wirenames[w_idx]
+                elif name.startswith("OSER16"):
+                    for idx, nam in _oser16_inputs:
+                        w_idx = dat[f'IologicAIn'][idx]
+                        if w_idx >= 0:
+                            bel.portmap[nam] = wirenames[w_idx]
+                        elif nam == 'FCLK':
+                            # dummy Input, we'll make a special pips for it
+                            bel.portmap[nam] = "FCLK"
+                    for idx, nam in _oser16_outputs:
+                        w_idx = dat[f'IologicAOut'][idx]
+                        if w_idx >= 0:
+                            bel.portmap[nam] = wirenames[w_idx]
+                    bel.portmap.update(_oser16_fixed_inputs)
+                elif name.startswith("IDES16"):
+                    for idx, nam in _ides16_inputs:
+                        w_idx = dat[f'IologicAIn'][idx]
+                        if w_idx >= 0:
+                            bel.portmap[nam] = wirenames[w_idx]
+                        elif nam == 'FCLK':
+                            # dummy Input, we'll make a special pips for it
+                            bel.portmap[nam] = "FCLK"
+                    bel.portmap.update(_ides16_fixed_outputs)
                 elif name == 'RPLLA':
                     # The PllInDlt table seems to indicate in which cell the
                     # inputs are actually located.
@@ -689,7 +992,14 @@ def dat_portmap(dat, dev, device):
                     for idx, nam in _pll_inputs:
                         wire = wirenames[dat['PllIn'][idx]]
                         off = dat['PllInDlt'][idx] * offx
-                        if off == 0:
+                        if device in {'GW1NS-2'}:
+                            # NS-2 is a strange thingy
+                            if nam in {'RESET', 'RESET_P', 'IDSEL1', 'IDSEL2', 'ODSEL5'}:
+                                bel.portmap[nam] = f'rPLL{nam}{wire}'
+                                dev.aliases[row, col, f'rPLL{nam}{wire}'] = (9, col, wire)
+                            else:
+                                bel.portmap[nam] = wire
+                        elif off == 0:
                             bel.portmap[nam] = wire
                         else:
                             # not our cell, make an alias
@@ -698,7 +1008,7 @@ def dat_portmap(dat, dev, device):
                     for idx, nam in _pll_outputs:
                         wire = wirenames[dat['PllOut'][idx]]
                         off = dat['PllOutDlt'][idx] * offx
-                        if off == 0:
+                        if off == 0 or device in {'GW1NS-2'}:
                             bel.portmap[nam] = wire
                         else:
                             # not our cell, make an alias
@@ -744,6 +1054,13 @@ def dat_portmap(dat, dev, device):
                         vren = 'B0'
                     bel.portmap['VREN'] = f'PLLVRV{vren}'
                     dev.aliases[row, col, f'PLLVRV{vren}'] = (0, 37, vren)
+                if name.startswith('OSC'):
+                    # local ports
+                    local_ports, aliases = _osc_ports[name, device]
+                    bel.portmap.update(local_ports)
+                    for port, alias in aliases.items():
+                        bel.portmap[port] = port
+                        dev.aliases[row, col, port] = alias
 
 def dat_aliases(dat, dev):
     for row in dev.grid:
@@ -803,27 +1120,6 @@ def shared2flag(dev):
                                 belb.flags[mode+"C"] = mode_cb
                                 bits -= mode_cb
 
-def dff_clean(dev):
-    """ Clean DFF mode bits: fuzzer captures a bit of the neighboring trigger."""
-    seen_bels = []
-    for idx, row in enumerate(dev.grid):
-        for jdx, td in enumerate(row):
-            for name, bel in td.bels.items():
-                if name[0:3] == "DFF":
-                    if bel in seen_bels:
-                        continue
-                    seen_bels.append(bel)
-                    # find extra bit
-                    extra_bits = None
-                    for bits in bel.modes.values():
-                        if extra_bits != None:
-                            extra_bits &= bits
-                        else:
-                            extra_bits = bits.copy()
-                    # remove it
-                    for mode, bits in bel.modes.items():
-                        bits -= extra_bits
-
 def get_route_bits(db, row, col):
     """ All routing bits for the cell """
     bits = set()
@@ -834,59 +1130,6 @@ def get_route_bits(db, row, col):
         for v in w.values():
             bits.update(v)
     return bits
-
-def diff2flag(dev):
-    """ Minimize bits for flag values and calc flag bitmask"""
-    seen_bels = []
-    for idx, row in enumerate(dev.grid):
-        for jdx, td in enumerate(row):
-            for name, bel in td.bels.items():
-                if name[0:3] == "IOB":
-                    if not bel.iob_flags or bel in seen_bels:
-                        continue
-                    seen_bels.append(bel)
-                    # get routing bits for cell
-                    rbits = get_route_bits(dev, idx, jdx)
-                    # If for a given mode all possible values of one flag
-                    # contain some bit, then this bit is "noise" --- this bit
-                    # belongs to the default value of another flag. Remove.
-                    for iostd, iostd_rec in bel.iob_flags.items():
-                        for mode, mode_rec in iostd_rec.items():
-                            # if encoding has routing
-                            r_encoding = mode_rec.encode_bits & rbits
-                            mode_rec.encode_bits -= rbits
-                            if r_encoding and mode != 'IOBUF':
-                                bel.simplified_iob = True
-                            mode_rec.decode_bits = mode_rec.encode_bits.copy()
-                            for flag, flag_rec in mode_rec.flags.items():
-                                noise_bits = None
-                                for bits in flag_rec.options.values():
-                                    if noise_bits != None:
-                                        noise_bits &= bits
-                                    else:
-                                        noise_bits = bits.copy()
-                                # remove noise
-                                for bits in flag_rec.options.values():
-                                    bits -= noise_bits
-                                    flag_rec.mask |= bits
-                            # decode bits don't include flags
-                            for _, flag_rec in mode_rec.flags.items():
-                                mode_rec.decode_bits -= flag_rec.mask
-                elif name[0:4] == "BANK":
-                    noise_bits = None
-                    for bits in bel.bank_flags.values():
-                        if noise_bits != None:
-                            noise_bits &= bits
-                        else:
-                            noise_bits = bits.copy()
-                    mask = set()
-                    for bits in bel.bank_flags.values():
-                        bits -= noise_bits
-                        mask |= bits
-                    bel.bank_mask = mask
-                    bel.modes['ENABLE'] -= mask
-                else:
-                    continue
 
 uturnlut = {'N': 'S', 'S': 'N', 'E': 'W', 'W': 'E'}
 dirlut = {'N': (1, 0),
