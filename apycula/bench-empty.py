@@ -1,6 +1,7 @@
 import re
 import os
 import sys
+import gzip
 import tempfile
 import subprocess
 import importlib.resources
@@ -255,7 +256,7 @@ if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{device}/{device}.tm", 'rb') as f:
         tm = tm_h4x.read_tm(f, device)
 
-    with open(f"/home/rabbit/src/apicula/apycula/{device}.pickle", "rb") as f:
+    with gzip.open(f"/home/rabbit/src/apicula/apycula/{device}.pickle", "rb") as f:
         db = pickle.load(f)
 
     if len(sys.argv) > 2:
