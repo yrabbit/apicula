@@ -76,6 +76,11 @@ params = {
         "device": "GW1NZ-1-QFN48-6",
         "partnumber": "GW1NZ-LV1QN48C6/I5",
     },
+    "GW2A-18": {
+        "package": "PBGA256",
+        "device": "GW2A-18-PBGA256-8",
+        "partnumber": "GW2A-LV18PG256C8/I7",
+    },
 }[device]
 
 # collect all routing bits of the tile
