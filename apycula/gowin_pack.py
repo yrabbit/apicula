@@ -635,15 +635,23 @@ def place(db, tilemap, bels, cst, args):
         tiledata = db.grid[row-1][col-1]
         tile = tilemap[(row-1, col-1)]
 
-        # XXX
-        if typ in {'IBUF', 'OBUF'}:
-            parms['ENABLE_USED'] = "0"
+        if typ in {'IBUF', 'OBUF', 'TBUF', 'IOBUF'}:
             if typ == 'IBUF':
                 parms['OUTPUT_USED'] = "0"
-                parms['INPUT_USED'] = "1"
+                parms['INPUT_USED'] =  "1"
+                parms['ENABLE_USED'] = "0"
+            elif typ == 'TBUF':
+                parms['OUTPUT_USED'] = "1"
+                parms['INPUT_USED'] =  "0"
+                parms['ENABLE_USED'] = "1"
+            elif typ == 'IOBUF':
+                parms['OUTPUT_USED'] = "1"
+                parms['INPUT_USED'] =  "1"
+                parms['ENABLE_USED'] = "1"
             else:
                 parms['OUTPUT_USED'] = "1"
-                parms['INPUT_USED'] = "0"
+                parms['INPUT_USED'] =  "0"
+                parms['ENABLE_USED'] = "0"
             typ = 'IOB'
 
         if typ == "GSR":
@@ -754,6 +762,8 @@ def place(db, tilemap, bels, cst, args):
                     continue
                 if flag_name_val[0] == chipdb.mode_attr_sep + "IO_TYPE":
                     iostd = _iostd_alias.get(flag_name_val[1], flag_name_val[1])
+                else:
+                    io_desc.attrs[flag_name_val[0][1:]] = flag_name_val[1]
             io_desc.attrs['IO_TYPE'] = iostd
             if pinless_io:
                 return
@@ -900,6 +910,7 @@ def place(db, tilemap, bels, cst, args):
                 in_iob_b_attrs = in_iob_attrs.copy()
 
             for iob_idx, atr in [(idx, in_iob_attrs), ('B', in_iob_b_attrs)]:
+                #print(name, atr)
                 iob_attrs = set()
                 for k, val in atr.items():
                     if k not in attrids.iob_attrids.keys():
