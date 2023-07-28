@@ -176,18 +176,26 @@ _permitted_freqs = {
 # There are not many resistors so the whole frequency range is divided into
 # 30MHz intervals and the number of this interval is one of the fuse sets. But
 # the resistor itself is not directly dependent on the input frequency.
-_freq_R = [(2.6, 65100.0), (3.87, 43800.0), (7.53, 22250.0), (14.35, 11800.0), (28.51, 5940.0), (57.01, 2970.0), (114.41, 1480), (206.34, 820.0)]
+_freq_R = [[(2.6, 65100.0), (3.87, 43800.0), (7.53, 22250.0), (14.35, 11800.0), (28.51, 5940.0), (57.01, 2970.0), (114.41, 1480), (206.34, 820.0)], [(2.4, 69410.0), (3.53, 47150.0), (6.82, 24430.0), (12.93, 12880.0), (25.7, 6480.0), (51.4, 3240.0), (102.81, 1620), (187.13, 890.0)]]
 def calc_pll_pump(fref, fvco):
     fclkin_idx = int((fref - 1) // 30)
     if (fclkin_idx == 13 and fref <= 395) or (fclkin_idx == 14 and fref <= 430) or (fclkin_idx == 15 and fref <= 465) or fclkin_idx == 16:
         fclkin_idx = fclkin_idx - 1
 
-    r_vals = [(fr[1], len(_freq_R) - 1 - idx) for idx, fr in enumerate(_freq_R) if fr[0] < fref]
+    if device not in {'GW2A-18'}:
+        freq_Ri = _freq_R[0]
+    else:
+        freq_Ri = _freq_R[1]
+    r_vals = [(fr[1], len(freq_Ri) - 1 - idx) for idx, fr in enumerate(freq_Ri) if fr[0] < fref]
     r_vals.reverse()
 
     # Find the resistor that provides the minimum current through the capacitor
-    K0 = (497.5 - math.sqrt(247506.25 - (2675.4 - fvco) * 78.46)) / 39.23
-    K1 = 4.8714 * K0 * K0 + 6.5257 * K0 + 142.67
+    if device not in {'GW2A-18'}:
+        K0 = (497.5 - math.sqrt(247506.25 - (2675.4 - fvco) * 78.46)) / 39.23
+        K1 = 4.8714 * K0 * K0 + 6.5257 * K0 + 142.67
+    else:
+        K0 = (-28.938 + math.sqrt(837.407844 - (385.07 - fvco) * 0.9892)) / 0.4846
+        K1 = 0.1942 * K0 * K0 - 13.173 * K0 + 518.86
     Kvco = 1000000.0 * K1
     Ndiv = fvco / fref
     C1 = 6.69244e-11
