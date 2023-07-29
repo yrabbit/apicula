@@ -235,14 +235,6 @@ _default_pll_inattrs = {
 
         }
 
-def add_pll_default_attrs(attrs):
-    pll_inattrs = attrs.copy()
-    for k, v in _default_pll_inattrs.items():
-        if k in pll_inattrs.keys():
-            continue
-        pll_inattrs[k] = v
-    return pll_inattrs
-
 _default_pll_internal_attrs = {
             'INSEL': 'CLKIN1',
             'FBSEL': 'CLKFB3',
@@ -264,6 +256,16 @@ _default_pll_internal_attrs = {
             'LPR': 'R4',
             'ICPSEL': 50,
 }
+
+
+def add_pll_default_attrs(attrs):
+    pll_inattrs = attrs.copy()
+    for k, v in _default_pll_inattrs.items():
+        if k in pll_inattrs.keys():
+            continue
+        pll_inattrs[k] = v
+    return pll_inattrs
+
 
 # typ - PLL type (RPLL, etc)
 def set_pll_attrs(db, typ, idx, attrs):
@@ -389,7 +391,6 @@ def set_pll_attrs(db, typ, idx, attrs):
         if isinstance(val, str):
             val = attrids.pll_attrvals[val]
         add_attr_val(db, 'PLL', fin_attrs, attrids.pll_attrids[attr], val)
-    #print(fin_attrs)
     return fin_attrs
 
 def set_osc_attrs(db, typ, params):
@@ -881,6 +882,7 @@ def place(db, tilemap, bels, cst, args):
                 k = refine_io_attrs(k)
                 in_iob_attrs[k] = val
             in_iob_attrs['VCCIO'] = in_bank_attrs['VCCIO']
+            print(in_iob_attrs)
 
             # lvds
             if iob.flags['mode'] in {'TLVDS_OBUF', 'TLVDS_TBUF', 'TLVDS_IOBUF'}:
@@ -950,9 +952,9 @@ def place(db, tilemap, bels, cst, args):
         for row, col in bits:
             btile[row][col] = 1
 
-    #for k, v in _io_bels.items():
-    #    for io, bl in v.items():
-    #        print(k, io, vars(bl))
+    for k, v in _io_bels.items():
+        for io, bl in v.items():
+            print(k, io, vars(bl))
 
 # The vertical columns of long wires can receive a signal from either the upper
 # or the lower end of the column.
