@@ -216,7 +216,7 @@ device_limits = {
         "clkout_max": 400,
     },
     "GW2A-18 C8/I7": {
-        "comment": "tested on TangPrimer20k Board",
+        "comment": "untested",
         "pll_name": "rPLL",
         "pfd_min": 3,
         "pfd_max": 400,
