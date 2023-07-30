@@ -825,27 +825,30 @@ def place(db, tilemap, bels, cst, args):
     # second IO pass
     for bank, ios in _io_bels.items():
         # check IO standard
-        # IBUFs do not affect bank io
-        iostds = {iob.attrs['IO_TYPE'] for iob in ios.values() if iob.flags['mode'] != 'IBUF'}
-        iostds = set()
+        vccio = None
+        iostd = None
         for iob in ios.values():
+            # diff io can't be placed at simplified io
+            if iob.pos[0] in db.simplio_rows:
+                if iob.flags['mode'].startswith('ELVDS') or iob.flags['mode'].startswith('TLVDS'):
+                    raise Exception(f"Differential IO cant be placed at special row {iob.pos[0]}")
+
             if iob.flags['mode'] in {'IBUF', 'IOBUF', 'TLVDS_IBUF', 'TLVDS_IOBUF', 'ELVDS_IBUF', 'ELVDS_IOBUF'}:
                 iob.attrs['IO_TYPE'] = get_iostd_alias(iob.attrs['IO_TYPE'])
                 if iob.attrs.get('SINGLERESISTOR', 'OFF') != 'OFF':
                     iob.attrs['DDR_DYNTERM'] = 'ON'
-                if iob.flags['mode'] in {'IOBUF', 'TLVDS_IOBUF', 'ELVDS_IOBUF'}:
-                    iostds.add(iob.attrs['IO_TYPE'])
-            else: # TBUF and OBUF
-                iostds.add(iob.attrs['IO_TYPE'])
+            if iob.flags['mode'] in {'OBUF', 'IOBUF', 'TLVDS_IOBUF', 'ELVDS_IOBUF'}:
+                if not vccio:
+                    iostd = iob.attrs['IO_TYPE']
+                    vccio = _vcc_ios[iostd]
+                elif vccio != _vcc_ios[iob.attrs['IO_TYPE']] and not iostd.startswith('LVDS') and not iob.attrs['IO_TYPE'].startswith('LVDS'):
+                    snd_type = iob.attrs['IO_TYPE']
+                    fst = [name for name, iob in ios.items() if iob.attrs['IO_TYPE'] == iostd][0]
+                    snd = [name for name, iob in ios.items() if iob.attrs['IO_TYPE'] == snd_type][0]
+                    raise Exception(f"Different IO standard for bank {bank}: {fst} sets {iostd}, {snd} sets {iob.attrs['IO_TYPE']}.")
 
-        if len(iostds) >= 2:
-            conflict_std = list(iostds)
-            fst = [name for name, iob in ios.items() if iob.attrs['IO_TYPE'] == conflict_std[0]][0]
-            snd = [name for name, iob in ios.items() if iob.attrs['IO_TYPE'] == conflict_std[1]][0]
-            raise Exception(f"Different IO standard for bank {bank}: {fst} sets {conflict_std[0]}, {snd} sets {conflict_std[1]}.")
-        if len(iostds) == 0:
-            iostds.add('LVCMOS12')
-        iostd = list(iostds)[0]
+        if not vccio:
+            iostd = 'LVCMOS12'
 
         in_bank_attrs = {}
         in_bank_attrs['VCCIO'] = _vcc_ios[iostd]
