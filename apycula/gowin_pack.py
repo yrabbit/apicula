@@ -663,6 +663,11 @@ def place(db, tilemap, bels, cst, args):
                 parms['ENABLE_USED'] = "0"
             typ = 'IOB'
 
+        if typ in {'ODDR', 'ODDRC', 'OSER4', 'OSER8'}:
+            attrs['IOLOGIC_TYPE'] = typ
+            attrs['IOLOGIC_FCLK'] = 'UNKNOWN'
+            typ = 'IOLOGIC'
+
         if typ == "GSR":
             pass
         elif typ.startswith('MUX2_'):
