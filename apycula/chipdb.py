@@ -832,11 +832,13 @@ def fse_create_clocks(dev, device, dat, fse):
                             dev.nodes.setdefault(node0_name, ("GLOBAL_CLK", set()))[1].add((row, col, 'GT00'))
                             dev.nodes.setdefault(node1_name, ("GLOBAL_CLK", set()))[1].add((row, col, 'GT10'))
 
+# function 0 - usual io
+# function 1 - DDR
 def fse_create_bottom_io(dev, device):
     if device in {'GW1NS-4', 'GW1N-9C'}:
-        dev.bottom_io = ('D6', 'C6', [('VSS', 'VSS')])
+        dev.bottom_io = ('D6', 'C6', [('VSS', 'VSS'), ('VCC:', 'VSS')])
     elif device in {'GW1N-9'}:
-        dev.bottom_io = ('A6', 'CE2', [('VSS', 'VSS')])
+        dev.bottom_io = ('A6', 'CE2', [('VSS', 'VSS'), ('VCC:', 'VSS')])
     else:
         dev.bottom_io = ('', '', [])
 
@@ -850,9 +852,12 @@ def fse_create_simplio_rows(dev, dat):
             dev.simplio_rows.add(row)
 
 def fse_create_tile_types(dev, dat):
+    type_chars = 'PCMI'
+    for fn in type_chars:
+        dev.tile_types[fn] = set()
     for row, rd in enumerate(dat['grid']):
         for col, fn in enumerate(rd):
-            if fn in 'PCMI':
+            if fn in type_chars:
                 i = row
                 if i > 0:
                     i -= 1
@@ -863,7 +868,7 @@ def fse_create_tile_types(dev, dat):
                     j -= 1
                 if j == dev.cols:
                     j -= 1
-                dev.tile_types.setdefault(fn, set()).add(dev.grid[i][j].ttyp)
+                dev.tile_types[fn].add(dev.grid[i][j].ttyp)
 
 def fse_create_diff_types(dev, device):
     dev.diff_io_types = ['ELVDS_IBUF', 'ELVDS_OBUF', 'ELVDS_IOBUF', 'ELVDS_TBUF',
