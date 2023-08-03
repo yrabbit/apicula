@@ -103,6 +103,10 @@ class Device:
     tile_types: Dict[str, Set[int]] = field(default_factory = dict)
     # supported differential IO primitives
     diff_io_types: List[str] = field(default_factory = list)
+    # HCLK pips depend on the location of the cell, not on the type, so they
+    # are difficult to match with the deduplicated description of the tile
+    # { (y, x) : pips}
+    hclk_pips: Dict[Tuple[int, int], Dict[str, Dict[str, Set[Coord]]]] = field(default_factory=dict)
 
     @property
     def rows(self):
@@ -675,6 +679,109 @@ def fse_create_hclk_aliases(db, device, dat):
             db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
             db.aliases[(row, col, 'HCLK1')] = (row, db.cols - 1, 'SPINE13')
 
+# HCLK for Himbaechel
+_hclk_to_fclk = {
+    'GW1N-1': {
+        'B': {
+             'edges': {
+                 ( 1, 10) : ('CLK2', 'SPINE12'),
+                 (10, 19) : ('CLK2', 'SPINE13'),
+                 },
+             },
+        'T': {
+             'edges': {
+                 ( 1, 19) : ('CLK2'),
+                 },
+             },
+        'L': {
+             'edges': {
+                 ( 1, 10) : ('CLK2'),
+                 },
+             },
+        'R': {
+             'edges': {
+                 ( 1, 10) : ('CLK2'),
+                 },
+             },
+        },
+    'GW1N-9C': {
+        'B': {
+             'edges': {
+                 ( 1, 46) : ('SPINE11', 'SPINE13'),
+                 },
+             },
+        'T': {
+             'edges': {
+                 ( 1, 46) : ('SPINE11', 'SPINE13'),
+                 },
+             },
+        'L': {
+             'edges': {
+                 ( 1, 28) : ('SPINE11', 'SPINE13'),
+                 },
+             },
+        'R': {
+             'edges': {
+                 ( 1, 28) : ('SPINE11', 'SPINE13'),
+                 },
+             },
+        },
+    'GW2A-18': {
+        'B': {
+             'edges': {
+                 ( 1, 27) : ('SPINE10', 'SPINE12'),
+                 (29, 55) : ('SPINE11', 'SPINE13'),
+                 },
+             },
+        'T': {
+             'edges': {
+                 ( 1, 27) : ('SPINE10', 'SPINE12'),
+                 (29, 55) : ('SPINE11', 'SPINE13'),
+                 },
+             },
+        'L': {
+             'edges': {
+                 ( 1, 27) : ('SPINE10', 'SPINE12'),
+                 (28, 55) : ('SPINE11', 'SPINE13'),
+                 },
+             },
+        'R': {
+             'edges': {
+                 ( 1, 27) : ('SPINE10', 'SPINE12'),
+                 (28, 55) : ('SPINE11', 'SPINE13'),
+                 },
+             },
+        },
+}
+
+def fse_create_hclk_nodes(dev, device):
+    # XXX
+    if device not in _hclk_to_fclk.keys():
+        return
+    hclk_info = _hclk_to_fclk[device]
+    for side in 'RLTB':
+        if side not in hclk_info.keys():
+            continue
+        for edge, srcs in hclk_info[side]['edges'].items():
+            if side in 'TB':
+                row = {'T': 0, 'B': dev.rows - 1}[side]
+                for col in range(edge[0], edge[1]):
+                    if 'IOLOGICA' not in dev.grid[row][col].bels.keys():
+                        continue
+                    pips = dev.hclk_pips.setdefault((row, col), {})
+                    for dst in 'AB':
+                        for src in srcs:
+                            pips.setdefault(f'FCLK{dst}', {}).update({src: set()})
+            else:
+                col = {'L': 0, 'R': dev.cols - 1}[side]
+                for row in range(edge[0], edge[1]):
+                    if 'IOLOGICA' not in dev.grid[row][col].bels.keys():
+                        continue
+                    pips = dev.hclk_pips.setdefault((row, col), {})
+                    for dst in 'AB':
+                        for src in srcs:
+                            pips.setdefault(f'FCLK{dst}', {}).update({src: set()})
+
 _pll_loc = {
  'GW1N-1':
    {'TRPLL0CLK0': (0, 17, 'F4'), 'TRPLL0CLK1': (0, 17, 'F5'),
@@ -836,7 +943,7 @@ def fse_create_clocks(dev, device, dat, fse):
 # function 1 - DDR
 def fse_create_bottom_io(dev, device):
     if device in {'GW1NS-4', 'GW1N-9C'}:
-        dev.bottom_io = ('D6', 'C6', [('VSS', 'VSS'), ('VCC:', 'VSS')])
+        dev.bottom_io = ('D6', 'C6', [('VSS', 'VSS'), ('VCC', 'VSS')])
     elif device in {'GW1N-9'}:
         dev.bottom_io = ('A6', 'CE2', [('VSS', 'VSS'), ('VCC:', 'VSS')])
     else:
@@ -919,6 +1026,7 @@ def from_fse(device, fse, dat):
     fse_create_bottom_io(dev, device)
     fse_create_tile_types(dev, dat)
     fse_create_diff_types(dev, device)
+    fse_create_hclk_nodes(dev, device)
     return dev
 
 # get fuses for attr/val set using short/longval table
