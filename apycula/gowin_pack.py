@@ -988,12 +988,12 @@ def route(db, tilemap, pips):
     for row, col, src, dest in pips:
         tiledata = db.grid[row-1][col-1]
         tile = tilemap[(row-1, col-1)]
-        # short-circuit prevention
-        secure_long_wires(db, tilemap, row, col, src, dest)
 
         try:
             if dest in tiledata.clock_pips:
                 bits = tiledata.clock_pips[dest][src]
+            elif is_himbaechel and (row - 1, col - 1) in db.hclk_pips and dest in db.hclk_pips[row - 1, col - 1]:
+                bits = db.hclk_pips[row - 1, col - 1][dest][src]
             else:
                 bits = tiledata.pips[dest][src]
         except KeyError:
