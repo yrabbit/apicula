@@ -765,7 +765,7 @@ _hclk_to_fclk = {
 
 _global_wire_prefixes = {'PCLK', 'TBDHCLK', 'BBDHCLK', 'RBDHCLK', 'LTBDHCLK',
                          'TLPLL', 'TRPLL', 'BLPLL', 'BRPLL'}
-def fse_create_hclk_nodes(dev, device, fse):
+def fse_create_hclk_nodes(dev, device, fse, dat):
     # XXX
     if device not in _hclk_to_fclk.keys():
         return
@@ -776,6 +776,11 @@ def fse_create_hclk_nodes(dev, device, fse):
 
         # create HCLK nodes
         hclks = {}
+        # entries to the HCLK from logic
+        for hclk_idx, row, col, wire_idx in {(i, dat['CmuxIns'][str(i - 80)][0] - 1, dat['CmuxIns'][str(i - 80)][1] - 1, dat['CmuxIns'][str(i - 80)][2]) for i in range(hclknumbers['TBDHCLK0'], hclknumbers['RBDHCLK3'] + 1)}:
+            if row != -2:
+                dev.nodes.setdefault(hclknames[hclk_idx], ("HCLK", set()))[1].add((row, col, wirenames[wire_idx]))
+
         if 'hclk' in hclk_info[side].keys():
             # create HCLK cells pips
             for hclk_loc in hclk_info[side]['hclk']:
@@ -1072,7 +1077,7 @@ def from_fse(device, fse, dat):
     fse_create_bottom_io(dev, device)
     fse_create_tile_types(dev, dat)
     fse_create_diff_types(dev, device)
-    fse_create_hclk_nodes(dev, device, fse)
+    fse_create_hclk_nodes(dev, device, fse, dat)
     return dev
 
 # get fuses for attr/val set using short/longval table
