@@ -99,5 +99,19 @@ clknames.update({
 })
 
 clknames.update({n: f"UNK{n}" for n in range(210, 261)})
-
 clknumbers = {v: k for k, v in clknames.items()}
+
+# hclk
+hclknames = clknames.copy()
+hclknames.update({n: f"HCLK_UNK{n}" for n in range(26)})
+# inputs
+hclknames.update({
+    2: 'HCLK_IN0', 3: 'HCLK_IN1', 4: 'HCLK_IN2', 5: 'HCLK_IN3'
+})
+
+# outputs
+hclknames.update({
+    10: 'HCLK_OUT0', 11: 'HCLK_OUT1', 12: 'HCLK_OUT2', 13: 'HCLK_OUT3'
+})
+
+hclknumbers = {v: k for k, v in hclknames.items()}
