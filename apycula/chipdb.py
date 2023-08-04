@@ -767,11 +767,11 @@ _global_wire_prefixes = {'PCLK', 'TBDHCLK', 'BBDHCLK', 'RBDHCLK', 'LTBDHCLK',
                          'TLPLL', 'TRPLL', 'BLPLL', 'BRPLL'}
 def fse_create_hclk_nodes(dev, device, fse, dat):
     # XXX
-    if device not in _hclk_to_fclk.keys():
+    if device not in _hclk_to_fclk:
         return
     hclk_info = _hclk_to_fclk[device]
     for side in 'BRTL':
-        if side not in hclk_info.keys():
+        if side not in hclk_info:
             continue
 
         # create HCLK nodes
@@ -781,7 +781,7 @@ def fse_create_hclk_nodes(dev, device, fse, dat):
             if row != -2:
                 dev.nodes.setdefault(hclknames[hclk_idx], ("HCLK", set()))[1].add((row, col, wirenames[wire_idx]))
 
-        if 'hclk' in hclk_info[side].keys():
+        if 'hclk' in hclk_info[side]:
             # create HCLK cells pips
             for hclk_loc in hclk_info[side]['hclk']:
                 row, col = hclk_loc
@@ -807,7 +807,7 @@ def fse_create_hclk_nodes(dev, device, fse, dat):
             if side in 'TB':
                 row = {'T': 0, 'B': dev.rows - 1}[side]
                 for col in range(edge[0], edge[1]):
-                    if 'IOLOGICA' not in dev.grid[row][col].bels.keys():
+                    if 'IOLOGICA' not in dev.grid[row][col].bels:
                         continue
                     pips = dev.hclk_pips.setdefault((row, col), {})
                     for dst in 'AB':
@@ -818,7 +818,7 @@ def fse_create_hclk_nodes(dev, device, fse, dat):
             else:
                 col = {'L': 0, 'R': dev.cols - 1}[side]
                 for row in range(edge[0], edge[1]):
-                    if 'IOLOGICA' not in dev.grid[row][col].bels.keys():
+                    if 'IOLOGICA' not in dev.grid[row][col].bels:
                         continue
                     pips = dev.hclk_pips.setdefault((row, col), {})
                     for dst in 'AB':
@@ -880,11 +880,11 @@ def fse_create_pll_clock_aliases(db, device):
                             # Himbaechel node
                             db.nodes.setdefault(w_src, ("PLL_O", set()))[1].add((row, col, w_src))
             # Himbaechel HCLK
-            if (row, col) in db.hclk_pips.keys():
+            if (row, col) in db.hclk_pips:
                 for w_dst, w_srcs in db.hclk_pips[row, col].items():
                     for w_src in w_srcs.keys():
                         if device in {'GW1N-1', 'GW1NZ-1', 'GW1NS-2', 'GW1NS-4', 'GW1N-4', 'GW1N-9C', 'GW1N-9', 'GW2A-18'}:
-                            if w_src in _pll_loc[device].keys():
+                            if w_src in _pll_loc[device]:
                                 db.nodes.setdefault(w_src, ("PLL_O", set()))[1].add((row, col, w_src))
 
 def fse_iologic(device, fse, ttyp):
