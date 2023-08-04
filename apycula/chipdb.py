@@ -683,9 +683,10 @@ def fse_create_hclk_aliases(db, device, dat):
 _hclk_to_fclk = {
     'GW1N-1': {
         'B': {
+             'hclk': {(10, 0), (10, 19)},
              'edges': {
-                 ( 1, 10) : ('CLK2', 'SPINE12'),
-                 (10, 19) : ('CLK2', 'SPINE13'),
+                 ( 1, 10) : ('CLK2', 'HCLK_OUT2'),
+                 (10, 19) : ('CLK2', 'HCLK_OUT3'),
                  },
              },
         'T': {
@@ -706,49 +707,57 @@ _hclk_to_fclk = {
         },
     'GW1N-9C': {
         'B': {
+             'hclk': {(28, 0), (28, 46)},
              'edges': {
-                 ( 1, 46) : ('SPINE11', 'SPINE13'),
+                 ( 1, 46) : ('HCLK_OUT1', 'HCLK_OUT3'),
                  },
              },
         'T': {
+             'hclk': {(0, 0), (0, 46)},
              'edges': {
-                 ( 1, 46) : ('SPINE11', 'SPINE13'),
+                 ( 1, 46) : ('HCLK_OUT1', 'HCLK_OUT3'),
                  },
              },
         'L': {
+             'hclk': {(18, 0)},
              'edges': {
-                 ( 1, 28) : ('SPINE11', 'SPINE13'),
+                 ( 1, 28) : ('HCLK_OUT1', 'HCLK_OUT3'),
                  },
              },
         'R': {
+             'hclk': {(18, 46)},
              'edges': {
-                 ( 1, 28) : ('SPINE11', 'SPINE13'),
+                 ( 1, 28) : ('HCLK_OUT1', 'HCLK_OUT3'),
                  },
              },
         },
     'GW2A-18': {
         'B': {
+             'hclk': {(54, 27), (54, 28)},
              'edges': {
-                 ( 1, 27) : ('SPINE10', 'SPINE12'),
-                 (29, 55) : ('SPINE11', 'SPINE13'),
+                 ( 1, 27) : ('HCLK_OUT0', 'HCLK_OUT2'),
+                 (29, 55) : ('HCLK_OUT1', 'HCLK_OUT3'),
                  },
              },
         'T': {
+             'hclk': {(0, 27), (0, 28)},
              'edges': {
-                 ( 1, 27) : ('SPINE10', 'SPINE12'),
-                 (29, 55) : ('SPINE11', 'SPINE13'),
+                 ( 1, 27) : ('HCLK_OUT0', 'HCLK_OUT2'),
+                 (29, 55) : ('HCLK_OUT1', 'HCLK_OUT3'),
                  },
              },
         'L': {
+             'hclk': {(27, 0)},
              'edges': {
-                 ( 1, 27) : ('SPINE10', 'SPINE12'),
-                 (28, 55) : ('SPINE11', 'SPINE13'),
+                 ( 1, 27) : ('HCLK_OUT0', 'HCLK_OUT2'),
+                 (28, 55) : ('HCLK_OUT1', 'HCLK_OUT3'),
                  },
              },
         'R': {
+             'hclk': {(27, 55)},
              'edges': {
-                 ( 1, 27) : ('SPINE10', 'SPINE12'),
-                 (28, 55) : ('SPINE11', 'SPINE13'),
+                 ( 1, 27) : ('HCLK_OUT0', 'HCLK_OUT2'),
+                 (28, 55) : ('HCLK_OUT1', 'HCLK_OUT3'),
                  },
              },
         },
@@ -759,9 +768,22 @@ def fse_create_hclk_nodes(dev, device):
     if device not in _hclk_to_fclk.keys():
         return
     hclk_info = _hclk_to_fclk[device]
-    for side in 'RLTB':
+    for side in 'BRTL':
         if side not in hclk_info.keys():
             continue
+        # create HCLK nodes
+        hclks = {}
+        if 'hclk' in hclk_info[side].keys():
+            idx = 'BRTL'.index(side)
+            for i in range(4):
+                hnam = f'HCLK_OUT{i}'
+                wires = dev.nodes.setdefault(f'{side}{hnam}', ("HCLK", set()))[1]
+                hclks[hnam] = wires
+                for hclk_loc in hclk_info[side]['hclk']:
+                    row, col = hclk_loc
+                    wires.add((row, col, hnam))
+
+        # create pips from HCLK spines to FCLK inputs of IO logic
         for edge, srcs in hclk_info[side]['edges'].items():
             if side in 'TB':
                 row = {'T': 0, 'B': dev.rows - 1}[side]
@@ -772,6 +794,8 @@ def fse_create_hclk_nodes(dev, device):
                     for dst in 'AB':
                         for src in srcs:
                             pips.setdefault(f'FCLK{dst}', {}).update({src: set()})
+                            if src.startswith('HCLK'):
+                                hclks[src].add((row, col, src))
             else:
                 col = {'L': 0, 'R': dev.cols - 1}[side]
                 for row in range(edge[0], edge[1]):
@@ -781,6 +805,8 @@ def fse_create_hclk_nodes(dev, device):
                     for dst in 'AB':
                         for src in srcs:
                             pips.setdefault(f'FCLK{dst}', {}).update({src: set()})
+                            if src.startswith('HCLK'):
+                                hclks[src].add((row, col, src))
 
 _pll_loc = {
  'GW1N-1':
