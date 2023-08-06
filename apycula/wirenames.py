@@ -113,5 +113,10 @@ hclknames.update({
 hclknames.update({
     10: 'HCLK_OUT0', 11: 'HCLK_OUT1', 12: 'HCLK_OUT2', 13: 'HCLK_OUT3'
 })
+# these work as inputs in GW1N-9c
+hclknames.update({
+    16: 'HCLK_9IN0', 17: 'HCLK_9IN1', 18: 'HCLK_9IN2', 19: 'HCLK_9IN3'
+})
+
 
 hclknumbers = {v: k for k, v in hclknames.items()}

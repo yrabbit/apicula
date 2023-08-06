@@ -685,23 +685,23 @@ _hclk_to_fclk = {
         'B': {
              'hclk': {(10, 0), (10, 19)},
              'edges': {
-                 ( 1, 10) : ('CLK2', 'HCLK_OUT2'),
-                 (10, 19) : ('CLK2', 'HCLK_OUT3'),
+                 ( 1, 10) : {'CLK2', 'HCLK_OUT2'},
+                 (10, 19) : {'CLK2', 'HCLK_OUT3'},
                  },
              },
         'T': {
              'edges': {
-                 ( 1, 19) : ('CLK2'),
+                 ( 1, 19) : {'CLK2'},
                  },
              },
         'L': {
              'edges': {
-                 ( 1, 10) : ('CLK2'),
+                 ( 1, 10) : {'CLK2'},
                  },
              },
         'R': {
              'edges': {
-                 ( 1, 10) : ('CLK2'),
+                 ( 1, 10) : {'CLK2'},
                  },
              },
         },
@@ -709,25 +709,25 @@ _hclk_to_fclk = {
         'B': {
              'hclk': {(28, 0), (28, 46)},
              'edges': {
-                 ( 1, 46) : ('HCLK_OUT1', 'HCLK_OUT3'),
+                 ( 1, 46) : {'HCLK_OUT1', 'HCLK_OUT3'},
                  },
              },
         'T': {
              'hclk': {(0, 0), (0, 46)},
              'edges': {
-                 ( 1, 46) : ('HCLK_OUT1', 'HCLK_OUT3'),
+                 ( 1, 46) : {'HCLK_OUT1', 'HCLK_OUT3'},
                  },
              },
         'L': {
              'hclk': {(18, 0)},
              'edges': {
-                 ( 1, 28) : ('HCLK_OUT1', 'HCLK_OUT3'),
+                 ( 1, 28) : {'HCLK_OUT1', 'HCLK_OUT3'},
                  },
              },
         'R': {
              'hclk': {(18, 46)},
              'edges': {
-                 ( 1, 28) : ('HCLK_OUT1', 'HCLK_OUT3'),
+                 ( 1, 28) : {'HCLK_OUT1', 'HCLK_OUT3'},
                  },
              },
         },
@@ -735,35 +735,35 @@ _hclk_to_fclk = {
         'B': {
              'hclk': {(54, 27), (54, 28)},
              'edges': {
-                 ( 1, 27) : ('HCLK_OUT0', 'HCLK_OUT2'),
-                 (29, 55) : ('HCLK_OUT1', 'HCLK_OUT3'),
+                 ( 1, 27) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (29, 55) : {'HCLK_OUT1', 'HCLK_OUT3'},
                  },
              },
         'T': {
              'hclk': {(0, 27), (0, 28)},
              'edges': {
-                 ( 1, 27) : ('HCLK_OUT0', 'HCLK_OUT2'),
-                 (29, 55) : ('HCLK_OUT1', 'HCLK_OUT3'),
+                 ( 1, 27) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (29, 55) : {'HCLK_OUT1', 'HCLK_OUT3'},
                  },
              },
         'L': {
              'hclk': {(27, 0)},
              'edges': {
-                 ( 1, 27) : ('HCLK_OUT0', 'HCLK_OUT2'),
-                 (28, 55) : ('HCLK_OUT1', 'HCLK_OUT3'),
+                 ( 1, 27) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (28, 55) : {'HCLK_OUT1', 'HCLK_OUT3'},
                  },
              },
         'R': {
              'hclk': {(27, 55)},
              'edges': {
-                 ( 1, 27) : ('HCLK_OUT0', 'HCLK_OUT2'),
-                 (28, 55) : ('HCLK_OUT1', 'HCLK_OUT3'),
+                 ( 1, 27) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (28, 55) : {'HCLK_OUT1', 'HCLK_OUT3'},
                  },
              },
         },
 }
 
-_global_wire_prefixes = {'PCLK', 'TBDHCLK', 'BBDHCLK', 'RBDHCLK', 'LTBDHCLK',
+_global_wire_prefixes = {'PCLK', 'TBDHCLK', 'BBDHCLK', 'RBDHCLK', 'LBDHCLK',
                          'TLPLL', 'TRPLL', 'BLPLL', 'BRPLL'}
 def fse_create_hclk_nodes(dev, device, fse, dat):
     # XXX
@@ -793,6 +793,9 @@ def fse_create_hclk_nodes(dev, device, fse, dat):
                         for pfx in _global_wire_prefixes:
                             if src.startswith(pfx):
                                 dev.nodes.setdefault(src, ('HCLK', set()))[1].add((row, col, src))
+                # strange GW1N-9C input-input aliases
+                for i in {0, 2}:
+                    dev.nodes.setdefault(f'X{col}Y{row}/HCLK9-{i}', ('HCLK', {(row, col, f'HCLK_IN{i}')}))[1].add((row, col, f'HCLK_9IN{i}'))
 
             for i in range(4):
                 hnam = f'HCLK_OUT{i}'
