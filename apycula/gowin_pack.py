@@ -123,7 +123,7 @@ def get_bels(data):
 _pip_bels = []
 def get_pips(data):
     if is_himbaechel:
-        pipre = re.compile(r"X(\d+)Y(\d+)/([^_]+)/([^_]+)")
+        pipre = re.compile(r"X(\d+)Y(\d+)/([\w_]+)/([\w_]+)")
     else:
         pipre = re.compile(r"R(\d+)C(\d+)_([^_]+)_([^_]+)")
     for net in data['modules']['top']['netnames'].values():
@@ -666,7 +666,9 @@ def place(db, tilemap, bels, cst, args):
 
         if typ in {'ODDR', 'ODDRC', 'OSER4', 'OSER8'}:
             attrs['IOLOGIC_TYPE'] = typ
-            attrs['IOLOGIC_FCLK'] = 'UNKNOWN'
+            attrs['IOLOGIC_FCLK'] = {'UNKNOWN': 'UNKNOWN', 'HCLK_OUT0': 'SPINE10',
+                                     'HCLK_OUT1': 'SPINE11', 'HCLK_OUT2': 'SPINE12',
+                                     'HCLK_OUT3': 'SPINE13'}[attrs['IOLOGIC_FCLK']]
             typ = 'IOLOGIC'
 
         if typ == "GSR":
