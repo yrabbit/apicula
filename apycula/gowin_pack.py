@@ -488,12 +488,13 @@ def set_iologic_attrs(db, attrs, param):
         #in_attrs['LSRMUX_LSR'] = 'INV'
     if 'INMODE' in attrs:
         if param['IOLOGIC_TYPE'] not in {'IDDR', 'IDDRC'}:
-            in_attrs['CLKODDRMUX_WRCLK'] = 'ECLK0'
+            #in_attrs['CLKODDRMUX_WRCLK'] = 'ECLK0'
+            in_attrs['CLKOMUX_1'] = '1'
             in_attrs['CLKODDRMUX_ECLK'] = 'UNKNOWN'
             if param['IOLOGIC_FCLK'] in {'SPINE12', 'SPINE13'}:
                 in_attrs['CLKIDDRMUX_ECLK'] = 'ECLK1'
             elif param['IOLOGIC_FCLK'] in {'SPINE10', 'SPINE11'}:
-                in_attrs['CLKODDRMUX_ECLK'] = 'ECLK0'
+                in_attrs['CLKIDDRMUX_ECLK'] = 'ECLK0'
             in_attrs['LSRIMUX_0'] = '1'
             if attrs['INMODE'] == 'IDDRX8' or attrs['INMODE'] == 'DDRENABLE16':
                 in_attrs['LSROMUX_0'] = '0'
@@ -509,7 +510,9 @@ def set_iologic_attrs(db, attrs, param):
         if k not in attrids.iologic_attrids:
             print(f'XXX IOLOGIC: add {k} key handle')
         else:
+            print(k, val)
             add_attr_val(db, 'IOLOGIC', fin_attrs, attrids.iologic_attrids[k], attrids.iologic_attrvals[val])
+            print(fin_attrs)
     return fin_attrs
 
 _iostd_alias = {
@@ -666,7 +669,8 @@ def place(db, tilemap, bels, cst, args):
                 parms['ENABLE_USED'] = "0"
             typ = 'IOB'
 
-        if typ in {'IOLOGIC_DUMMY', 'ODDR', 'ODDRC', 'OSER4', 'OSER8', 'OSER10', 'OVIDEO'}:
+        if typ in {'IOLOGIC_DUMMY', 'ODDR', 'ODDRC', 'OSER4', 'OSER8', 'OSER10', 'OVIDEO',
+                   'IDDR', 'IDDRC', 'IDES4', 'IDES8', 'IDES10', 'IVIDEO'}:
             if typ == 'IOLOGIC_DUMMY':
                 attrs['IOLOGIC_FCLK'] = pnr['modules']['top']['cells'][attrs['MAIN_CELL']]['attributes']['IOLOGIC_FCLK']
             attrs['IOLOGIC_TYPE'] = typ
