@@ -107,6 +107,9 @@ class Device:
     # are difficult to match with the deduplicated description of the tile
     # { (y, x) : pips}
     hclk_pips: Dict[Tuple[int, int], Dict[str, Dict[str, Set[Coord]]]] = field(default_factory=dict)
+    # OSER16/IDES16 cell locations
+    # { (main y, main x): (aux y, aux x)}
+    io16locs: Dict[Tuple[int, int], Tuple[int, int]] = field(default_factory=dict)
 
     @property
     def rows(self):
@@ -1048,6 +1051,17 @@ def fse_create_diff_types(dev, device):
     elif device not in {'GW2A-18', 'GW1N-4'}:
         dev.diff_io_types.remove('TLVDS_IOBUF')
 
+def fse_create_io16(dev, device):
+    if device in {'GW1N-9', 'GW1N-9C'}:
+        for i in chain(range(1, 8), range(10, 17), range(20, 35), range(38, 45)):
+            dev.io16locs[0, i] = (0, i + 1)
+            dev.io16locs[dev.rows - 1, i] = (dev.rows - 1, i + 1)
+    elif device in {'GW1NS-4'}:
+        for i in chain(range(1, 8), range(10, 17), range(20, 26), range(28, 35)):
+            dev.io16locs[0, i] = (0, i + 1)
+            if i < 17:
+                dev.io16locs[i, dev.cols - 1] = (i + 1, dev.cols - 1)
+
 def from_fse(device, fse, dat):
     dev = Device()
     fse_create_simplio_rows(dev, dat)
@@ -1081,6 +1095,7 @@ def from_fse(device, fse, dat):
     fse_create_tile_types(dev, dat)
     fse_create_diff_types(dev, device)
     fse_create_hclk_nodes(dev, device, fse, dat)
+    fse_create_io16(dev, device)
     return dev
 
 # get fuses for attr/val set using short/longval table
