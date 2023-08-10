@@ -510,9 +510,7 @@ def set_iologic_attrs(db, attrs, param):
         if k not in attrids.iologic_attrids:
             print(f'XXX IOLOGIC: add {k} key handle')
         else:
-            print(k, val)
             add_attr_val(db, 'IOLOGIC', fin_attrs, attrids.iologic_attrids[k], attrids.iologic_attrvals[val])
-            print(fin_attrs)
     return fin_attrs
 
 _iostd_alias = {
@@ -946,7 +944,7 @@ def place(db, tilemap, bels, cst, args):
                 for k, val in atr.items():
                     if k not in attrids.iob_attrids:
                         print(f'XXX IO: add {k} key handle')
-                    elif k == 'OPENDRAIN' and v == 'OFF':
+                    elif k == 'OPENDRAIN' and val == 'OFF':
                         continue
                     else:
                         add_attr_val(db, 'IOB', iob_attrs, attrids.iob_attrids[k], attrids.iob_attrvals[val])
@@ -975,9 +973,9 @@ def place(db, tilemap, bels, cst, args):
         for row, col in bits:
             btile[row][col] = 1
 
-    for k, v in _io_bels.items():
-        for io, bl in v.items():
-            print(k, io, vars(bl))
+    #for k, v in _io_bels.items():
+    #    for io, bl in v.items():
+    #        print(k, io, vars(bl))
 
 # The vertical columns of long wires can receive a signal from either the upper
 # or the lower end of the column.
