@@ -109,9 +109,6 @@ class Device:
     hclk_pips: Dict[Tuple[int, int], Dict[str, Dict[str, Set[Coord]]]] = field(default_factory=dict)
     # extra cell functions besides main type
     extra_cell_func: Dict[Tuple[int, int], Dict[str, Any]] = field(default_factory=dict)
-    # OSER16/IDES16 cell locations
-    # { (main y, main x): (aux y, aux x)}
-    io16locs: Dict[Tuple[int, int], Tuple[int, int]] = field(default_factory=dict)
 
     @property
     def rows(self):
@@ -1055,14 +1052,34 @@ def fse_create_diff_types(dev, device):
 
 def fse_create_io16(dev, device):
     if device in {'GW1N-9', 'GW1N-9C'}:
-        for i in chain(range(1, 8), range(10, 17), range(20, 35), range(38, 45)):
-            dev.io16locs[0, i] = (0, i + 1)
-            dev.io16locs[dev.rows - 1, i] = (dev.rows - 1, i + 1)
+        for i in chain(range(1, 8, 2), range(10, 17, 2), range(20, 35, 2), range(38, 45, 2)):
+            dev.extra_cell_func.setdefault((0, i), {}).update(
+                    {'io16': {'role': 'MAIN', 'pair': (0, i +1)}})
+            dev.extra_cell_func.setdefault((0, i + 1), {}).update(
+                    {'io16': {'role': 'AUX', 'pair': (0, i)}})
+            dev.extra_cell_func.setdefault((dev.rows - 1, i), {}).update(
+                    {'io16': {'role': 'MAIN', 'pair': (dev.rows - 1, i +1)}})
+            dev.extra_cell_func.setdefault((dev.rows - 1, i + 1), {}).update(
+                    {'io16': {'role': 'AUX', 'pair': (dev.rows - 1, i)}})
     elif device in {'GW1NS-4'}:
-        for i in chain(range(1, 8), range(10, 17), range(20, 26), range(28, 35)):
-            dev.io16locs[0, i] = (0, i + 1)
+        for i in chain(range(1, 8, 2), range(10, 17, 2), range(20, 26, 2), range(28, 35, 2)):
+            dev.extra_cell_func.setdefault((0, i), {}).update(
+                    {'io16': {'role': 'MAIN', 'pair': (0, i +1)}})
+            dev.extra_cell_func.setdefault((0, i + 1), {}).update(
+                    {'io16': {'role': 'AUX', 'pair': (0, i)}})
             if i < 17:
-                dev.io16locs[i, dev.cols - 1] = (i + 1, dev.cols - 1)
+                dev.extra_cell_func.setdefault((i, dev.cols - 1), {}).update(
+                        {'io16': {'role': 'MAIN', 'pair': (i + 1, dev.cols - 1)}})
+                dev.extra_cell_func.setdefault((i + 1, dev.cols - 1), {}).update(
+                        {'io16': {'role': 'AUX', 'pair': (i, dev.cols - 1)}})
+
+def fse_create_osc(dev, device, fse):
+    for row, rd in enumerate(dev.grid):
+        for col, rc in enumerate(rd):
+            if 51 in fse[rc.ttyp]['shortval']:
+                osc_type = list(fse_osc(device, fse, rc.ttyp).keys())[0]
+                dev.extra_cell_func.setdefault((row, col), {}).update(
+                        {'osc': {'type': osc_type}})
 
 def from_fse(device, fse, dat):
     dev = Device()
@@ -1098,6 +1115,7 @@ def from_fse(device, fse, dat):
     fse_create_diff_types(dev, device)
     fse_create_hclk_nodes(dev, device, fse, dat)
     fse_create_io16(dev, device)
+    fse_create_osc(dev, device, fse)
     return dev
 
 # get fuses for attr/val set using short/longval table
