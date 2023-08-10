@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Tuple, Union, ByteString
+from typing import Dict, List, Set, Tuple, Union, ByteString, Any
 from itertools import chain
 import re
 import copy
@@ -107,6 +107,8 @@ class Device:
     # are difficult to match with the deduplicated description of the tile
     # { (y, x) : pips}
     hclk_pips: Dict[Tuple[int, int], Dict[str, Dict[str, Set[Coord]]]] = field(default_factory=dict)
+    # extra cell functions besides main type
+    extra_cell_func: Dict[Tuple[int, int], Dict[str, Any]] = field(default_factory=dict)
     # OSER16/IDES16 cell locations
     # { (main y, main x): (aux y, aux x)}
     io16locs: Dict[Tuple[int, int], Tuple[int, int]] = field(default_factory=dict)
