@@ -578,7 +578,7 @@ _init_io_attrs = {
                  'SINGLERESISTOR': 'OFF', 'VCCIO': '1.8', 'LVDS_OUT': 'OFF', 'DDR_DYNTERM': 'NA',
                  'TO': 'INV', 'PERSISTENT': 'OFF', 'ODMUX': 'TRIMUX', 'PADDI': 'PADDI'},
         }
-_refine_attrs = {'SLEW_RATE': 'SLEWRATE', 'PULL_MODE': 'PULLMODE'}
+_refine_attrs = {'SLEW_RATE': 'SLEWRATE', 'PULL_MODE': 'PULLMODE', 'OPEN_DRAIN': 'OPENDRAIN'}
 def refine_io_attrs(attr):
     return _refine_attrs.get(attr, attr)
 
@@ -946,6 +946,8 @@ def place(db, tilemap, bels, cst, args):
                 for k, val in atr.items():
                     if k not in attrids.iob_attrids:
                         print(f'XXX IO: add {k} key handle')
+                    elif k == 'OPENDRAIN' and v == 'OFF':
+                        continue
                     else:
                         add_attr_val(db, 'IOB', iob_attrs, attrids.iob_attrids[k], attrids.iob_attrvals[val])
                         if k in {'VCCIO'}:
