@@ -1054,27 +1054,20 @@ def fse_create_diff_types(dev, device):
         dev.diff_io_types.remove('TLVDS_IOBUF')
 
 def fse_create_io16(dev, device):
+    df = dev.extra_func
     if device in {'GW1N-9', 'GW1N-9C'}:
         for i in chain(range(1, 8, 2), range(10, 17, 2), range(20, 35, 2), range(38, 45, 2)):
-            dev.extra_func.setdefault((0, i), {}).update(
-                    {'io16': {'role': 'MAIN', 'pair': (0, i +1)}})
-            dev.extra_func.setdefault((0, i + 1), {}).update(
-                    {'io16': {'role': 'AUX', 'pair': (0, i)}})
-            dev.extra_func.setdefault((dev.rows - 1, i), {}).update(
-                    {'io16': {'role': 'MAIN', 'pair': (dev.rows - 1, i +1)}})
-            dev.extra_func.setdefault((dev.rows - 1, i + 1), {}).update(
-                    {'io16': {'role': 'AUX', 'pair': (dev.rows - 1, i)}})
+            df.setdefault((0, i), {})['io16'] = {'role': 'MAIN', 'pair': (0, 1)}
+            df.setdefault((0, i + 1), {})['io16'] = {'role': 'AUX', 'pair': (0, -1)}
+            df.setdefault((dev.rows - 1, i), {})['io16'] = {'role': 'MAIN', 'pair': (0, 1)}
+            df.setdefault((dev.rows - 1, i + 1), {})['io16'] = {'role': 'AUX', 'pair': (0, -1)}
     elif device in {'GW1NS-4'}:
         for i in chain(range(1, 8, 2), range(10, 17, 2), range(20, 26, 2), range(28, 35, 2)):
-            dev.extra_func.setdefault((0, i), {}).update(
-                    {'io16': {'role': 'MAIN', 'pair': (0, i +1)}})
-            dev.extra_func.setdefault((0, i + 1), {}).update(
-                    {'io16': {'role': 'AUX', 'pair': (0, i)}})
+            df.setdefault((0, i), {})['io16'] = {'role': 'MAIN', 'pair': (0, 1)}
+            df.setdefault((0, i + 1), {})['io16'] = {'role': 'AUX', 'pair': (0, -1)}
             if i < 17:
-                dev.extra_func.setdefault((i, dev.cols - 1), {}).update(
-                        {'io16': {'role': 'MAIN', 'pair': (i + 1, dev.cols - 1)}})
-                dev.extra_func.setdefault((i + 1, dev.cols - 1), {}).update(
-                        {'io16': {'role': 'AUX', 'pair': (i, dev.cols - 1)}})
+                df.setdefault((i, dev.cols - 1), {})['io16'] = {'role': 'MAIN', 'pair': (1, 0)}
+                df.setdefault((i + 1, dev.cols - 1), {})['io16'] = {'role': 'AUX', 'pair': (-1, 0)}
 
 # (osc-type, devices) : ({local-ports}, {aliases})
 _osc_ports = {('OSCZ', 'GW1NZ-1'): ({}, {'OSCOUT' : (0, 5, 'OF3'), 'OSCEN': (0, 2, 'A6')}),
