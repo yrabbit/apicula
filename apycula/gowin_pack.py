@@ -901,7 +901,7 @@ def place(db, tilemap, bels, cst, args):
                 k = refine_io_attrs(k)
                 in_iob_attrs[k] = val
             in_iob_attrs['VCCIO'] = in_bank_attrs['VCCIO']
-            print(in_iob_attrs)
+            #print(in_iob_attrs)
 
             # lvds
             if iob.flags['mode'] in {'TLVDS_OBUF', 'TLVDS_TBUF', 'TLVDS_IOBUF'}:
@@ -1006,6 +1006,7 @@ def route(db, tilemap, pips):
                 bits = tiledata.clock_pips[dest][src]
             elif is_himbaechel and (row - 1, col - 1) in db.hclk_pips and dest in db.hclk_pips[row - 1, col - 1]:
                 bits = db.hclk_pips[row - 1, col - 1][dest][src]
+                print(f'HCLK pip: {dest} <- {src}')
             else:
                 bits = tiledata.pips[dest][src]
         except KeyError:
