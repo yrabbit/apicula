@@ -1006,7 +1006,7 @@ def route(db, tilemap, pips):
                 bits = tiledata.clock_pips[dest][src]
             elif is_himbaechel and (row - 1, col - 1) in db.hclk_pips and dest in db.hclk_pips[row - 1, col - 1]:
                 bits = db.hclk_pips[row - 1, col - 1][dest][src]
-                print(f'HCLK pip: {dest} <- {src}')
+                print(f'HCLK pip: X{col - 1}Y{row - 1} {dest} <- {src}')
             else:
                 bits = tiledata.pips[dest][src]
         except KeyError:
