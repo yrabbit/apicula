@@ -1099,7 +1099,7 @@ def fse_create_osc(dev, device, fse):
 def fse_create_gsr(dev, device):
     row, col = (0, 0)
     if device in {'GW2A-18'}:
-        row, col = (50, 27)
+        row, col = (27, 50)
     dev.extra_func.setdefault((row, col), {}).update(
         {'gsr': {'wire': 'C4'}})
 
