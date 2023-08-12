@@ -672,11 +672,12 @@ def place(db, tilemap, bels, cst, args):
             if typ == 'IOLOGIC_DUMMY':
                 attrs['IOLOGIC_FCLK'] = pnr['modules']['top']['cells'][attrs['MAIN_CELL']]['attributes']['IOLOGIC_FCLK']
             attrs['IOLOGIC_TYPE'] = typ
-            attrs['IOLOGIC_FCLK'] = 'UNKNOWN'
             if typ not in {'IDDR', 'IDDRC', 'ODDR', 'ODDRC'}:
                 attrs['IOLOGIC_FCLK'] = {'UNKNOWN': 'UNKNOWN', 'HCLK_OUT0': 'SPINE10',
                                          'HCLK_OUT1': 'SPINE11', 'HCLK_OUT2': 'SPINE12',
                                          'HCLK_OUT3': 'SPINE13'}[attrs['IOLOGIC_FCLK']]
+            else:
+                attrs['IOLOGIC_FCLK'] = 'UNKNOWN'
             typ = 'IOLOGIC'
 
         if typ == "GSR":
@@ -1006,7 +1007,6 @@ def route(db, tilemap, pips):
                 bits = tiledata.clock_pips[dest][src]
             elif is_himbaechel and (row - 1, col - 1) in db.hclk_pips and dest in db.hclk_pips[row - 1, col - 1]:
                 bits = db.hclk_pips[row - 1, col - 1][dest][src]
-                print(f'HCLK pip: X{col - 1}Y{row - 1} {dest} <- {src}')
             else:
                 bits = tiledata.pips[dest][src]
         except KeyError:
