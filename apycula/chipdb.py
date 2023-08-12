@@ -108,6 +108,7 @@ class Device:
     # { (y, x) : pips}
     hclk_pips: Dict[Tuple[int, int], Dict[str, Dict[str, Set[Coord]]]] = field(default_factory=dict)
     # extra cell functions besides main type like
+    # - OSCx
     # - GSR
     # - OSER16/IDES16
     # - ref to hclk_pips
@@ -1095,6 +1096,13 @@ def fse_create_osc(dev, device, fse):
                 for port, alias in aliases.items():
                     dev.nodes.setdefault(f'X{col}Y{row}/{port}', (port, {(row, col, port)}))[1].add(alias)
 
+def fse_create_gsr(dev, device):
+    row, col = (0, 0)
+    if device in {'GW2A-18'}:
+        row, col = (50, 27)
+    dev.extra_func.setdefault((row, col), {}).update(
+        {'gsr': {'wire': 'C4'}})
+
 def sync_extra_func(dev):
     for loc, pips in dev.hclk_pips.items():
         row, col = loc
@@ -1135,6 +1143,7 @@ def from_fse(device, fse, dat):
     fse_create_hclk_nodes(dev, device, fse, dat)
     fse_create_io16(dev, device)
     fse_create_osc(dev, device, fse)
+    fse_create_gsr(dev, device)
     sync_extra_func(dev)
     return dev
 
