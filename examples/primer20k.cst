@@ -12,3 +12,6 @@ IO_LOC "led[5]" L16;
 
 IO_LOC "tlvds_p" P6;
 IO_LOC "tlvds_n" T6;
+
+IO_LOC "elvds_p" C12;
+IO_LOC "elvds_n" B12;
