@@ -949,7 +949,7 @@ def place(db, tilemap, bels, cst, args):
                 for k, val in atr.items():
                     if k not in attrids.iob_attrids:
                         print(f'XXX IO: add {k} key handle')
-                    elif k == 'OPENDRAIN' and val == 'OFF':
+                    elif k == 'OPENDRAIN' and val == 'OFF' and 'LVDS' not in iob.flags['mode']:
                         continue
                     else:
                         add_attr_val(db, 'IOB', iob_attrs, attrids.iob_attrids[k], attrids.iob_attrvals[val])
