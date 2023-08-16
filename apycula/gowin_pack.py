@@ -1124,6 +1124,12 @@ def main():
     # routing can add pass-through LUTs
     place(db, tilemap, itertools.chain(bels, _pip_bels) , cst, args)
     dualmode_pins(db, tilemap, args)
+    # XXX Z-1 some kind of power saving for pll, disable
+    if device in {'GW1NZ-1'}:
+        tile = tilemap[(db.rows - 1, db.cols - 1)]
+        for row, col in {(22, 63)}:
+            tile[row][col] = 0
+
     res = chipdb.fuse_bitmap(db, tilemap)
     header_footer(db, res, args.compress)
     if pil_available and args.png:
