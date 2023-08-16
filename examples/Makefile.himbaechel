@@ -36,7 +36,8 @@ HIMBAECHEL_OUT ?= ./himbaechel-out
 #	pll-nanolcd-tangnano.fs pll-nanolcd-tangnano9k.fs \
 #	all_deser
 all: blinky-primer20k.fs shift-primer20k.fs blinky-tbuf-primer20k.fs blinky-oddr-primer20k.fs \
-	blinky-osc-primer20k.fs tlvds-primer20k.fs elvds-primer20k.fs oddr-tlvds-primer20k.fs
+	blinky-osc-primer20k.fs tlvds-primer20k.fs elvds-primer20k.fs oddr-tlvds-primer20k.fs \
+	oddr-elvds-primer20k.fs pll-nanolcd-primer20k.fs
 	cp *.fs ${HIMBAECHEL_OUT}/
 
 unpacked: attosoc-tec0117-unpacked.v nanolcd-tangnano-unpacked.v blinky-tec0117-unpacked.v blinky-runber-unpacked.v \
@@ -73,11 +74,18 @@ clean: clean_deser
 	
 .PHONY: unpacked clean
 
+# ============================================================
+# TangPrimer20k
 %-primer20k.fs: %-primer20k.json
 	gowin_pack -d GW2A-18 -o $@ $<
 
 %-primer20k.json: %-primer20k-synth.json primer20k.cst
 	$(NEXTPNR) --json $< --write $@ --chipdb ${CHIPDB_PATH}/GW2A-18.bin --vopt partno=GW2A-LV18PG256C8/I7 --vopt cst=primer20k.cst
+
+pll-nanolcd-primer20k-synth.json: pll/GW2A-18-dyn.vh pll-nanolcd/TOP.v pll-nanolcd/VGAMod.v
+	$(YOSYS) -p "read_verilog $^; synth_gowin -noalu -json $@"
+
+# ============================================================
 
 %-tec0117.fs: %-tec0117.json
 	gowin_pack -d GW1N-9 -o $@ $<

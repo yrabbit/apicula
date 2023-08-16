@@ -28,10 +28,11 @@ module TOP
     );
 */
 rPLL pll(
-	    .CLKOUT(CLK_SYS),  // 90MHz
+	    .CLKOUT(CLK_PIX),  // 9MHz
 		.CLKIN(clk),
-		.CLKOUTD(CLK_PIX), // 9MHz
 		.CLKFB(GND),
+		.RESET(GND),
+		.RESET_P(GND),
 		.FBDSEL({GND,GND,GND,GND,GND,GND}),
 		.IDSEL({GND,GND,GND,GND,GND,GND}),
 		.ODSEL({GND,GND,GND,GND,GND,GND}),
@@ -43,10 +44,10 @@ rPLL pll(
 	defparam pll.FCLKIN = `PLL_FCLKIN;
 	defparam pll.FBDIV_SEL = `PLL_FBDIV_SEL_LCD;
 	defparam pll.IDIV_SEL =  `PLL_IDIV_SEL_LCD;
-	defparam pll.ODIV_SEL =  8;           // 90MHz sys clock
+	defparam pll.ODIV_SEL =  64;
 	defparam pll.CLKFB_SEL="internal";
 	defparam pll.CLKOUTD3_SRC="CLKOUT";
-	defparam pll.CLKOUTD_BYPASS="false";
+	defparam pll.CLKOUTD_BYPASS="true";
 	defparam pll.CLKOUTD_SRC="CLKOUT";
 	defparam pll.CLKOUTP_BYPASS="false";
 	defparam pll.CLKOUTP_DLY_STEP=0;
@@ -59,7 +60,7 @@ rPLL pll(
 	defparam pll.DYN_FBDIV_SEL="false";
 	defparam pll.DYN_IDIV_SEL="false";
 	defparam pll.DYN_ODIV_SEL="false";
-	defparam pll.DYN_SDIV_SEL=10;      // 90MHz / 10 = 9MHz --- pixel clock
+	defparam pll.DYN_SDIV_SEL=1;      // 9MHz --- pixel clock
 	defparam pll.PSDA_SEL="0000";
 
 assign led[0] = LED_R;
