@@ -14,8 +14,8 @@ IO_LOC "led[3]" 34;
 // fake
 IO_LOC "led[4]" 71;
 IO_LOC "led[5]" 72;
-IO_LOC "led[6]" 73;
-IO_LOC "led[6]" 74;
+IO_LOC "led[6]" 124;
+IO_LOC "led[7]" 125;
 
 // emulated lvds pins
 IO_LOC "elvds_p" 44;

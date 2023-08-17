@@ -7,34 +7,8 @@ HIMBAECHEL_OUT ?= ./himbaechel-out
 .DEFAULT_GOAL := all
 
 #include deser/Makefile
+# add attosoc
 
-#all: attosoc-tec0117.fs nanolcd-tangnano.fs blinky-tec0117.fs blinky-runber.fs \
-#	blinky-tangnano.fs blinky-honeycomb.fs\
-#	shift-tec0117.fs shift-runber.fs \
-#	shift-tangnano.fs shift-honeycomb.fs \
-#	tonegen-tec0117.fs blinky-tangnano9k.fs blinky-tangnano1k.fs blinky-tangnano4k.fs \
-#	blinky-tbuf-tangnano.fs blinky-tbuf-tangnano1k.fs blinky-tbuf-tangnano4k.fs \
-#	blinky-tbuf-tangnano9k.fs blinky-tbuf-tec0117.fs blinky-tbuf-runber.fs \
-#	blinky-tbuf-honeycomb.fs \
-#	shift-tangnano9k.fs shift-tangnano1k.fs shift-tangnano4k.fs \
-#	tlvds-tangnano4k.fs tlvds-tangnano9k.fs tlvds-tec0117.fs tlvds-szfpga.fs \
-#	elvds-tangnano4k.fs elvds-tangnano9k.fs elvds-tec0117.fs elvds-szfpga.fs \
-#	elvds-tangnano.fs elvds-tangnano1k.fs \
-#	oddr-tlvds-tangnano4k.fs oddr-tlvds-tangnano9k.fs oddr-tlvds-tec0117.fs \
-#	oddr-elvds-tangnano4k.fs oddr-elvds-tangnano9k.fs oddr-elvds-tec0117.fs oddr-elvds-szfpga.fs \
-#	oddr-elvds-tangnano.fs oddr-elvds-tangnano1k.fs \
-#	blinky-oddr-tec0117.fs blinky-oddr-runber.fs \
-#	blinky-oddr-tangnano.fs blinky-oddr-tangnano1k.fs blinky-oddr-honeycomb.fs \
-#	blinky-oddr-tangnano4k.fs blinky-oddr-tangnano9k.fs \
-#	blinky-osc-tec0117.fs blinky-osc-runber.fs blinky-osc-tangnano.fs  \
-#	blinky-osc-honeycomb.fs \
-#	blinky-osc-tangnano9k.fs blinky-osc-tangnano1k.fs blinky-osc-tangnano4k.fs \
-#	pll-52-tangnano.fs pll-80-tangnano.fs \
-#	pll-54-tangnano1k.fs pll-81-tangnano1k.fs \
-#	pll-dyn-tangnano.fs pll-dyn-tangnano1k.fs \
-#	pll-tangnano4k.fs pll2-tangnano9k.fs pll2-tec0117.fs pll2-runber.fs pll-dyn-honeycomb.fs \
-#	pll-nanolcd-tangnano.fs pll-nanolcd-tangnano9k.fs \
-#	all_deser
 all: blinky-primer20k.fs shift-primer20k.fs blinky-tbuf-primer20k.fs blinky-oddr-primer20k.fs \
 	blinky-osc-primer20k.fs tlvds-primer20k.fs elvds-primer20k.fs oddr-tlvds-primer20k.fs \
 	oddr-elvds-primer20k.fs pll-nanolcd-primer20k.fs \
@@ -49,9 +23,13 @@ all: blinky-primer20k.fs shift-primer20k.fs blinky-tbuf-primer20k.fs blinky-oddr
 	blinky-osc-tangnano9k.fs tlvds-tangnano9k.fs elvds-tangnano9k.fs oddr-tlvds-tangnano9k.fs \
 	oddr-elvds-tangnano9k.fs pll-nanolcd-tangnano9k.fs \
 	\
-	blinky-szfpga.fs shift-tangnano9k.fs blinky-tbuf-tangnano9k.fs blinky-oddr-tangnano9k.fs \
-	blinky-osc-tangnano9k.fs tlvds-tangnano9k.fs elvds-tangnano9k.fs oddr-tlvds-tangnano9k.fs \
-	oddr-elvds-tangnano9k.fs pll-nanolcd-tangnano9k.fs
+	blinky-szfpga.fs shift-szfpga.fs blinky-tbuf-szfpga.fs blinky-oddr-szfpga.fs \
+	blinky-osc-szfpga.fs tlvds-szfpga.fs elvds-szfpga.fs oddr-tlvds-szfpga.fs \
+	oddr-elvds-szfpga.fs \
+	\
+	blinky-tec0117.fs shift-tec0117.fs blinky-tbuf-tec0117.fs blinky-oddr-tec0117.fs \
+	blinky-osc-tec0117.fs tlvds-tec0117.fs elvds-tec0117.fs oddr-tlvds-tec0117.fs \
+	oddr-elvds-tec0117.fs attosoc-tec0117.fs
 	cp *.fs ${HIMBAECHEL_OUT}/
 
 unpacked: attosoc-tec0117-unpacked.v nanolcd-tangnano-unpacked.v blinky-tec0117-unpacked.v blinky-runber-unpacked.v \
@@ -161,17 +139,19 @@ pll-nanolcd-tangnano9k.fs: pll-nanolcd-tangnano9k.json
 %-szfpga-synth.json: %.v
 	$(YOSYS) -D LEDS_NR=4 -D OSC_TYPE_OSC -p "read_verilog $^; synth_gowin -json $@"
 
-
 # ============================================================
+# tec0117 (GW1N-9)
 %-tec0117.fs: %-tec0117.json
 	gowin_pack -d GW1N-9 -o $@ $<
 
 %-tec0117.json: %-tec0117-synth.json tec0117.cst
-	$(NEXTPNR) --json $< --write $@ --device GW1NR-LV9QN88C6/I5 --cst tec0117.cst
+	$(NEXTPNR) --json $< --write $@ --chipdb ${CHIPDB_PATH}/GW1N-9.bin --vopt partno=GW1NR-LV9QN88C6/I5 --vopt cst=tec0117.cst
 
-%lvds-tec0117.json: %lvds-tec0117-synth.json lvds-tec0117.cst
-	$(NEXTPNR) --json $< --write $@ --device GW1NR-LV9QN88C6/I5 --cst lvds-tec0117.cst
+%-tec0117-synth.json: %.v
+	$(YOSYS) -D LEDS_NR=8 -D OSC_TYPE_OSC -p "read_verilog $^; synth_gowin -json $@"
 
+
+# ============================================================
 %-runber.fs: %-runber.json
 	gowin_pack -d GW1N-4 -o $@ $<
 
@@ -200,9 +180,6 @@ pll-tangnano4k.json: pll-tangnano4k-synth.json tangnano4k.cst
 %-honeycomb.json: %-honeycomb-synth.json honeycomb.cst
 	$(NEXTPNR) --json $< --write $@ --device GW1NS-UX2CQN48C5/I4 --cst honeycomb.cst
 
-attosoc-tec0117-synth.json: attosoc/attosoc.v attosoc/picorv32.v
-	$(YOSYS) -p "read_verilog $^; synth_gowin -json $@"
-
 lutram-tec0117-synth.json: lutram/lutram.v lutram/prbs.v lutram/top.v
 	$(YOSYS) -p "read_verilog $^; synth_gowin -nolutram -json $@"
 
@@ -220,9 +197,6 @@ pll2-tec0117-synth.json: pll/GW1N-9-dyn.vh pll2.v pll/rpll.v
 
 pll2-runber-synth.json: pll/GW1N-4-dyn.vh pll2.v pll/rpll.v
 	$(YOSYS) -p "read_verilog $^; synth_gowin -noalu -json $@"
-
-%-tec0117-synth.json: %.v
-	$(YOSYS) -D LEDS_NR=8 -D OSC_TYPE_OSC -p "read_verilog $^; synth_gowin -json $@"
 
 %-runber-synth.json: %.v
 	$(YOSYS) -D LEDS_NR=8 -D OSC_TYPE_OSC -p "read_verilog $^; synth_gowin -json $@"
