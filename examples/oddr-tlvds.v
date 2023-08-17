@@ -22,19 +22,17 @@ always @(posedge clk)
 assign ctr_d = ctr_q + 1'b1;
 assign i_tick = |ctr_q[24:23];
 
-wire w_oen;
-
 ODDR oddr_0(
 	.D0(1'b0),
 	.D1(1'b1),
 	.CLK(i_tick),
 	.Q0(w_ddr),
-	.Q1(w_oen),
-	.TX(~key)
+	.Q1(),
+	.TX()
 );
 
 TLVDS_TBUF diff_buf(
-		.OEN(w_oen),
+		.OEN(~key),
         .O(tlvds_p),
         .OB(tlvds_n),
         .I(w_ddr)

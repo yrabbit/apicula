@@ -25,7 +25,7 @@ OSCH osc(
 	.OSCOUT(clk)
 );
 `endif
-defparam osc.FREQ_DIV=16;
+defparam osc.FREQ_DIV=128;
 
 reg [25:0] ctr_q;
 wire [25:0] ctr_d;

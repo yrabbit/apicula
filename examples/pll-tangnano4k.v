@@ -14,7 +14,6 @@ module top(input wire clk, output wire [5:0]led, input wire rst, input wire key)
 	wire dummy;
 	reg [5:0] fdiv;
 	reg [5:0] idiv;
-	reg [5:0] odiv;
     Gowin_PLLVR rpll_0(
         .clkout(led[0]),
         .clkin(clk),
@@ -24,8 +23,7 @@ module top(input wire clk, output wire [5:0]led, input wire rst, input wire key)
 		.clkfb(gnd),
 		.clkoutd_o(led[2]),
 		.fdiv(fdiv),
-		.idiv(idiv),
-		.odiv(6'b111100) // 8
+		.idiv(idiv)
         );
 
     Gowin_PLLVR rpll_1(
@@ -37,8 +35,7 @@ module top(input wire clk, output wire [5:0]led, input wire rst, input wire key)
 		.clkfb(gnd),
 		.clkoutd_o(led[5]),
 		.fdiv(~6'd9),
-		.idiv(~6'd2),
-		.odiv(6'b111100) // 8
+		.idiv(~6'd2)
         );
 
 	// dynamic
@@ -46,11 +43,9 @@ module top(input wire clk, output wire [5:0]led, input wire rst, input wire key)
 		if (key) begin
 			fdiv <= ~6'd12;
 			idiv <= ~6'd5;
-			odiv <= 6'b111000; // 16
 		end else begin
 			fdiv <= ~6'd9;
 			idiv <= ~6'd2;
-			odiv <= ~6'b111100; // 8
 		end
 	end
 endmodule
