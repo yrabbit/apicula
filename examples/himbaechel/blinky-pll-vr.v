@@ -6,6 +6,8 @@ module top (
 );
 
 wire clk_w;
+wire GND = 1'b0;
+wire VCC = 1'b1;
 
 PLLVR pllvr_inst (
     .CLKOUT(clk_w),
@@ -19,8 +21,30 @@ PLLVR pllvr_inst (
 	.DUTYDA({GND,GND,GND,GND}),
 	.PSDA({GND,GND,GND,GND}),
 	.FDLY({GND,GND,GND,GND}),
-	.VREN(gw_vcc)
+	.VREN(VCC)
 );
+defparam pllvr_inst.FCLKIN = "27";
+defparam pllvr_inst.DYN_IDIV_SEL = "true";
+defparam pllvr_inst.IDIV_SEL = 2;
+defparam pllvr_inst.DYN_FBDIV_SEL = "true";
+defparam pllvr_inst.FBDIV_SEL = 0;
+defparam pllvr_inst.DYN_ODIV_SEL = "false";
+defparam pllvr_inst.ODIV_SEL = 48;
+defparam pllvr_inst.PSDA_SEL = "0000";
+defparam pllvr_inst.DYN_DA_EN = "false";
+defparam pllvr_inst.DUTYDA_SEL = "0100";
+defparam pllvr_inst.CLKOUT_FT_DIR = 1'b1;
+defparam pllvr_inst.CLKOUTP_FT_DIR = 1'b1;
+defparam pllvr_inst.CLKOUT_DLY_STEP = 0;
+defparam pllvr_inst.CLKOUTP_DLY_STEP = 0;
+defparam pllvr_inst.CLKFB_SEL = "internal";
+defparam pllvr_inst.CLKOUT_BYPASS = "false";
+defparam pllvr_inst.CLKOUTP_BYPASS = "false";
+defparam pllvr_inst.CLKOUTD_BYPASS = "false";
+defparam pllvr_inst.DYN_SDIV_SEL = 126;
+defparam pllvr_inst.CLKOUTD_SRC = "CLKOUTP";
+defparam pllvr_inst.CLKOUTD3_SRC = "CLKOUTP";
+defparam pllvr_inst.DEVICE = "GW1NSR-4C";
 
 
 reg [25:0] ctr_q;
