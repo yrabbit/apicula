@@ -76,13 +76,7 @@ clean: clean_deser
 	gowin_pack -d GW1N-9 -o $@ $<
 
 %-tec0117.json: %-tec0117-synth.json tec0117.cst
-	$(NEXTPNR) --json $< --write $@ --device GW1NR-LV9LQ144PC6/I5 --cst tec0117.cst
-
-%-szfpga.fs: %-szfpga.json
-	gowin_pack -d GW1N-9 -o $@ $<
-
-%-szfpga.json: %-szfpga-synth.json szfpga.cst
-	$(NEXTPNR) --json $< --write $@ --device GW1NR-LV9LQ144PC6/I5 --cst szfpga.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1NR-LV9QN88C6/I5 --cst tec0117.cst
 
 %lvds-tec0117.json: %lvds-tec0117-synth.json lvds-tec0117.cst
 	$(NEXTPNR) --json $< --write $@ --device GW1NR-LV9QN88C6/I5 --cst lvds-tec0117.cst
@@ -91,10 +85,10 @@ clean: clean_deser
 	gowin_pack -d GW1N-4 -o $@ $<
 
 %-runber.json: %-runber-synth.json runber.cst
-	$(NEXTPNR) -v --debug --json $< --write $@ --device GW1N-UV4LQ144C6/I5 --cst runber.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1N-UV4LQ144C6/I5 --cst runber.cst
 
 blinky-oddr-runber.json: blinky-oddr-runber-synth.json runber-tlvds.cst
-	$(NEXTPNR) -v --debug   --json $< --write $@ --device GW1N-UV4LQ144C6/I5 --cst runber-tlvds.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1N-UV4LQ144C6/I5 --cst runber-tlvds.cst
 
 %-tangnano.fs: %-tangnano.json
 	gowin_pack -d GW1N-1 -o $@ $^
@@ -103,13 +97,13 @@ blinky-oddr-runber.json: blinky-oddr-runber-synth.json runber-tlvds.cst
 	$(NEXTPNR) --json $< --write $@ --device GW1N-LV1QN48C6/I5 --cst lvds-tangnano.cst
 
 %-tangnano.json: %-tangnano-synth.json tangnano.cst
-	$(NEXTPNR) -v --debug --router router2 --json $< --write $@ --device GW1N-LV1QN48C6/I5 --cst tangnano.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1N-LV1QN48C6/I5 --cst tangnano.cst
 
 %-tangnano1k.fs: %-tangnano1k.json
 	gowin_pack -d GW1NZ-1 -o $@ $^
 
 %-tangnano1k.json: %-tangnano1k-synth.json tangnano1k.cst
-	$(NEXTPNR) -v --debug --json $< --write $@ --device GW1NZ-LV1QN48C6/I5 --family GW1NZ-1 --cst tangnano1k.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1NZ-LV1QN48C6/I5 --family GW1NZ-1 --cst tangnano1k.cst
 
 %lvds-tangnano1k.json: %lvds-tangnano1k-synth.json lvds-tangnano1k.cst
 	$(NEXTPNR) --json $< --write $@ --device GW1NZ-LV1QN48C6/I5 --family GW1NZ-1 --cst lvds-tangnano1k.cst
@@ -118,7 +112,7 @@ blinky-oddr-runber.json: blinky-oddr-runber-synth.json runber-tlvds.cst
 	gowin_pack -d GW1NS-4 -o $@ $^
 
 %-tangnano4k.json: %-tangnano4k-synth.json tangnano4k.cst
-	$(NEXTPNR) --debug -v --seed=1 --json $< --write $@ --device GW1NSR-LV4CQN48PC7/I6 --cst tangnano4k.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1NSR-LV4CQN48PC7/I6 --cst tangnano4k.cst
 
 %lvds-tangnano4k.json: %lvds-tangnano4k-synth.json lvds-tangnano4k.cst
 	$(NEXTPNR) --json $< --write $@ --device GW1NSR-LV4CQN48PC7/I6 --cst lvds-tangnano4k.cst
@@ -133,7 +127,7 @@ pll-nanolcd-tangnano9k.fs: pll-nanolcd-tangnano9k.json
 	gowin_pack -d GW1N-9C --sspi_as_gpio --mspi_as_gpio -o $@ $^
 
 %-tangnano9k.json: %-tangnano9k-synth.json tangnano9k.cst
-	$(NEXTPNR) -v --debug --router router2 --json $< --write $@ --device GW1NR-LV9QN88PC6/I5 --family GW1N-9C --cst tangnano9k.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1NR-LV9QN88PC6/I5 --family GW1N-9C --cst tangnano9k.cst
 
 %lvds-tangnano9k.json: %lvds-tangnano9k-synth.json lvds-tangnano9k.cst
 	$(NEXTPNR) --json $< --write $@ --device GW1NR-LV9QN88PC6/I5 --family GW1N-9C --cst lvds-tangnano9k.cst
@@ -142,7 +136,7 @@ pll-nanolcd-tangnano9k.fs: pll-nanolcd-tangnano9k.json
 	gowin_pack -d GW1NS-2 -o $@ $<
 
 %-honeycomb.json: %-honeycomb-synth.json honeycomb.cst
-	$(NEXTPNR) -v --debug --json $< --write $@ --device GW1NS-UX2CQN48C5/I4 --cst honeycomb.cst
+	$(NEXTPNR) --json $< --write $@ --device GW1NS-UX2CQN48C5/I4 --cst honeycomb.cst
 
 attosoc-tec0117-synth.json: attosoc/attosoc.v attosoc/picorv32.v
 	$(YOSYS) -p "read_verilog $^; synth_gowin -json $@"
@@ -154,9 +148,6 @@ attosoc-tangnano9k-synth.json: attosoc/attosoc.v attosoc/picorv32.v
 	$(YOSYS) -p "read_verilog $^; synth_gowin -json $@"
 
 tonegen-tec0117-synth.json: tonegen/top.v tonegen/sddac.v tonegen/cordic.v
-	$(YOSYS) -p "read_verilog $^; synth_gowin -json $@"
-
-tonegen-szfpga-synth.json: tonegen/top.v tonegen/sddac.v tonegen/cordic.v
 	$(YOSYS) -p "read_verilog $^; synth_gowin -json $@"
 
 nanolcd-tangnano-synth.json: nanolcd/TOP.v nanolcd/VGAMod.v
@@ -181,10 +172,7 @@ pll2-runber-synth.json: pll/GW1N-4-dyn.vh pll2.v pll/rpll.v
 	$(YOSYS) -D LEDS_NR=6 -D OSC_TYPE_OSC -p "read_verilog $^; synth_gowin -json $@"
 
 %-tec0117-synth.json: %.v
-	$(YOSYS) -D LEDS_NR=4 -D OSC_TYPE_OSC -p "read_verilog $^; synth_gowin -json $@"
-
-%-szfpga-synth.json: %.v
-	$(YOSYS) -D LEDS_NR=4 -D OSC_TYPE_OSC -p "read_verilog $^; synth_gowin -json $@"
+	$(YOSYS) -D LEDS_NR=8 -D OSC_TYPE_OSC -p "read_verilog $^; synth_gowin -json $@"
 
 %-runber-synth.json: %.v
 	$(YOSYS) -D LEDS_NR=8 -D OSC_TYPE_OSC -p "read_verilog $^; synth_gowin -json $@"
@@ -222,15 +210,12 @@ pll-%-honeycomb-synth.json: pll/GW1NS-2C-%.vh pll.v pll/rpll.v
 %-tec0117-prog: %-tec0117.fs
 	openFPGALoader -b tec0117 $^
 
-%-szfpga-prog: %-szfpga.fs
-	openFPGALoader -c ft2232 $^
-
 %-runber-prog: %-runber.fs
 	openFPGALoader -b runber $^
 
 %-tangnano-prog: %-tangnano.fs
 	openFPGALoader -b tangnano $^
-
+	
 %-tangnano4k-prog: %-tangnano4k.fs
 	openFPGALoader -b tangnano4k $^
 
@@ -250,9 +235,6 @@ pll-%-honeycomb-synth.json: pll/GW1NS-2C-%.vh pll.v pll/rpll.v
 	gowin_unpack -d GW1N-4 -o $@ $^
 
 %-tec0117-unpacked.v: %-tec0117.fs
-	gowin_unpack -d GW1N-9 -o $@ $^
-
-%-szfpga-unpacked.v: %-szfpga.fs
 	gowin_unpack -d GW1N-9 -o $@ $^
 
 %-honeycomb-unpacked.v: %-honeycomb.fs

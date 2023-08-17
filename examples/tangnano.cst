@@ -4,13 +4,12 @@ IO_LOC "clk" 35;
 IO_LOC "led[0]" 16;
 IO_LOC "led[1]" 17;
 IO_LOC "led[2]" 18;
-//IO_LOC "test" 42;
-IO_LOC "test" 41;
 IO_LOC "key" 15;
 IO_LOC "rst" 14;
 
+
 IO_LOC "LCD_B[0]" 41;
-//IO_LOC "LCD_B[1]" 42;
+IO_LOC "LCD_B[1]" 42;
 IO_LOC "LCD_B[2]" 43;
 IO_LOC "LCD_B[3]" 44;
 IO_LOC "LCD_B[4]" 45;
