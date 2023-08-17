@@ -28,3 +28,6 @@ IO_LOC "LCD_R[2]" 29;
 IO_LOC "LCD_R[3]" 30;
 IO_LOC "LCD_R[4]" 31;
 IO_LOC "LCD_SYNC" 46;
+
+IO_LOC "elvds_p" 39;
+IO_LOC "elvds_n" 38;

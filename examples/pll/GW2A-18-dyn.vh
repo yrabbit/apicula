@@ -1,5 +1,5 @@
 `define PLL_DYN
-`define PLL_DEVICE "GW1NR-9C"
+`define PLL_DEVICE "GW2A-18"
 `define PLL_FCLKIN "27"
 `define PLL_ODIV_SEL  64
 

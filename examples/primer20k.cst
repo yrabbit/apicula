@@ -10,6 +10,10 @@ IO_LOC "led[3]" N14;
 IO_LOC "led[4]" L14;
 IO_LOC "led[5]" L16;
 
+// fake
+IO_LOC "led[6]" A15;
+IO_LOC "led[7]" D14;
+
 IO_LOC "tlvds_p" P6;
 IO_LOC "tlvds_n" T6;
 

@@ -44,7 +44,7 @@ rPLL pll(
 	defparam pll.FCLKIN = `PLL_FCLKIN;
 	defparam pll.FBDIV_SEL = `PLL_FBDIV_SEL_LCD;
 	defparam pll.IDIV_SEL =  `PLL_IDIV_SEL_LCD;
-	defparam pll.ODIV_SEL =  64;
+	defparam pll.ODIV_SEL = `PLL_ODIV_SEL;
 	defparam pll.CLKFB_SEL="internal";
 	defparam pll.CLKOUTD3_SRC="CLKOUT";
 	defparam pll.CLKOUTD_BYPASS="true";
@@ -83,18 +83,19 @@ assign led[2] = LED_B;
 	);
 
 	assign		LCD_CLK		=	CLK_PIX;
+	assign		LCD_SYS		=	CLK_PIX;
 
     //RGB LED TEST
-    reg 	[31:0] Count;
+    reg 	[24:0] Count;
     reg     [1:0] rgb_data;
 	always @(  posedge CLK_SYS or negedge rst  )
 	begin
 		if(  !rst  )
 		begin
-		Count		<= 32'd0;
+		Count		<= 25'd0;
         rgb_data    <= 2'b00;
 		end
-		else if ( Count == 12000000 )
+		else if ( Count == 1200000 )
 		begin
 			Count <= 4'b0;
             rgb_data <= rgb_data + 1'b1;
