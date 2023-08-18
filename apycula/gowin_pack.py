@@ -1061,7 +1061,7 @@ def dualmode_pins(db, tilemap, args):
     if bits:
         tile = tilemap[(0, 0)]
         for row, col in bits:
-            tile[row][col] = 1
+            tile[row][col] = 0
 
 def main():
     global device
@@ -1128,7 +1128,7 @@ def main():
     if device in {'GW1NZ-1'}:
         tile = tilemap[(db.rows - 1, db.cols - 1)]
         for row, col in {(23, 63)}:
-            tile[row][col] = 0
+            tile[row][col] = 1
 
     res = chipdb.fuse_bitmap(db, tilemap)
     header_footer(db, res, args.compress)
