@@ -13,9 +13,9 @@ module top(input wire clk,
 		.CALIB(1'b0),
 		.RESET(!rst),
         .Q0(q_o[0]),
-        .Q1(),
-        .Q2(),
-        .Q3()
+        .Q1(q_o[1]),
+        .Q2(q_o[2]),
+        .Q3(q_o[3])
     );
 	defparam ides.GSREN="false";
 	defparam ides.LSREN="true";

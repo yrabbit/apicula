@@ -77,7 +77,7 @@ unpacked: attosoc-tec0117-unpacked.v nanolcd-tangnano-unpacked.v blinky-tec0117-
 	blinky-pll-tec0117-unpacked.v blinky-pll-runber-unpacked.v blinky-pll-tangnano4k-unpacked.v \
 	pll-nanolcd-tangnano-unpacked.v pll-nanolcd-tangnano9k-unpacked.v
 	
-clean: clean_deser
+clean: 
 	rm -f *.json *.fs *-unpacked.v
 	
 .PHONY: unpacked clean
