@@ -119,7 +119,7 @@ pll-nanolcd-tangnano-synth.json: pll/GW1N-1-dyn.vh pll-nanolcd/TOP.v pll-nanolcd
 	gowin_pack -d GW1NZ-1 -o $@ $^
 
 %-tangnano1k.json: %-tangnano1k-synth.json tangnano1k.cst
-	$(NEXTPNR) -v --debug --json $< --write $@ --chipdb ${CHIPDB_PATH}/GW1NZ-1.bin --vopt partno=GW1NZ-LV1QN48C6/I5 --vopt cst=tangnano1k.cst
+	$(NEXTPNR) --json $< --write $@ --chipdb ${CHIPDB_PATH}/GW1NZ-1.bin --vopt partno=GW1NZ-LV1QN48C6/I5 --vopt cst=tangnano1k.cst
 
 %-tangnano1k-synth.json: %.v
 	$(YOSYS) -D LEDS_NR=3 -D OSC_TYPE_OSCZ -p "read_verilog $^; synth_gowin -json $@"
@@ -136,7 +136,7 @@ pll-nanolcd-tangnano1k-synth.json: pll/GW1NZ-1-dyn.vh pll-nanolcd/TOP.v pll-nano
 	gowin_pack -d GW1NS-4 -o $@ $^
 
 %-tangnano4k.json: %-tangnano4k-synth.json tangnano4k.cst
-	$(NEXTPNR) -v --debug --json $< --write $@ --chipdb ${CHIPDB_PATH}/GW1NS-4.bin --vopt partno=GW1NSR-LV4CQN48PC7/I6 --vopt cst=tangnano4k.cst
+	$(NEXTPNR) --json $< --write $@ --chipdb ${CHIPDB_PATH}/GW1NS-4.bin --vopt partno=GW1NSR-LV4CQN48PC7/I6 --vopt cst=tangnano4k.cst
 
 %-tangnano4k-synth.json: %.v
 	$(YOSYS) -D LEDS_NR=6 -D OSC_TYPE_OSCZ -p "read_verilog $^; synth_gowin -json $@"
