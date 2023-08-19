@@ -1061,7 +1061,7 @@ def dualmode_pins(db, tilemap, args):
     if bits:
         tile = tilemap[(0, 0)]
         for row, col in bits:
-            tile[row][col] = 0
+            tile[row][col] = 1
 
 def main():
     global device
