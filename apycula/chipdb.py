@@ -1,12 +1,13 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Tuple, Union, ByteString
+from typing import Dict, List, Set, Tuple, Union, ByteString, Any
 from itertools import chain
 import re
+import copy
 from functools import reduce
 from collections import namedtuple
 import numpy as np
 import apycula.fuse_h4x as fuse
-from apycula.wirenames import wirenames, clknames
+from apycula.wirenames import wirenames, clknames, clknumbers, hclknames, hclknumbers
 from apycula import pindef
 
 # the character that marks the I/O attributes that come from the nextpnr
@@ -50,6 +51,10 @@ class Tile:
     # a mapping from dest, source wire to bit coordinates
     pips: Dict[str, Dict[str, Set[Coord]]] = field(default_factory=dict)
     clock_pips: Dict[str, Dict[str, Set[Coord]]] = field(default_factory=dict)
+    # XXX Since Himbaechel uses a system of nodes instead of aliases for clock
+    # wires, at first we would like to avoid mixing in a bunch of PIPs of
+    # different nature.
+    pure_clock_pips: Dict[str, Dict[str, Set[Coord]]] = field(default_factory=dict)
     # fuses to disable the long wire columns. This is the table 'alonenode[6]' in the vendor file
     # {dst: ({src}, {bits})}
     alonenode_6: Dict[str, Tuple[Set[str], Set[Coord]]] = field(default_factory=dict)
@@ -81,6 +86,33 @@ class Device:
     longval: Dict[int, Dict[str, Dict[Tuple[int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int], Set[Coord]]]] = field(default_factory=dict)
     # always-connected dest, src aliases
     aliases: Dict[Tuple[int, int, str], Tuple[int, int, str]] = field(default_factory=dict)
+
+    # for Himbaechel arch
+    # nodes - always connected wires {node_name: (wire_type, {(row, col, wire_name)})}
+    nodes: Dict[str, Tuple[str, Set[Tuple[int, int, str]]]] = field(default_factory = dict)
+    # strange bottom row IO. In order for OBUF and Co. to work, one of the four
+    # combinations must be applied to two special wires.
+    # (wire_a, wire_b, [(wire_a_net, wire_b_net)])
+    bottom_io: Tuple[str, str, List[Tuple[str, str]]] = field(default_factory = tuple)
+    # simplified IO rows
+    simplio_rows: Set[int] = field(default_factory = set)
+    # tile types by func. The same ttyp number can correspond to different
+    # functional blocks on different chips. For example 86 is the PLL head ttyp
+    # for GW2A-18 and the same number is used in GW1N-1 where it has nothing to
+    # do with PLL.  { type_name: {type_num} }
+    tile_types: Dict[str, Set[int]] = field(default_factory = dict)
+    # supported differential IO primitives
+    diff_io_types: List[str] = field(default_factory = list)
+    # HCLK pips depend on the location of the cell, not on the type, so they
+    # are difficult to match with the deduplicated description of the tile
+    # { (y, x) : pips}
+    hclk_pips: Dict[Tuple[int, int], Dict[str, Dict[str, Set[Coord]]]] = field(default_factory=dict)
+    # extra cell functions besides main type like
+    # - OSCx
+    # - GSR
+    # - OSER16/IDES16
+    # - ref to hclk_pips
+    extra_func: Dict[Tuple[int, int], Dict[str, Any]] = field(default_factory=dict)
 
     @property
     def rows(self):
@@ -197,6 +229,11 @@ def fse_pll(device, fse, ttyp):
             bel = bels.setdefault('RPLLB', Bel())
     elif device in {'GW1N-9C', 'GW1N-9'}:
         if ttyp in {86, 87}:
+            bel = bels.setdefault('RPLLA', Bel())
+        elif ttyp in {74, 75, 76, 77, 78, 79}:
+            bel = bels.setdefault('RPLLB', Bel())
+    elif device in {'GW2A-18', 'GW2AR-18'}:
+        if ttyp in {42, 45}:
             bel = bels.setdefault('RPLLA', Bel())
         elif ttyp in {74, 75, 76, 77, 78, 79}:
             bel = bels.setdefault('RPLLB', Bel())
@@ -331,7 +368,7 @@ def fse_luts(fse, ttyp):
 def fse_osc(device, fse, ttyp):
     osc = {}
 
-    if device in {'GW1N-4', 'GW1N-9', 'GW1N-9C', 'GW2A-18'}:
+    if device in {'GW1N-4', 'GW1N-9', 'GW1N-9C', 'GW2A-18', 'GW2AR-18'}:
         bel = osc.setdefault(f"OSC", Bel())
     elif device in {'GW1NZ-1', 'GW1NS-4'}:
         bel = osc.setdefault(f"OSCZ", Bel())
@@ -642,6 +679,286 @@ def fse_create_hclk_aliases(db, device, dat):
             db.grid[row][col].clock_pips['FCLK'] = {'HCLK1': {}}
             db.aliases[(row, col, 'HCLK1')] = (row, db.cols - 1, 'SPINE13')
 
+# HCLK for Himbaechel
+# hclk - locs of hclk control this side
+# edges - how cells along this side can connect to hclk
+_hclk_to_fclk = {
+    'GW1N-1': {
+        'B': {
+             'hclk': {(10, 0), (10, 19)},
+             'edges': {
+                 ( 1, 10) : {'CLK2', 'HCLK_OUT2'},
+                 (10, 19) : {'CLK2', 'HCLK_OUT3'},
+                 },
+             },
+        'T': {
+             'edges': {
+                 ( 1, 19) : {'CLK2'},
+                 },
+             },
+        'L': {
+             'edges': {
+                 ( 1, 10) : {'CLK2'},
+                 },
+             },
+        'R': {
+             'edges': {
+                 ( 1, 10) : {'CLK2'},
+                 },
+             },
+        },
+    'GW1NZ-1': {
+        'T': {
+             'hclk': {(0, 5)},
+             'edges': {
+                 ( 1, 10) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (10, 19) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'R': {
+             'hclk': {(5, 19)},
+             'edges': {
+                 ( 1,  5) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 ( 6, 10) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        },
+    'GW1NS-2': {
+        'B': {
+             'hclk': {(14, 0), (14, 19)},
+             'edges': {
+                 ( 1, 10) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (10, 19) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'T': {
+             'hclk': {(0, 0), (0, 19)},
+             'edges': {
+                 ( 1, 10) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (10, 19) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'L': {
+             'hclk': {(5, 0)},
+             'edges': {
+                 ( 1, 5) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 ( 6, 14) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'R': {
+             'hclk': {(5, 19)},
+             'edges': {
+                 ( 1, 5) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (6, 14) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        },
+    'GW1N-4': {
+        'B': {
+             'hclk': {(19, 0), (19, 37)},
+             'edges': {
+                 ( 1, 19) : {'CLK2', 'HCLK_OUT2'},
+                 (19, 37) : {'CLK2', 'HCLK_OUT3'},
+                 },
+             },
+        'T': {
+             'edges': {
+                 ( 1, 37) : {'CLK2'},
+                 },
+             },
+        'L': {
+             'hclk': {(9, 0)},
+             'edges': {
+                 ( 1, 9) : {'CLK2', 'HCLK_OUT2'},
+                 (10, 19) : {'CLK2', 'HCLK_OUT3'},
+                 },
+             },
+        'R': {
+             'hclk': {(9, 37)},
+             'edges': {
+                 ( 1, 9) : {'CLK2', 'HCLK_OUT2'},
+                 (10, 19) : {'CLK2', 'HCLK_OUT3'},
+                 },
+             },
+        },
+    'GW1NS-4': {
+        'B': {
+             'hclk': {(19, 16), (19, 17), (19, 20)},
+             'edges': {
+                 ( 1, 16) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (21, 37) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'T': {
+             'hclk': {(0, 18)},
+             'edges': {
+                 ( 1, 10) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (10, 37) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'R': {
+             'hclk': {(9, 37)},
+             'edges': {
+                 ( 1, 9) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (9, 19) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        },
+    'GW1N-9': {
+        'B': {
+             'hclk': {(28, 0), (28, 46)},
+             'edges': {
+                 ( 1, 28) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (28, 46) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'T': {
+             'hclk': {(0, 0), (0, 46)},
+             'edges': {
+                 ( 1, 28) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (28, 46) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'L': {
+             'hclk': {(18, 0)},
+             'edges': {
+                 ( 1, 19) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (19, 28) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'R': {
+             'hclk': {(18, 46)},
+             'edges': {
+                 ( 1, 19) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (19, 28) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        },
+    'GW1N-9C': {
+        'B': {
+             'hclk': {(28, 0), (28, 46)},
+             'edges': {
+                 ( 1, 46) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'T': {
+             'hclk': {(0, 0), (0, 46)},
+             'edges': {
+                 ( 1, 46) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'L': {
+             'hclk': {(18, 0)},
+             'edges': {
+                 ( 1, 28) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'R': {
+             'hclk': {(18, 46)},
+             'edges': {
+                 ( 1, 28) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        },
+    'GW2A-18': {
+        'B': {
+             'hclk': {(54, 27), (54, 28)},
+             'edges': {
+                 ( 1, 27) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (29, 55) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'T': {
+             'hclk': {(0, 27), (0, 28)},
+             'edges': {
+                 ( 1, 27) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (29, 55) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'L': {
+             'hclk': {(27, 0)},
+             'edges': {
+                 ( 1, 27) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (28, 55) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        'R': {
+             'hclk': {(27, 55)},
+             'edges': {
+                 ( 1, 27) : {'HCLK_OUT0', 'HCLK_OUT2'},
+                 (28, 55) : {'HCLK_OUT1', 'HCLK_OUT3'},
+                 },
+             },
+        },
+}
+
+_global_wire_prefixes = {'PCLK', 'TBDHCLK', 'BBDHCLK', 'RBDHCLK', 'LBDHCLK',
+                         'TLPLL', 'TRPLL', 'BLPLL', 'BRPLL'}
+def fse_create_hclk_nodes(dev, device, fse, dat):
+    # XXX
+    if device not in _hclk_to_fclk:
+        return
+    hclk_info = _hclk_to_fclk[device]
+    for side in 'BRTL':
+        if side not in hclk_info:
+            continue
+
+        # create HCLK nodes
+        hclks = {}
+        # entries to the HCLK from logic
+        for hclk_idx, row, col, wire_idx in {(i, dat['CmuxIns'][str(i - 80)][0] - 1, dat['CmuxIns'][str(i - 80)][1] - 1, dat['CmuxIns'][str(i - 80)][2]) for i in range(hclknumbers['TBDHCLK0'], hclknumbers['RBDHCLK3'] + 1)}:
+            if row != -2:
+                dev.nodes.setdefault(hclknames[hclk_idx], ("HCLK", set()))[1].add((row, col, wirenames[wire_idx]))
+
+        if 'hclk' in hclk_info[side]:
+            # create HCLK cells pips
+            for hclk_loc in hclk_info[side]['hclk']:
+                row, col = hclk_loc
+                ttyp = fse['header']['grid'][61][row][col]
+                dev.hclk_pips[(row, col)] = fse_pips(fse, ttyp, table = 48, wn = hclknames)
+                # connect local wires like PCLKT0 etc to the global nodes
+                for srcs in dev.hclk_pips[(row, col)].values():
+                    for src in srcs.keys():
+                        for pfx in _global_wire_prefixes:
+                            if src.startswith(pfx):
+                                dev.nodes.setdefault(src, ('HCLK', set()))[1].add((row, col, src))
+                # strange GW1N-9C input-input aliases
+                for i in {0, 2}:
+                    dev.nodes.setdefault(f'X{col}Y{row}/HCLK9-{i}', ('HCLK', {(row, col, f'HCLK_IN{i}')}))[1].add((row, col, f'HCLK_9IN{i}'))
+
+            for i in range(4):
+                hnam = f'HCLK_OUT{i}'
+                wires = dev.nodes.setdefault(f'{side}{hnam}', ("HCLK", set()))[1]
+                hclks[hnam] = wires
+                for hclk_loc in hclk_info[side]['hclk']:
+                    row, col = hclk_loc
+                    wires.add((row, col, hnam))
+
+        # create pips from HCLK spines to FCLK inputs of IO logic
+        for edge, srcs in hclk_info[side]['edges'].items():
+            if side in 'TB':
+                row = {'T': 0, 'B': dev.rows - 1}[side]
+                for col in range(edge[0], edge[1]):
+                    if 'IOLOGICA' not in dev.grid[row][col].bels:
+                        continue
+                    pips = dev.hclk_pips.setdefault((row, col), {})
+                    for dst in 'AB':
+                        for src in srcs:
+                            pips.setdefault(f'FCLK{dst}', {}).update({src: set()})
+                            if src.startswith('HCLK'):
+                                hclks[src].add((row, col, src))
+            else:
+                col = {'L': 0, 'R': dev.cols - 1}[side]
+                for row in range(edge[0], edge[1]):
+                    if 'IOLOGICA' not in dev.grid[row][col].bels:
+                        continue
+                    pips = dev.hclk_pips.setdefault((row, col), {})
+                    for dst in 'AB':
+                        for src in srcs:
+                            pips.setdefault(f'FCLK{dst}', {}).update({src: set()})
+                            if src.startswith('HCLK'):
+                                hclks[src].add((row, col, src))
+
 _pll_loc = {
  'GW1N-1':
    {'TRPLL0CLK0': (0, 17, 'F4'), 'TRPLL0CLK1': (0, 17, 'F5'),
@@ -672,6 +989,24 @@ _pll_loc = {
     'TLPLL0CLK2': (9, 2, 'F5'), 'TLPLL0CLK3': (9, 2, 'F6'),
     'TRPLL0CLK0': (9, 44, 'F4'), 'TRPLL0CLK1': (9, 44, 'F7'),
     'TRPLL0CLK2': (9, 44, 'F5'), 'TRPLL0CLK3': (9, 44, 'F6'), },
+ 'GW2A-18':
+   {'TLPLL0CLK0': (9, 2, 'F4'), 'TLPLL0CLK1': (9, 2, 'F7'),
+    'TLPLL0CLK2': (9, 2, 'F5'), 'TLPLL0CLK3': (9, 2, 'F6'),
+    'TRPLL0CLK0': (9, 53, 'F4'), 'TRPLL0CLK1': (9, 53, 'F7'),
+    'TRPLL0CLK2': (9, 53, 'F5'), 'TRPLL0CLK3': (9, 53, 'F6'),
+    'BLPLL0CLK0': (45, 2, 'F4'), 'BLPLL0CLK1': (45, 2, 'F7'),
+    'BLPLL0CLK2': (45, 2, 'F5'), 'BLPLL0CLK3': (45, 2, 'F6'),
+    'BRPLL0CLK0': (45, 53, 'F4'), 'BRPLL0CLK1': (45, 53, 'F7'),
+    'BRPLL0CLK2': (45, 53, 'F5'), 'BRPLL0CLK3': (45, 53, 'F6'), },
+ 'GW2AR-18':
+   {'TLPLL0CLK0': (9, 2, 'F4'), 'TLPLL0CLK1': (9, 2, 'F7'),
+    'TLPLL0CLK2': (9, 2, 'F5'), 'TLPLL0CLK3': (9, 2, 'F6'),
+    'TRPLL0CLK0': (9, 53, 'F4'), 'TRPLL0CLK1': (9, 53, 'F7'),
+    'TRPLL0CLK2': (9, 53, 'F5'), 'TRPLL0CLK3': (9, 53, 'F6'),
+    'BLPLL0CLK0': (45, 2, 'F4'), 'BLPLL0CLK1': (45, 2, 'F7'),
+    'BLPLL0CLK2': (45, 2, 'F5'), 'BLPLL0CLK3': (45, 2, 'F6'),
+    'BRPLL0CLK0': (45, 53, 'F4'), 'BRPLL0CLK1': (45, 53, 'F7'),
+    'BRPLL0CLK2': (45, 53, 'F5'), 'BRPLL0CLK3': (45, 53, 'F6'), },
 }
 
 def fse_create_pll_clock_aliases(db, device):
@@ -680,10 +1015,18 @@ def fse_create_pll_clock_aliases(db, device):
         for col in range(db.cols):
             for w_dst, w_srcs in db.grid[row][col].clock_pips.items():
                 for w_src in w_srcs.keys():
-                    # XXX
-                    if device in {'GW1N-1', 'GW1NZ-1', 'GW1NS-2', 'GW1NS-4', 'GW1N-4', 'GW1N-9C', 'GW1N-9'}:
+                    if device in {'GW1N-1', 'GW1NZ-1', 'GW1NS-2', 'GW1NS-4', 'GW1N-4', 'GW1N-9C', 'GW1N-9', 'GW2A-18'}:
                         if w_src in _pll_loc[device].keys():
                             db.aliases[(row, col, w_src)] = _pll_loc[device][w_src]
+                            # Himbaechel node
+                            db.nodes.setdefault(w_src, ("PLL_O", set()))[1].add((row, col, w_src))
+            # Himbaechel HCLK
+            if (row, col) in db.hclk_pips:
+                for w_dst, w_srcs in db.hclk_pips[row, col].items():
+                    for w_src in w_srcs.keys():
+                        if device in {'GW1N-1', 'GW1NZ-1', 'GW1NS-2', 'GW1NS-4', 'GW1N-4', 'GW1N-9C', 'GW1N-9', 'GW2A-18'}:
+                            if w_src in _pll_loc[device]:
+                                db.nodes.setdefault(w_src, ("PLL_O", set()))[1].add((row, col, w_src))
 
 def fse_iologic(device, fse, ttyp):
     bels = {}
@@ -700,16 +1043,207 @@ def fse_iologic(device, fse, ttyp):
         if 22 in fse[ttyp]['shortval'].keys():
             bels['IOLOGICB'] = Bel()
     # 16bit
-    if device in {'GW1NS-4'} and ttyp in {142, 144, 59}:
+    if device in {'GW1NS-4'} and ttyp in {142, 143, 144, 58, 59}:
             bels['OSER16'] = Bel()
             bels['IDES16'] = Bel()
-    if device in {'GW1N-9', 'GW1N-9C'} and ttyp in {52, 66}:
+    if device in {'GW1N-9', 'GW1N-9C'} and ttyp in {52, 66, 63, 91, 92}:
             bels['OSER16'] = Bel()
             bels['IDES16'] = Bel()
     return bels
 
+# create clock aliases
+_clock_data = {
+        'GW1N-1':  { 'tap_start': [[1, 0, 3, 2], [3, 2, 1, 0]], 'quads': {( 6, 0, 11, 2, 3)}},
+        'GW1NZ-1': { 'tap_start': [[1, 0, 3, 2], [3, 2, 1, 0]], 'quads': {( 6, 0, 11, 2, 3)}},
+        'GW1NS-2': { 'tap_start': [[1, 0, 3, 2], [3, 2, 1, 0]], 'quads': {( 6, 0, 15, 2, 3)}},
+        'GW1N-4':  { 'tap_start': [[2, 1, 0, 3], [3, 2, 1, 0]], 'quads': {(10, 0, 20, 2, 3)}},
+        'GW1NS-4': { 'tap_start': [[2, 1, 0, 3], [3, 2, 1, 0]], 'quads': {(10, 0, 20, 2, 3)}},
+        'GW1N-9':  { 'tap_start': [[3, 2, 1, 0], [3, 2, 1, 0]], 'quads': {( 1, 0, 10, 1, 0), (19, 10, 29, 2, 3)}},
+        'GW1N-9C': { 'tap_start': [[3, 2, 1, 0], [3, 2, 1, 0]], 'quads': {( 1, 0, 10, 1, 0), (19, 10, 29, 2, 3)}},
+        'GW2A-18': { 'tap_start': [[3, 2, 1, 0], [3, 2, 1, 0]], 'quads': {(10, 0, 28, 1, 0), (46, 28, 55, 2, 3)}},
+        'GW2AR-18': { 'tap_start': [[3, 2, 1, 0], [3, 2, 1, 0]], 'quads': {(10, 0, 28, 1, 0), (46, 28, 55, 2, 3)}},
+        }
+def fse_create_clocks(dev, device, dat, fse):
+    center_col = dat['center'][1] - 1
+    clkpin_wires = {}
+    taps = {}
+    # find center muxes
+    for clk_idx, row, col, wire_idx in {(i, dat['CmuxIns'][str(i - 80)][0] - 1, dat['CmuxIns'][str(i - 80)][1] - 1, dat['CmuxIns'][str(i - 80)][2]) for i in range(clknumbers['PCLKT0'], clknumbers['PCLKR1'] + 1)}:
+        if row != -2:
+            dev.nodes.setdefault(clknames[clk_idx], ("GLOBAL_CLK", set()))[1].add((row, col, wirenames[wire_idx]))
+
+    spines = {f'SPINE{i}' for i in range(32)}
+    for row, rd in enumerate(dev.grid):
+        for col, rc in enumerate(rd):
+            for dest, srcs in rc.pure_clock_pips.items():
+                for src in srcs.keys():
+                    if src in spines and not dest.startswith('GT'):
+                        dev.nodes.setdefault(src, ("GLOBAL_CLK", set()))[1].add((row, col, src))
+                if dest in spines:
+                    dev.nodes.setdefault(dest, ("GLOBAL_CLK", set()))[1].add((row, col, dest))
+                    for src in { wire for wire in srcs.keys() if wire not in {'VCC', 'VSS'}}:
+                        dev.nodes.setdefault(src, ("GLOBAL_CLK", set()))[1].add((row, col, src))
+    # GBx0 <- GBOx
+    for spine_pair in range(4): # GB00/GB40, GB10/GB50, GB20/GB60, GB30/GB70
+        tap_start = _clock_data[device]['tap_start'][0]
+        tap_col = tap_start[spine_pair]
+        last_col = center_col
+        for col in range(dev.cols):
+            if col == center_col + 1:
+                tap_start = _clock_data[device]['tap_start'][1]
+                tap_col = tap_start[spine_pair] + col
+                last_col = dev.cols -1
+            if (col > tap_col + 2) and (tap_col + 4 < last_col):
+                tap_col += 4
+            taps.setdefault(spine_pair, {}).setdefault(tap_col, set()).add(col)
+    for row in range(dev.rows):
+        for spine_pair, tap_desc in taps.items():
+            for tap_col, cols in tap_desc.items():
+                node0_name = f'X{tap_col}Y{row}/GBO0'
+                dev.nodes.setdefault(node0_name, ("GLOBAL_CLK", set()))[1].add((row, tap_col, 'GBO0'))
+                node1_name = f'X{tap_col}Y{row}/GBO1'
+                dev.nodes.setdefault(node1_name, ("GLOBAL_CLK", set()))[1].add((row, tap_col, 'GBO1'))
+                for col in cols:
+                    dev.nodes.setdefault(node0_name, ("GLOBAL_CLK", set()))[1].add((row, col, f'GB{spine_pair}0'))
+                    dev.nodes.setdefault(node1_name, ("GLOBAL_CLK", set()))[1].add((row, col, f'GB{spine_pair + 4}0'))
+
+    # GTx0 <- center row GTx0
+    for spine_row, start_row, end_row, qno_l, qno_r in _clock_data[device]['quads']:
+        for spine_pair, tap_desc in taps.items():
+            for tap_col, cols in tap_desc.items():
+                if tap_col < center_col:
+                    quad = qno_l
+                else:
+                    quad = qno_r
+                for col in cols - {center_col}:
+                    node0_name = f'X{col}Y{spine_row}/GT00'
+                    dev.nodes.setdefault(node0_name, ("GLOBAL_CLK", set()))[1].add((spine_row, col, 'GT00'))
+                    node1_name = f'X{col}Y{spine_row}/GT10'
+                    dev.nodes.setdefault(node1_name, ("GLOBAL_CLK", set()))[1].add((spine_row, col, 'GT10'))
+                    for row in range(start_row, end_row):
+                        if row == spine_row:
+                            if col == tap_col:
+                                spine = quad * 8 + spine_pair
+                                dev.nodes.setdefault(f'SPINE{spine}', ("GLOBAL_CLK", set()))[1].add((row, col, f'SPINE{spine}'))
+                                # XXX skip clock 6 and 7 for now
+                                if spine_pair not in {2, 3}:
+                                    dev.nodes.setdefault(f'SPINE{spine + 4}', ("GLOBAL_CLK", set()))[1].add((row, col, f'SPINE{spine + 4}'))
+                        else:
+                            dev.nodes.setdefault(node0_name, ("GLOBAL_CLK", set()))[1].add((row, col, 'GT00'))
+                            dev.nodes.setdefault(node1_name, ("GLOBAL_CLK", set()))[1].add((row, col, 'GT10'))
+
+# function 0 - usual io
+# function 1 - DDR
+def fse_create_bottom_io(dev, device):
+    if device in {'GW1NS-4', 'GW1N-9C'}:
+        dev.bottom_io = ('D6', 'C6', [('VSS', 'VSS'), ('VCC', 'VSS')])
+    elif device in {'GW1N-9'}:
+        dev.bottom_io = ('A6', 'CE2', [('VSS', 'VSS'), ('VCC', 'VSS')])
+    else:
+        dev.bottom_io = ('', '', [])
+
+def fse_create_simplio_rows(dev, dat):
+    for row, rd in enumerate(dat['grid']):
+        if [r for r in rd if r in "Bb"]:
+            if row > 0:
+                row -= 1
+            if row == dev.rows:
+                row -= 1
+            dev.simplio_rows.add(row)
+
+def fse_create_tile_types(dev, dat):
+    type_chars = 'PCMI'
+    for fn in type_chars:
+        dev.tile_types[fn] = set()
+    for row, rd in enumerate(dat['grid']):
+        for col, fn in enumerate(rd):
+            if fn in type_chars:
+                i = row
+                if i > 0:
+                    i -= 1
+                if i == dev.rows:
+                    i -= 1
+                j = col
+                if j > 0:
+                    j -= 1
+                if j == dev.cols:
+                    j -= 1
+                dev.tile_types[fn].add(dev.grid[i][j].ttyp)
+
+def fse_create_diff_types(dev, device):
+    dev.diff_io_types = ['ELVDS_IBUF', 'ELVDS_OBUF', 'ELVDS_IOBUF', 'ELVDS_TBUF',
+                         'TLVDS_IBUF', 'TLVDS_OBUF', 'TLVDS_IOBUF', 'TLVDS_TBUF']
+    if device == 'GW1NZ-1':
+        dev.diff_io_types.remove('TLVDS_IBUF')
+        dev.diff_io_types.remove('TLVDS_OBUF')
+        dev.diff_io_types.remove('TLVDS_TBUF')
+        dev.diff_io_types.remove('TLVDS_IOBUF')
+        dev.diff_io_types.remove('ELVDS_IOBUF')
+    elif device == 'GW1N-1':
+        dev.diff_io_types.remove('TLVDS_OBUF')
+        dev.diff_io_types.remove('TLVDS_TBUF')
+        dev.diff_io_types.remove('TLVDS_IOBUF')
+        dev.diff_io_types.remove('ELVDS_IOBUF')
+    elif device not in {'GW2A-18', 'GW1N-4'}:
+        dev.diff_io_types.remove('TLVDS_IOBUF')
+
+def fse_create_io16(dev, device):
+    df = dev.extra_func
+    if device in {'GW1N-9', 'GW1N-9C'}:
+        for i in chain(range(1, 8, 2), range(10, 17, 2), range(20, 35, 2), range(38, 45, 2)):
+            df.setdefault((0, i), {})['io16'] = {'role': 'MAIN', 'pair': (0, 1)}
+            df.setdefault((0, i + 1), {})['io16'] = {'role': 'AUX', 'pair': (0, -1)}
+            df.setdefault((dev.rows - 1, i), {})['io16'] = {'role': 'MAIN', 'pair': (0, 1)}
+            df.setdefault((dev.rows - 1, i + 1), {})['io16'] = {'role': 'AUX', 'pair': (0, -1)}
+    elif device in {'GW1NS-4'}:
+        for i in chain(range(1, 8, 2), range(10, 17, 2), range(20, 26, 2), range(28, 35, 2)):
+            df.setdefault((0, i), {})['io16'] = {'role': 'MAIN', 'pair': (0, 1)}
+            df.setdefault((0, i + 1), {})['io16'] = {'role': 'AUX', 'pair': (0, -1)}
+            if i < 17:
+                df.setdefault((i, dev.cols - 1), {})['io16'] = {'role': 'MAIN', 'pair': (1, 0)}
+                df.setdefault((i + 1, dev.cols - 1), {})['io16'] = {'role': 'AUX', 'pair': (-1, 0)}
+
+# (osc-type, devices) : ({local-ports}, {aliases})
+_osc_ports = {('OSCZ', 'GW1NZ-1'): ({}, {'OSCOUT' : (0, 5, 'OF3'), 'OSCEN': (0, 2, 'A6')}),
+              ('OSCZ', 'GW1NS-4'): ({'OSCOUT': 'Q4', 'OSCEN': 'D6'}, {}),
+              ('OSCF', 'GW1NS-2'): ({}, {'OSCOUT': (10, 19, 'Q4'), 'OSCEN': (13, 19, 'B3')}),
+              ('OSCH', 'GW1N-1'):  ({'OSCOUT': 'Q4'}, {}),
+              ('OSC',  'GW1N-4'):  ({'OSCOUT': 'Q4'}, {}),
+              ('OSC',  'GW1N-9'):  ({'OSCOUT': 'Q4'}, {}),
+              ('OSC',  'GW1N-9C'):  ({'OSCOUT': 'Q4'}, {}),
+              ('OSC',  'GW2A-18'):  ({'OSCOUT': 'Q4'}, {}),
+              ('OSC',  'GW2AR-18'):  ({'OSCOUT': 'Q4'}, {}),
+              # XXX unsupported boards, pure theorizing
+              ('OSCO', 'GW1N-2'):  ({'OSCOUT': 'Q7'}, {'OSCEN': (9, 1, 'B4')}),
+              ('OSCW', 'GW2AN-18'):  ({'OSCOUT': 'Q4'}, {}),
+              }
+
+def fse_create_osc(dev, device, fse):
+    for row, rd in enumerate(dev.grid):
+        for col, rc in enumerate(rd):
+            if 51 in fse[rc.ttyp]['shortval']:
+                osc_type = list(fse_osc(device, fse, rc.ttyp).keys())[0]
+                dev.extra_func.setdefault((row, col), {}).update(
+                        {'osc': {'type': osc_type}})
+                _, aliases = _osc_ports[osc_type, device]
+                for port, alias in aliases.items():
+                    dev.nodes.setdefault(f'X{col}Y{row}/{port}', (port, {(row, col, port)}))[1].add(alias)
+
+def fse_create_gsr(dev, device):
+    row, col = (0, 0)
+    if device in {'GW2A-18'}:
+        row, col = (27, 50)
+    dev.extra_func.setdefault((row, col), {}).update(
+        {'gsr': {'wire': 'C4'}})
+
+def sync_extra_func(dev):
+    for loc, pips in dev.hclk_pips.items():
+        row, col = loc
+        dev.extra_func.setdefault((row, col), {})['hclk_pips'] = pips
+
 def from_fse(device, fse, dat):
     dev = Device()
+    fse_create_simplio_rows(dev, dat)
     ttypes = {t for row in fse['header']['grid'][61] for t in row}
     tiles = {}
     for ttyp in ttypes:
@@ -718,21 +1252,32 @@ def from_fse(device, fse, dat):
         tile = Tile(w, h, ttyp)
         tile.pips = fse_pips(fse, ttyp, 2, wirenames)
         tile.clock_pips = fse_pips(fse, ttyp, 38, clknames)
+        # copy for Himbaechel without hclk
+        tile.pure_clock_pips = copy.deepcopy(tile.clock_pips)
         tile.clock_pips.update(fse_hclk_pips(fse, ttyp, tile.aliases))
         tile.alonenode_6 = fse_alonenode(fse, ttyp, 6)
         if 5 in fse[ttyp]['shortval']:
             tile.bels = fse_luts(fse, ttyp)
         if 51 in fse[ttyp]['shortval']:
             tile.bels = fse_osc(device, fse, ttyp)
-        if ttyp in [74, 75, 76, 77, 78, 79, 86, 87, 88, 89]:
+        if ttyp in [42, 45, 74, 75, 76, 77, 78, 79, 86, 87, 88, 89]:
             tile.bels = fse_pll(device, fse, ttyp)
         tile.bels.update(fse_iologic(device, fse, ttyp))
         tiles[ttyp] = tile
 
     fse_fill_logic_tables(dev, fse)
     dev.grid = [[tiles[ttyp] for ttyp in row] for row in fse['header']['grid'][61]]
+    fse_create_clocks(dev, device, dat, fse)
     fse_create_pll_clock_aliases(dev, device)
     fse_create_hclk_aliases(dev, device, dat)
+    fse_create_bottom_io(dev, device)
+    fse_create_tile_types(dev, dat)
+    fse_create_diff_types(dev, device)
+    fse_create_hclk_nodes(dev, device, fse, dat)
+    fse_create_io16(dev, device)
+    fse_create_osc(dev, device, fse)
+    fse_create_gsr(dev, device)
+    sync_extra_func(dev)
     return dev
 
 # get fuses for attr/val set using short/longval table
@@ -786,7 +1331,7 @@ def add_attr_val(dev, logic_table, attrs, attr, val):
             break
 
 def get_pins(device):
-    if device not in {"GW1N-1", "GW1NZ-1", "GW1N-4", "GW1N-9", "GW1NR-9", "GW1N-9C", "GW1NR-9C", "GW1NS-2", "GW1NS-2C", "GW1NS-4", "GW1NSR-4C", "GW2A-18"}:
+    if device not in {"GW1N-1", "GW1NZ-1", "GW1N-4", "GW1N-9", "GW1NR-9", "GW1N-9C", "GW1NR-9C", "GW1NS-2", "GW1NS-2C", "GW1NS-4", "GW1NSR-4C", "GW2A-18", "GW2AR-18", "GW2AR-18C"}:
         raise Exception(f"unsupported device {device}")
     pkgs = pindef.all_packages(device)
     res = {}
@@ -868,11 +1413,24 @@ def json_pinout(device):
             "GW1NS-2": pins,
             "GW1NS-2C": pins_c
         }, res_bank_pins)
-    if device == "GW2A-18":
+    elif device == "GW2A-18":
         pkgs, pins, bank_pins = get_pins("GW2A-18")
         return (pkgs, {
             "GW2A-18": pins
         }, bank_pins)
+    elif device == "GW2AR-18":
+        pkgs_c, pins_c, bank_pins_c = get_pins("GW2AR-18C")
+        pkgs, pins, bank_pins = get_pins("GW2AR-18")
+        res = {}
+        res.update(pkgs)
+        res.update(pkgs_c)
+        res_bank_pins = {}
+        res_bank_pins.update(bank_pins)
+        res_bank_pins.update(bank_pins_c)
+        return (res, {
+            "GW2AR-18": pins,
+            "GW2AR-18C": pins_c
+        }, res_bank_pins)
     else:
         raise Exception("unsupported device")
 
@@ -910,27 +1468,22 @@ _ides16_inputs = [(19, 'PCLK'), (20, 'FCLK'), (38, 'CALIB'), (25, 'RESET'), (0, 
 _ides16_fixed_outputs = { 'Q0': 'F2', 'Q1': 'F3', 'Q2': 'F4', 'Q3': 'F5', 'Q4': 'Q0',
                           'Q5': 'Q1', 'Q6': 'Q2', 'Q7': 'Q3', 'Q8': 'Q4', 'Q9': 'Q5', 'Q10': 'F0',
                          'Q11': 'F1', 'Q12': 'F2', 'Q13': 'F3', 'Q14': 'F4', 'Q15': 'F5'}
-# (osc-type, devices) : ({local-ports}, {aliases})
-_osc_ports = {('OSCZ', 'GW1NZ-1'): ({}, {'OSCOUT' : (0, 5, 'OF3'), 'OSCEN': (0, 2, 'A6')}),
-              ('OSCZ', 'GW1NS-4'): ({'OSCOUT': 'Q4', 'OSCEN': 'D6'}, {}),
-              ('OSCF', 'GW1NS-2'): ({}, {'OSCOUT': (10, 19, 'Q4'), 'OSCEN': (13, 19, 'B3')}),
-              ('OSCH', 'GW1N-1'):  ({'OSCOUT': 'Q4'}, {}),
-              ('OSC',  'GW1N-4'):  ({'OSCOUT': 'Q4'}, {}),
-              ('OSC',  'GW1N-9'):  ({'OSCOUT': 'Q4'}, {}),
-              ('OSC',  'GW1N-9C'):  ({'OSCOUT': 'Q4'}, {}),
-              # XXX check this!
-              ('OSC',  'GW2A-18'):  ({'OSCOUT': 'Q4'}, {}),
-              # XXX unsupported boards, pure theorizing
-              ('OSCO', 'GW1N-2'):  ({'OSCOUT': 'Q7'}, {'OSCEN': (9, 1, 'B4')}),
-              ('OSCW', 'GW2AN-18'):  ({'OSCOUT': 'Q4'}, {}),
-              }
+def get_pllout_global_name(row, col, wire, device):
+    for name, loc in _pll_loc[device].items():
+        if loc == (row, col, wire):
+            return name
+    raise Exception(f"bad PLL output {device} ({row}, {col}){wire}")
+
 def dat_portmap(dat, dev, device):
     for row, row_dat in enumerate(dev.grid):
         for col, tile in enumerate(row_dat):
             for name, bel in tile.bels.items():
-                if bel.portmap: continue
+                if bel.portmap:
+                    # GW2A has same PLL in different rows
+                    if not (name.startswith("RPLLA") and device in {'GW2A-18', 'GW2AR-18'}):
+                        continue
                 if name.startswith("IOB"):
-                    if name[3] > 'B':
+                    if row in dev.simplio_rows:
                         idx = ord(name[-1]) - ord('A')
                         inp = wirenames[dat['IobufIns'][idx]]
                         bel.portmap['I'] = inp
@@ -946,6 +1499,10 @@ def dat_portmap(dat, dev, device):
                         bel.portmap['I'] = out
                         oe = wirenames[dat[f'Iobuf{pin}OE']]
                         bel.portmap['OE'] = oe
+                        if row == dev.rows - 1:
+                            # bottom io
+                            bel.portmap['BOTTOM_IO_PORT_A'] = dev.bottom_io[0]
+                            bel.portmap['BOTTOM_IO_PORT_B'] = dev.bottom_io[1]
                 elif name.startswith("IOLOGIC"):
                     buf = name[-1]
                     for idx, nam in _iologic_inputs:
@@ -985,7 +1542,7 @@ def dat_portmap(dat, dev, device):
                     # The PllInDlt table seems to indicate in which cell the
                     # inputs are actually located.
                     offx = 1
-                    if device in {'GW1N-9C', 'GW1N-9'}:
+                    if device in {'GW1N-9C', 'GW1N-9', 'GW2A-18', 'GW2AR-18'}:
                         # two mirrored PLLs
                         if col > dat['center'][1] - 1:
                             offx = -1
@@ -1005,6 +1562,9 @@ def dat_portmap(dat, dev, device):
                             # not our cell, make an alias
                             bel.portmap[nam] = f'rPLL{nam}{wire}'
                             dev.aliases[row, col, f'rPLL{nam}{wire}'] = (row, col + off, wire)
+                            # Himbaechel node
+                            dev.nodes.setdefault(f'X{col}Y{row}/rPLL{nam}{wire}', ("PLL_I", {(row, col, f'rPLL{nam}{wire}')}))[1].add((row, col + off, wire))
+
                     for idx, nam in _pll_outputs:
                         wire = wirenames[dat['PllOut'][idx]]
                         off = dat['PllOutDlt'][idx] * offx
@@ -1014,6 +1574,12 @@ def dat_portmap(dat, dev, device):
                             # not our cell, make an alias
                             bel.portmap[nam] = f'rPLL{nam}{wire}'
                             dev.aliases[row, col, f'rPLL{nam}{wire}'] = (row, col + off, wire)
+                        # Himbaechel node
+                        if nam != 'LOCK':
+                            global_name = get_pllout_global_name(row, col + off, wire, device)
+                        else:
+                            global_name = f'X{col}Y{row}/rPLL{nam}{wire}'
+                        dev.nodes.setdefault(global_name, ("PLL_O", set()))[1].update({(row, col, f'rPLL{nam}{wire}'), (row, col + off, wire)})
                     # clock input
                     nam = 'CLKIN'
                     wire = wirenames[dat['PllClkin'][1][0]]
@@ -1024,6 +1590,8 @@ def dat_portmap(dat, dev, device):
                         # not our cell, make an alias
                         bel.portmap[nam] = f'rPLL{nam}{wire}'
                         dev.aliases[row, col, f'rPLL{nam}{wire}'] = (row, col + off, wire)
+                        # Himbaechel node
+                        dev.nodes.setdefault(f'X{col}Y{row}/rPLL{nam}{wire}', ("PLL_I", {(row, col, f'rPLL{nam}{wire}')}))[1].add((row, col + off, wire))
                 elif name == 'PLLVR':
                     pll_idx = 0
                     if col != 27:
@@ -1042,9 +1610,17 @@ def dat_portmap(dat, dev, device):
                             # to be taken care of separately.
                             bel.portmap[nam] = f'PLLVR{nam}{wire}'
                             dev.aliases[row, col, f'PLLVR{nam}{wire}'] = (9, 37, wire)
+                            # Himbaechel node
+                            dev.nodes.setdefault(f'X{col}Y{row}/PLLVR{nam}{wire}', ("PLL_I", {(row, col, f'PLLVR{nam}{wire}')}))[1].add((9, 37, wire))
                     for idx, nam in _pll_outputs:
                         wire = wirenames[dat[f'SpecPll{pll_idx}Outs'][idx * 3 + 2]]
                         bel.portmap[nam] = wire
+                        # Himbaechel node
+                        if nam != 'LOCK':
+                            global_name = get_pllout_global_name(row, col, wire, device)
+                        else:
+                            global_name = f'X{col}Y{row}/PLLVR{nam}{wire}'
+                        dev.nodes.setdefault(global_name, ("PLL_O", set()))[1].update({(row, col, f'PLLVR{nam}{wire}'), (row, col, wire)})
                     bel.portmap['CLKIN'] = wirenames[124];
                     reset = wirenames[dat[f'SpecPll{pll_idx}Ins'][0 + 2]]
                     # VREN pin is placed in another cell
@@ -1054,6 +1630,8 @@ def dat_portmap(dat, dev, device):
                         vren = 'B0'
                     bel.portmap['VREN'] = f'PLLVRV{vren}'
                     dev.aliases[row, col, f'PLLVRV{vren}'] = (0, 37, vren)
+                    # Himbaechel node
+                    dev.nodes.setdefault(f'X{col}Y{row}/PLLVRV{vren}', ("PLL_I", {(row, col, f'PLLVRV{vren}')}))[1].add((0, 37, vren))
                 if name.startswith('OSC'):
                     # local ports
                     local_ports, aliases = _osc_ports[name, device]

@@ -8,6 +8,7 @@ import pickle
 import gzip
 import argparse
 import importlib.resources
+from contextlib import closing
 from apycula import codegen
 from apycula import chipdb
 from apycula import attrids
@@ -18,7 +19,7 @@ _device = ""
 _pinout = ""
 _packages = {
         'GW1N-1' : 'LQFP144', 'GW1NZ-1' : 'QFN48', 'GW1N-4' : 'PBGA256', 'GW1N-9C' : 'UBGA332',
-        'GW1N-9' : 'PBGA256', 'GW1NS-4' : 'QFN48', 'GW1NS-2' : 'LQFP144',
+        'GW1N-9' : 'PBGA256', 'GW1NS-4' : 'QFN48', 'GW1NS-2' : 'LQFP144', 'GW2A-18': 'PBGA256'
 }
 
 # bank iostandards
@@ -340,7 +341,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
         if name.startswith("IOLOGIC"):
             idx = name[-1]
             attrvals = parse_attrvals(tile, db.logicinfo['IOLOGIC'], db.shortval[tiledata.ttyp][f'IOLOGIC{idx}'], attrids.iologic_attrids)
-            #print(row, col, attrvals)
+            print(row, col, attrvals)
             if not attrvals:
                 continue
             if 'OUTMODE' in attrvals.keys():
@@ -389,6 +390,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
         if name.startswith("IOB"):
             idx = name[-1]
             attrvals = parse_attrvals(tile, db.logicinfo['IOB'], db.longval[tiledata.ttyp][f'IOB{idx}'], attrids.iob_attrids)
+            #print(row, col, attrvals)
             try: # we can ask for invalid pin here because the IOBs share some stuff
                 bank = chipdb.loc2bank(db, row, col)
             except KeyError:
@@ -422,6 +424,19 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             attrvals = parse_attrvals(tile, db.logicinfo['IOB'], _bank_fuse_tables[tiledata.ttyp][name], attrids.iob_attrids)
             for a, v in attrvals.items():
                 bels.setdefault(name, set()).add(f'{a}={attrids.iob_num2val[v]}')
+        if name.startswith("ALU"):
+            idx = int(name[3])
+            attrvals = parse_attrvals(tile, db.logicinfo['SLICE'], db.shortval[tiledata.ttyp][f'CLS{idx // 2}'], attrids.cls_attrids)
+            # skip ALU and unsupported modes
+            if attrvals.get('MODE') != attrids.cls_attrvals['ALU']:
+                continue
+            bels[name] = {"C2L"}
+            mode_bits = {(row, col)
+                         for row, col in bel.mode_bits
+                         if tile[row][col] == 1}
+            for mode, bits in bel.modes.items():
+                if bits == mode_bits and (default or bits):
+                    bels[name] = {mode}
         else:
             mode_bits = {(row, col)
                          for row, col in bel.mode_bits
@@ -870,11 +885,13 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
             name = f"R{row}C{col}_ALU_{idx}"
             if kind == 'hadder':
                 kind = '0'
-            if kind in "012346789": # main ALU
+            if kind in "012346789" or kind == "C2L" : # main ALU
                 alu = codegen.Primitive("ALU", name)
                 alu.params["ALU_MODE"] = kind
-                alu.portmap['SUM'] = f"R{row}C{col}_F{idx}"
+                if kind != "C2L":
+                    alu.portmap['SUM'] = f"R{row}C{col}_F{idx}"
                 alu.portmap['CIN'] = f"R{row}C{col}_CIN{idx}"
+                alu.portmap['I2'] = f"R{row}C{col}_C{idx}"
                 if idx != 5:
                     alu.portmap['COUT'] = f"R{row}C{col}_CIN{idx+1}"
                 else:
@@ -887,6 +904,11 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
                 elif kind == "0":
                     alu.portmap['I0'] = f"R{row}C{col}_B{idx}"
                     alu.portmap['I1'] = f"R{row}C{col}_D{idx}"
+                elif kind == "C2L":
+                    alu.portmap['I0'] = f"R{row}C{col}_B{idx}"
+                    alu.portmap['I1'] = f"R{row}C{col}_D{idx}"
+                    alu.portmap['COUT'] = f"R{row}C{col}_F{idx}"
+                    alu.params["ALU_MODE"] = "9" # XXX
                 else:
                     alu.portmap['I0'] = f"R{row}C{col}_A{idx}"
                     alu.portmap['I1'] = f"R{row}C{col}_D{idx}"
@@ -903,12 +925,12 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
             ram16.params["INIT_1"] = f"16'b{val1:016b}"
             ram16.params["INIT_2"] = f"16'b{val2:016b}"
             ram16.params["INIT_3"] = f"16'b{val3:016b}"
-            ram16.portmap['DI'] = [f"R{row}C{col}_{x}5" for x in "ABCD"]
+            ram16.portmap['DI'] = [f"R{row}C{col}_{x}5" for x in "DCBA"]
             ram16.portmap['CLK'] = f"R{row}C{col}_CLK2"
             ram16.portmap['WRE'] = f"R{row}C{col}_LSR2"
-            ram16.portmap['WAD'] = [f"R{row}C{col}_{x}4" for x in "ABCD"]
-            ram16.portmap['RAD'] = [f"R{row}C{col}_{x}0" for x in "ABCD"]
-            ram16.portmap['DO'] = [f"R{row}C{col}_F{x}" for x in range(4)]
+            ram16.portmap['WAD'] = [f"R{row}C{col}_{x}4" for x in "DCBA"]
+            ram16.portmap['RAD'] = [f"R{row}C{col}_{x}0" for x in "DCBA"]
+            ram16.portmap['DO'] = [f"R{row}C{col}_F{x}" for x in range(4, -1, -1)]
             mod.wires.update(chain.from_iterable([x if isinstance(x, list) else [x] for x in ram16.portmap.values()]))
             mod.primitives[name] = ram16
         elif typ in {"OSC", "OSCZ", "OSCF", "OSCH", "OSCW", "OSCO"}:
@@ -1048,8 +1070,9 @@ def main():
         luts = m.group(3)
         _device = f"GW1N{mods}-{luts}"
 
-    with gzip.open(importlib.resources.files("apycula").joinpath(f"{_device}.pickle"), 'rb') as f:
-        db = pickle.load(f)
+    with importlib.resources.path('apycula', f'{args.device}.pickle') as path:
+        with closing(gzip.open(path, 'rb')) as f:
+            db = pickle.load(f)
 
     global _pinout
     _pinout = db.pinout[_device][_packages[_device]]
