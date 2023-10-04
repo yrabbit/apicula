@@ -2154,7 +2154,8 @@ def fse_wire_delays(db):
         db.wire_delay[wirenames[i]] = "CIN"
     for i in range(309, 314): # COUT0-COUT5
         db.wire_delay[wirenames[i]] = "COUT"
-
+    for i in range(1001, 1049): # LWSPINE
+        db.wire_delay[wirenames[i]] = "X8"
 
 
 
