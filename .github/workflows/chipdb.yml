@@ -306,7 +306,6 @@ jobs:
         make -j$(nproc)
         sudo make install
         cd ../examples
-        make -j4 all
         cd himbaechel
         make -j4 -f Makefile.himbaechel all 
     - name: Archive artifact
