@@ -298,7 +298,7 @@ jobs:
         cd yosys
         git checkout ${{ matrix.yosys }}
         make config-gcc
-        make -j1
+        make -j4
         sudo make install
         cd ../nextpnr
         git checkout ${{ matrix.nextpnr }}
@@ -306,9 +306,9 @@ jobs:
         make -j$(nproc)
         sudo make install
         cd ../examples
-        make -j1 all
+        make -j4 all
         cd himbaechel
-        make -j1 -f Makefile.himbaechel all 
+        make -j4 -f Makefile.himbaechel all 
     - name: Archive artifact
       uses: actions/upload-artifact@v3
       with:
