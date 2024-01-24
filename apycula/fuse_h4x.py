@@ -129,6 +129,8 @@ def render_bitmap(d):
 
 def display(fname, data):
     from PIL import Image
+    import numpy as np
+    data = np.array(data, dtype = np.uint8)
     im = Image.frombytes(
             mode='P',
             size=bitmatrix.shape(data)[::-1],
