@@ -5,7 +5,7 @@ on:
   # but only for the main branch
   push:
     branches:
-      - master
+      - testb
     tags:
       - '*'
   pull_request:
