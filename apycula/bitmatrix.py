@@ -45,19 +45,29 @@ def zeros(rows, cols):
     """
     return [[0] * cols for i in range(rows)]
 
-def packbits(bmp):
+def packbits(bmp, axis = None):
     """
     Packs the elements of a bitmap into bytes.
     [1, 1, 0, 0, 0] -> [24]  # [5'b11000]
     Returns a list of bytes.
     """
     byte_list = []
-    for bmp_r in bmp:
-        for col in range(shape(bmp)[1] // 8):
-            bcol = col << 3
-            byte_list.append((bmp_r[bcol] << 7) + (bmp_r[bcol + 1] << 6) + (bmp_r[bcol + 2] << 5) +
-                (bmp_r[bcol + 3] << 4) + (bmp_r[bcol + 4] << 3) + (bmp_r[bcol + 5] << 2) +
-                (bmp_r[bcol + 6] << 1) + bmp_r[bcol + 7])
+    if not axis:
+        for bmp_r in bmp:
+            for col in range(shape(bmp)[1] // 8):
+                bcol = col << 3
+                byte_list.append((bmp_r[bcol] << 7) + (bmp_r[bcol + 1] << 6) + (bmp_r[bcol + 2] << 5) +
+                    (bmp_r[bcol + 3] << 4) + (bmp_r[bcol + 4] << 3) + (bmp_r[bcol + 5] << 2) +
+                    (bmp_r[bcol + 6] << 1) + bmp_r[bcol + 7])
+    else:
+        for bmp_r in bmp:
+            byte_list.append([])
+            byte_list_r = byte_list[-1]
+            for col in range(shape(bmp)[1] // 8):
+                bcol = col << 3
+                byte_list_r.append((bmp_r[bcol] << 7) + (bmp_r[bcol + 1] << 6) + (bmp_r[bcol + 2] << 5) +
+                    (bmp_r[bcol + 3] << 4) + (bmp_r[bcol + 4] << 3) + (bmp_r[bcol + 5] << 2) +
+                    (bmp_r[bcol + 6] << 1) + bmp_r[bcol + 7])
     return byte_list
 
 def histogram(lst, bins):

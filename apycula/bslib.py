@@ -97,7 +97,7 @@ def write_bitstream(fname, bs, hdr, ftr, compress):
     pad = bitmatrix.ones(bitmatrix.shape(bs)[0], padlen)
     bs = bitmatrix.hstack(pad, bs)
     assert bitmatrix.shape(bs)[1] % 8 == 0
-    bs=bitmatrix.packbits(bs)
+    bs=bitmatrix.packbits(bs, axis = 1)
 
     if compress:
         # search for smallest values not used in the bitstream
@@ -140,7 +140,7 @@ def display(fname, data):
     im = Image.frombytes(
             mode='1',
             size=data.shape[::-1],
-            data=bitmatrix.packbits(data))
+            data=bitmatrix.packbits(data, axis = 1))
     if fname:
         im.save(fname)
     return im
