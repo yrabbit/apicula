@@ -119,7 +119,7 @@ def render_bitmap(d):
             for row in rtile:
                 x0 = x
                 for val in row:
-                    res[y0][x0] += val
+                    bitmap[y0][x0] += val
                     x0 += 1
                 y0 += 1
             x+=w
