@@ -70,6 +70,13 @@ def packbits(bmp, axis = None):
                     (bmp_r[bcol + 6] << 1) + bmp_r[bcol + 7])
     return byte_list
 
+def xor(bmp_0, bmp_1):
+    """
+    Bitwise XOR
+    Returns a new matrix
+    """
+    return [[ vals[0] ^ vals[1]for vals in zip(row[0], row[1])] for row in zip(bmp_0, bmp_1)]
+
 def histogram(lst, bins):
     """
     Compute the histogram of a list.
@@ -92,10 +99,14 @@ def any(bmp):
                 return True
     return False
 
-def xor(bmp_0, bmp_1):
+def nonzero(bmp):
     """
-    Bitwise XOR
-    Returns a new matrix
+    Return the indices of the elements that are non-zero.
     """
-    return [[ vals[0] ^ vals[1]for vals in zip(row[0], row[1])] for row in zip(bmp_0, bmp_1)]
-
+    res = ([], [])
+    for ri, row in enumerate(bmp):
+        for ci, val in enumerate(row):
+            if val:
+                res[0].append(ri)
+                res[1].append(ci)
+    return res
