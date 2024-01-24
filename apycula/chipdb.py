@@ -2102,7 +2102,6 @@ def tile_bitmap(dev, bitmap, empty=False):
     return res
 
 def fuse_bitmap(db, bitmap):
-    #res = np.zeros((db.height, db.width), dtype=np.uint8)
     res = bitmatrix.zeros(db.height, db.width)
     y = 0
     for idx, row in enumerate(db.grid):
@@ -2110,7 +2109,6 @@ def fuse_bitmap(db, bitmap):
         for jdx, td in enumerate(row):
             w = td.width
             h = td.height
-            #res[y:y+h,x:x+w] = bitmap[(idx, jdx)]
             y0 = y
             for row in bitmap[(idx, jdx)]:
                 x0 = x

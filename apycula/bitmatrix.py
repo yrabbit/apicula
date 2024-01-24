@@ -82,3 +82,10 @@ def any(bmp):
                 return True
     return False
 
+def xor(bmp_0, bmp_1):
+    """
+    Bitwise XOR
+    Returns a new matrix
+    """
+    return [[ vals[0] ^ vals[1]for vals in zip(row[0], row[1])] for row in zip(bmp_0, bmp_1)]
+

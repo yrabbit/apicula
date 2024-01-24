@@ -1,6 +1,6 @@
 import sys
-import numpy as np
 import random
+from apycula import bitmatrix
 
 def rint(f, w):
     val = int.from_bytes(f.read(w), 'little', signed=True)
@@ -148,12 +148,11 @@ def tile_bitmap(d, bitmap, empty=False):
     for idx, row in enumerate(tiles):
         x=0
         for jdx, typ in enumerate(row):
-            #if typ==87: pdb.set_trace()
             td = d[typ]
             w = td['width']
             h = td['height']
-            tile = bitmap[y:y+h,x:x+w]
-            if tile.any() or empty:
+            tile = [row[x:x+w] for row in bitmap[y:y+h]]
+            if bitmatrix.any(tile) or empty:
                 res[(idx, jdx, typ)] = tile
             x+=w
         y+=h
@@ -172,7 +171,13 @@ def fuse_bitmap(d, bitmap):
             td = d[typ]
             w = td['width']
             h = td['height']
-            res[y:y+h,x:x+w] = bitmap[(idx, jdx, typ)]
+            y0 = y
+            for row in bitmap[(idx, jdx, typ)]:
+                x0 = x
+                for val in row:
+                    res[y0][x0] = val
+                    x0 += 1
+                y0 += 1
             x+=w
         y+=h
 
