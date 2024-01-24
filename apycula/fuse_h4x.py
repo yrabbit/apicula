@@ -131,7 +131,7 @@ def display(fname, data):
     from PIL import Image
     im = Image.frombytes(
             mode='P',
-            size=data.shape[::-1],
+            size=bitmatrix.shape(data)[::-1],
             data=data)
     random.seed(123)
     im.putpalette(random.choices(range(256), k=3*256))
