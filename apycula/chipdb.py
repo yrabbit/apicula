@@ -1635,6 +1635,7 @@ def from_fse(device, fse, dat: Datfile):
     fse_create_osc(dev, device, fse)
     fse_create_gsr(dev, device)
     fse_create_logic2clk(dev, device, dat)
+    fse_create_dsp(dev, device, dat)
     disable_plls(dev, device)
     sync_extra_func(dev)
     return dev
