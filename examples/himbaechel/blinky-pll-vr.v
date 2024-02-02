@@ -1,6 +1,6 @@
 (* top *)
 module top (
-	input key,
+	input key_i,
 	input clk,
 	output [`LEDS_NR-1:0] led
 );
@@ -46,6 +46,7 @@ defparam pllvr_inst.CLKOUTD_SRC = "CLKOUTP";
 defparam pllvr_inst.CLKOUTD3_SRC = "CLKOUTP";
 defparam pllvr_inst.DEVICE = "GW1NSR-4C";
 
+wire key = key_i ^ `INV_BTN;
 
 reg [25:0] ctr_q;
 wire [25:0] ctr_d;
@@ -59,6 +60,6 @@ end
 
 // Combinational code (boolean logic)
 assign ctr_d = ctr_q + 1'b1;
-assign led = ctr_q[25:25-(`LEDS_NR - 1)];
+assign led = {ctr_q[25:25-(`LEDS_NR - 2)], |ctr_q[25-(`LEDS_NR - 1):25-(`LEDS_NR)] };
 
 endmodule

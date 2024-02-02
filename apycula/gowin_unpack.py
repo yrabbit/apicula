@@ -2,7 +2,6 @@ import sys
 import os
 import re
 import random
-import numpy as np
 from itertools import chain, count
 import pickle
 import gzip
@@ -19,7 +18,8 @@ _device = ""
 _pinout = ""
 _packages = {
         'GW1N-1' : 'LQFP144', 'GW1NZ-1' : 'QFN48', 'GW1N-4' : 'PBGA256', 'GW1N-9C' : 'UBGA332',
-        'GW1N-9' : 'PBGA256', 'GW1NS-4' : 'QFN48', 'GW1NS-2' : 'LQFP144', 'GW2A-18': 'PBGA256'
+        'GW1N-9' : 'PBGA256', 'GW1NS-4' : 'QFN48', 'GW1NS-2' : 'LQFP144', 'GW2A-18': 'PBGA256',
+        'GW2A-18C' : 'PBGA256S'
 }
 
 # bank iostandards
@@ -292,6 +292,17 @@ _iologic_mode = {
         'MIDDRX5': 'IDES10', 'IDDRX5': 'IDES10',
         'IDDRX8': 'IDES16',
         }
+
+# BSRAM have 3 cells: BSRAM, BSRAM0 and BSRAM1
+# { (row, col) : idx }
+_bsram_cells = {}
+def get_bsram_main_cell(db, row, col, typ):
+    if typ[-4:] == '_AUX':
+        col -= 1
+        if 'BSRAM_AUX' in db.grid[row][col].bels:
+            col -= 2
+    return row, col
+
 # noiostd --- this is the case when the function is called
 # with iostd by default, e.g. from the clock fuzzer
 # With normal gowin_unpack io standard is determined first and it is known.
@@ -338,10 +349,21 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             if modes:
                 bels[name] = modes
             continue
+        if name.startswith("BSRAM"):
+            # disabled BSRAM cells have no fuse tables
+            if 'BSRAM_SP' not in db.shortval[tiledata.ttyp]:
+                continue
+            idx = _bsram_cells.setdefault(get_bsram_main_cell(db, row, col, name), len(_bsram_cells))
+            #print(row, col, name, idx, tiledata.ttyp)
+            attrvals = parse_attrvals(tile, db.logicinfo['BSRAM'], db.shortval[tiledata.ttyp]['BSRAM_SP'], attrids.bsram_attrids)
+            if not attrvals:
+                continue
+            #print(row, col, name, idx, tiledata.ttyp, attrvals)
+            bels[f'{name}'] = {}
+            continue
         if name.startswith("IOLOGIC"):
             idx = name[-1]
             attrvals = parse_attrvals(tile, db.logicinfo['IOLOGIC'], db.shortval[tiledata.ttyp][f'IOLOGIC{idx}'], attrids.iologic_attrids)
-            print(row, col, attrvals)
             if not attrvals:
                 continue
             if 'OUTMODE' in attrvals.keys():
@@ -619,39 +641,48 @@ def move_iologic(bels):
     return res
 
 def disable_unused_pll_ports(pll):
-    if 'DYN_DA_EN' not in pll.params.keys():
+    if 'DYN_DA_EN' not in pll.params:
         for n in range(0, 4):
-            del pll.portmap[f'PSDA{n}']
-            del pll.portmap[f'DUTYDA{n}']
-            del pll.portmap[f'FDLY{n}']
-    if 'DYN_IDIV_SEL' not in pll.params.keys():
+            if f'PSDA{n}' in pll.portmap:
+                del pll.portmap[f'PSDA{n}']
+                del pll.portmap[f'DUTYDA{n}']
+                del pll.portmap[f'FDLY{n}']
+    if 'DYN_IDIV_SEL' not in pll.params:
         for n in range(0, 6):
-            del pll.portmap[f'IDSEL{n}']
-    if 'DYN_FBDIV_SEL' not in pll.params.keys():
+            if f'IDSEL{n}' in pll.portmap:
+                del pll.portmap[f'IDSEL{n}']
+    if 'DYN_FBDIV_SEL' not in pll.params:
         for n in range(0, 6):
-            del pll.portmap[f'FBDSEL{n}']
-    if 'DYN_ODIV_SEL' not in pll.params.keys():
+            if f'FBDSEL{n}' in pll.portmap:
+                del pll.portmap[f'FBDSEL{n}']
+    if 'DYN_ODIV_SEL' not in pll.params:
         for n in range(0, 6):
-            del pll.portmap[f'ODSEL{n}']
-    if 'PWDEN' in pll.params.keys():
+            if f'ODSEL{n}' in pll.portmap:
+                del pll.portmap[f'ODSEL{n}']
+    if 'PWDEN' in pll.params:
         if pll.params['PWDEN'] == 'DISABLE':
-            del pll.portmap['RESET_P']
+            if 'RESET_P' in pll.portmap:
+                del pll.portmap['RESET_P']
         del pll.params['PWDEN']
-    if 'RSTEN' in pll.params.keys():
+    if 'RSTEN' in pll.params:
         if pll.params['RSTEN'] == 'DISABLE':
-            del pll.portmap['RESET']
+            if 'RESET' in pll.portmap:
+                del pll.portmap['RESET']
         del pll.params['RSTEN']
-    if 'CLKOUTDIV3' in pll.params.keys():
+    if 'CLKOUTDIV3' in pll.params:
         if pll.params['CLKOUTDIV3'] == 'DISABLE':
-            del pll.portmap['CLKOUTD3']
+            if 'CLKOUTD3' in pll.portmap:
+                del pll.portmap['CLKOUTD3']
         del pll.params['CLKOUTDIV3']
-    if 'CLKOUTDIV' in pll.params.keys():
+    if 'CLKOUTDIV' in pll.params:
         if pll.params['CLKOUTDIV'] == 'DISABLE':
-            del pll.portmap['CLKOUTD']
+            if 'CLKOUTD' in pll.portmap:
+                del pll.portmap['CLKOUTD']
         del pll.params['CLKOUTDIV']
-    if 'CLKOUTPS' in pll.params.keys():
+    if 'CLKOUTPS' in pll.params:
         if pll.params['CLKOUTPS'] == 'DISABLE':
-            del pll.portmap['CLKOUTP']
+            if 'CLKOUTP' in pll.portmap:
+                del pll.portmap['CLKOUTP']
         del pll.params['CLKOUTPS']
 
 _tbrlre = re.compile(r"IO([TBRL])(\d+)(\w)")
@@ -687,14 +718,16 @@ def modify_pll_inputs(db, pll):
             if insel == 'CLKIN0':
                 find_pll_in_pin(db, pll)
             else:
-                del pll.portmap['CLKIN']
+                if 'CLKIN' in pll.portmap:
+                    del pll.portmap['CLKIN']
         del pll.params['INSEL']
     if 'FBSEL' in pll.params.keys():
         fbsel = pll.params['FBSEL']
         if fbsel == 'CLKFB3':
             # internal
             pll.params['CLKFB_SEL'] = '"internal"'
-            del pll.portmap['CLKFB']
+            if 'CLKFB' in pll.portmap:
+                del pll.portmap['CLKFB']
         elif fbsel == 'CLKFB0':
             # external CLK2
             pll.params['CLKFB_SEL'] = '"external"'
@@ -769,7 +802,7 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
         mod.wires.update({srcg, destg})
         mod.assigns.append((destg, srcg))
 
-    belre = re.compile(r"(IOB|LUT|DFF|BANK|CFG|ALU|RAM16|ODDR|OSC[ZFHWO]?|BUFS|RPLL[AB]|PLLVR|IOLOGIC)(\w*)")
+    belre = re.compile(r"(IOB|LUT|DFF|BANK|CFG|ALU|RAM16|ODDR|OSC[ZFHWO]?|BUFS|RPLL[AB]|PLLVR|IOLOGIC|BSRAM)(\w*)")
     bels_items = move_iologic(bels)
 
     iologic_detected = set()
@@ -878,6 +911,15 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
             portmap = db.grid[dbrow][dbcol].bels[bel[:-1]].portmap
             for port, wname in portmap.items():
                 pll.portmap[port] = f"R{row}C{col}_{wname}"
+        elif typ.startswith("BSRAM"):
+            name = f"BSRAM_{idx}"
+            pll = mod.primitives.setdefault(name, codegen.Primitive("BSRAM", name))
+            for paramval in flags:
+                param, _, val = paramval.partition('=')
+                pll.params[param] = val
+            portmap = db.grid[dbrow][dbcol].bels[bel].portmap
+            for port, wname in portmap.items():
+                pll.portmap[port] = f"R{row}C{col}_{wname}"
         elif typ == "ALU":
             #print(flags)
             kind, = flags # ALU only have one flag
@@ -904,6 +946,7 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
                 elif kind == "0":
                     alu.portmap['I0'] = f"R{row}C{col}_B{idx}"
                     alu.portmap['I1'] = f"R{row}C{col}_D{idx}"
+                    alu.portmap['I3'] = f"R{row}C{col}_A{idx}"
                 elif kind == "C2L":
                     alu.portmap['I0'] = f"R{row}C{col}_B{idx}"
                     alu.portmap['I1'] = f"R{row}C{col}_D{idx}"
@@ -1087,6 +1130,12 @@ def main():
         bm_pll = chipdb.tile_bitmap(db, bitmap, empty = True)
         bm[(9, 0)] = bm_pll[(9, 0)]
         bm[(9, 46)] = bm_pll[(9, 46)]
+    if _device in {'GW2A-18', 'GW2A-18C'}:
+        bm_pll = chipdb.tile_bitmap(db, bitmap, empty = True)
+        bm[(9, 0)] = bm_pll[(9, 0)]
+        bm[(9, 55)] = bm_pll[(9, 55)]
+        bm[(45, 0)] = bm_pll[(45, 0)]
+        bm[(45, 55)] = bm_pll[(45, 55)]
 
     for (drow, dcol, dname), (srow, scol, sname) in db.aliases.items():
         src = f"R{srow+1}C{scol+1}_{sname}"

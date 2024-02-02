@@ -18,8 +18,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=[
-        'numpy',
-        'crcmod',
+        'crc',
     ],
     python_requires='>=3.6',
     package_data={

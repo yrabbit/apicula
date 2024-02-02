@@ -3,16 +3,20 @@
 */
 module top (
 	input clk,
-	input key,
+	input key_i,
+	input rst_i,
 	output [`LEDS_NR-1:0] led
 );
+
+wire key = key_i ^ `INV_BTN;
+wire rst = rst_i ^ `INV_BTN;
 
 reg [24:0] ctr_q;
 wire [24:0] ctr_d;
 
 // Sequential code (flip-flop)
 always @(posedge clk) begin
-	if (key) begin
+	if (rst) begin
 		ctr_q <= ctr_d;
 	end
 end
