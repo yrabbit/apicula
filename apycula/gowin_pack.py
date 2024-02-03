@@ -174,7 +174,7 @@ _bsram_cell_types = {'DP', 'SDP', 'SP', 'ROM'}
 def get_bels(data):
     later = []
     if is_himbaechel:
-        belre = re.compile(r"X(\d+)Y(\d+)/(?:GSR|LUT|DFF|IOB|MUX|ALU|ODDR|OSC[ZFHWO]?|BUF[GS]|RAM16SDP4|RAM16SDP2|RAM16SDP1|PLL|IOLOGIC|BSRAM)(\w*)")
+        belre = re.compile(r"X(\d+)Y(\d+)/(?:GSR|LUT|DFF|IOB|MUX|ALU|ODDR|OSC[ZFHWO]?|BUF[GS]|RAM16SDP4|RAM16SDP2|RAM16SDP1|PLL|IOLOGIC|BSRAM|MULT18x18i)(\w*)")
     else:
         belre = re.compile(r"R(\d+)C(\d+)_(?:GSR|SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8|ODDR|OSC[ZFHWO]?|BUFS|RAMW|rPLL|PLLVR|IOLOGIC)(\w*)")
 
@@ -1039,6 +1039,12 @@ def place(db, tilemap, bels, cst, args):
             bsrambits = get_shortval_fuses(db, tiledata.ttyp, bsram_attrs, f'BSRAM_{typ}')
             #print(f'({row - 1}, {col - 1}) attrs:{bsram_attrs}, bits:{bsrambits}')
             for brow, bcol in bsrambits:
+                tile[brow][bcol] = 1
+        elif typ in {'MULT18X18'}:
+            dsp_attrs = set_dsp_attrs(db, typ, parms)
+            dspbits = {}#get_shortval_fuses(db, tiledata.ttyp, dsp_attrs, f'dsp_{typ}')
+            print(f'({row - 1}, {col - 1}) attrs:{dsp_attrs}, bits:{dspbits}')
+            for brow, bcol in dspbits:
                 tile[brow][bcol] = 1
         elif typ.startswith('RPLL'):
             pll_attrs = set_pll_attrs(db, 'RPLL', 0,  parms)
