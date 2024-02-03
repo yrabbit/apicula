@@ -1860,7 +1860,8 @@ def dat_portmap(dat, dev, device):
             for name, bel in tile.bels.items():
                 if bel.portmap:
                     # GW2A has same PLL in different rows
-                    if (not (name.startswith("RPLLA") and device in {'GW2A-18', 'GW2A-18C'})) and name != "BSRAM":
+                    # BSRAM and DSP repeated in rows and columns
+                    if (not (name.startswith("RPLLA") and device in {'GW2A-18', 'GW2A-18C'})) and name != "BSRAM" and not (name.startswith("MULT18x18i")):
                         continue
                 if name.startswith("IOB"):
                     if row in dev.simplio_rows:
@@ -2212,28 +2213,6 @@ def fuse_bitmap(db, bitmap):
         y += h
 
     return res
-
-def shared2flag(dev):
-    "Convert mode bits that are shared between bels to flags"
-    for idx, row in enumerate(dev.grid):
-        for jdx, td in enumerate(row):
-            for namea, bela in td.bels.items():
-                bitsa = bela.mode_bits
-                for nameb, belb in td.bels.items():
-                    bitsb = belb.mode_bits
-                    common_bits = bitsa & bitsb
-                    if bitsa != bitsb and common_bits:
-                        print(idx, jdx, namea, "and", nameb, "have common bits:", common_bits)
-                        for mode, bits in bela.modes.items():
-                            mode_cb = bits & common_bits
-                            if mode_cb:
-                                bela.flags[mode+"C"] = mode_cb
-                                bits -= mode_cb
-                        for mode, bits in belb.modes.items():
-                            mode_cb = bits & common_bits
-                            if mode_cb:
-                                belb.flags[mode+"C"] = mode_cb
-                                bits -= mode_cb
 
 def get_route_bits(db, row, col):
     """ All routing bits for the cell """
