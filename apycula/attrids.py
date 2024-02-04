@@ -288,6 +288,13 @@ dsp_attrids = {
         'CINNS_0':        221,
         'CINNS_1':        222,
         'CINBY_0':        230,
+        'CINBY_1':        231,
+        'CPRBY_0':        239,
+        'CPRBY_1':        240,
+        'OR2CIB_EN0L_0':  246,
+        'CPRNS_0':        247,
+        'CPRNS_1':        248,
+        'IRASHFEN_0':     430,
         }
 
 dsp_attrvals = {
