@@ -59,7 +59,7 @@ def get_attr_name(attrname_table, code):
     for name, cod in attrname_table.items():
         if cod == code:
             return name
-        print(code)
+    print(code)
     return ''
 
 # fix names and types of the PLL attributes
