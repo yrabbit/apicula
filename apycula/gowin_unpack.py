@@ -362,6 +362,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             bels[f'{name}'] = {}
             continue
         if name.startswith("MULT18x18"):
+            modes = {}
             idx = name[-2]
             print(row, col, name, idx, tiledata.ttyp)
             if f'DSP{idx}' in db.shortval[tiledata.ttyp].keys():
