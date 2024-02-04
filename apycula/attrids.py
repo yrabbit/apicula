@@ -281,6 +281,13 @@ dsp_attrids = {
         'CEHMUX_CREG':      0,
         'CEHMUX_OREG0':     1,
         'IRNS_IREG0AL_0': 214,
+        'IRBY_PRAD0BL_2': 215,
+        'IRBY_IREG0AL_0': 216,
+        'IRBY_IREG0BL_2': 217,
+        'IRNS_IREG0BL_2': 218,
+        'CINNS_0':        221,
+        'CINNS_1':        222,
+        'CINBY_0':        230,
         }
 
 dsp_attrvals = {
