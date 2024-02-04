@@ -280,6 +280,7 @@ adc_attrvals = {
 dsp_attrids = {
         'CEHMUX_CREG':      0,
         'CEHMUX_OREG0':     1,
+        'IRNS_IREG0AL_0': 214,
         }
 
 dsp_attrvals = {
