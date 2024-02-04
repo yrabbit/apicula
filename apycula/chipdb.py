@@ -470,6 +470,8 @@ _known_tables = {
             30: 'BSRAM_SDP',
             31: 'BSRAM_SP',
             32: 'BSRAM_ROM',
+            33: 'DSPA',
+            34: 'DSPB',
             35: 'PLL',
             37: 'BANK',
             40: 'IOBC',
