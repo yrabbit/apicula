@@ -361,6 +361,15 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             #print(row, col, name, idx, tiledata.ttyp, attrvals)
             bels[f'{name}'] = {}
             continue
+        if name.startswith("MULT18x18"):
+            idx = 1#_bsram_cells.setdefault(get_bsram_main_cell(db, row, col, name), len(_bsram_cells))
+            print(row, col, name, idx, tiledata.ttyp)
+            attrvals = parse_attrvals(tile, db.logicinfo['DSP'], db.shortval[tiledata.ttyp]['DSP'], attrids.dsp_attrids)
+            if not attrvals:
+                continue
+            print(row, col, name, idx, tiledata.ttyp, attrvals)
+            bels[f'{name}'] = {}
+            continue
         if name.startswith("IOLOGIC"):
             idx = name[-1]
             attrvals = parse_attrvals(tile, db.logicinfo['IOLOGIC'], db.shortval[tiledata.ttyp][f'IOLOGIC{idx}'], attrids.iologic_attrids)
