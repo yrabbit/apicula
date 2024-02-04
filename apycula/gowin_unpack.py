@@ -365,7 +365,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             idx = 1#_bsram_cells.setdefault(get_bsram_main_cell(db, row, col, name), len(_bsram_cells))
             idx = {'0': 'A', '1': 'B'}[name[-2]]
             print(row, col, name, idx, tiledata.ttyp)
-            attrvals = parse_attrvals(tile, db.logicinfo['DSP'], db.shortval[tiledata.ttyp]['DSP{idx}'], attrids.dsp_attrids)
+            attrvals = parse_attrvals(tile, db.logicinfo['DSP'], db.shortval[tiledata.ttyp][f'DSP{idx}'], attrids.dsp_attrids)
             if not attrvals:
                 continue
             print(row, col, name, idx, tiledata.ttyp, attrvals)
