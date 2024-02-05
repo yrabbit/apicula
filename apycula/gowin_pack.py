@@ -597,7 +597,7 @@ def set_bsram_attrs(db, typ, params):
         add_attr_val(db, 'BSRAM', fin_attrs, attrids.bsram_attrids[attr], val)
     return fin_attrs
 
-def set_dsp_attrs(db, typ, parms):
+def set_dsp_attrs(db, typ, params):
     dsp_attrs = {}
 
     # XXX
