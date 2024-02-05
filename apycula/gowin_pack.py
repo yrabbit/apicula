@@ -1082,7 +1082,7 @@ def place(db, tilemap, bels, cst, args):
         elif typ in {'MULT18X18'}:
             dsp_attrs = set_dsp_attrs(db, typ, parms)
             print(num)
-            dspbits = get_shortval_fuses(db, tiledata.ttyp, dsp_attrs, f'DSP{}')
+            dspbits = get_shortval_fuses(db, tiledata.ttyp, dsp_attrs, f'DSP{num}')
             print(f'({row - 1}, {col - 1}) attrs:{dsp_attrs}, bits:{dspbits}')
             for brow, bcol in dspbits:
                 tile[brow][bcol] = 1
