@@ -604,7 +604,7 @@ def set_dsp_attrs(db, typ, parms):
     # != mult36x36
     dsp_attrs["IRASHFEN_0"] = "1"
     #  macro A mult 0
-    dsp_attr["OR2CIB_EN0L_0"] = "ENABLE"
+    dsp_attrs["OR2CIB_EN0L_0"] = "ENABLE"
     for parm, val in params.items():
         if parm == 'AREG':
             if val == '0':
