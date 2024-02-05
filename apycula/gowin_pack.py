@@ -597,6 +597,45 @@ def set_bsram_attrs(db, typ, params):
         add_attr_val(db, 'BSRAM', fin_attrs, attrids.bsram_attrids[attr], val)
     return fin_attrs
 
+def set_dsp_attrs(db, typ, parms):
+    dsp_attrs = {}
+
+    # XXX
+    # != mult36x36
+    dsp_attrs["IRASHFEN_0"] = "1"
+    #  macro A mult 0
+    dsp_attr["OR2CIB_EN0L_0"] = "ENABLE"
+    for parm, val in params.items():
+        if parm == 'AREG':
+            if val == '0':
+                dsp_attr['IRNS_IREG0AL_0'] = "ENABLE"
+                dsp_attr['IRBY_IREG0AL_0'] = "ENABLE"
+        if parm == 'BREG':
+            if val == '0':
+                dsp_attr['IRNS_IREG0BL_2'] = "ENABLE"
+                dsp_attr['IRBY_IREG0BL_2'] = "ENABLE"
+        if parm == 'ASIGN_REG':
+            if val == '0':
+                dsp_attr['CINNS_0'] = "ENABLE"
+                dsp_attr['CINBY_0'] = "ENABLE"
+        if parm == 'BSIGN_REG':
+            if val == '0':
+                dsp_attr['CINNS_1'] = "ENABLE"
+                dsp_attr['CINBY_1'] = "ENABLE"
+        if parm == 'PIPE_REG':
+            if val == '0':
+                dsp_attr['CPRNS_0'] = "ENABLE"
+                dsp_attr['CPRBY_0'] = "ENABLE"
+                dsp_attr['CPRNS_1'] = "ENABLE"
+                dsp_attr['CPRBY_1'] = "ENABLE"
+
+    fin_attrs = set()
+    for attr, val in dsp_attrs.items():
+        if isinstance(val, str):
+            val = attrids.dsp_attrvals[val]
+        add_attr_val(db, 'DSP', fin_attrs, attrids.dsp_attrids[attr], val)
+    return fin_attrs
+
 def set_osc_attrs(db, typ, params):
     osc_attrs = dict()
     for param, val in params.items():
