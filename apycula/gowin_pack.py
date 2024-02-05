@@ -608,26 +608,26 @@ def set_dsp_attrs(db, typ, parms):
     for parm, val in params.items():
         if parm == 'AREG':
             if val == '0':
-                dsp_attr['IRNS_IREG0AL_0'] = "ENABLE"
-                dsp_attr['IRBY_IREG0AL_0'] = "ENABLE"
+                dsp_attrs['IRNS_IREG0AL_0'] = "ENABLE"
+                dsp_attrs['IRBY_IREG0AL_0'] = "ENABLE"
         if parm == 'BREG':
             if val == '0':
-                dsp_attr['IRNS_IREG0BL_2'] = "ENABLE"
-                dsp_attr['IRBY_IREG0BL_2'] = "ENABLE"
+                dsp_attrs['IRNS_IREG0BL_2'] = "ENABLE"
+                dsp_attrs['IRBY_IREG0BL_2'] = "ENABLE"
         if parm == 'ASIGN_REG':
             if val == '0':
-                dsp_attr['CINNS_0'] = "ENABLE"
-                dsp_attr['CINBY_0'] = "ENABLE"
+                dsp_attrs['CINNS_0'] = "ENABLE"
+                dsp_attrs['CINBY_0'] = "ENABLE"
         if parm == 'BSIGN_REG':
             if val == '0':
-                dsp_attr['CINNS_1'] = "ENABLE"
-                dsp_attr['CINBY_1'] = "ENABLE"
+                dsp_attrs['CINNS_1'] = "ENABLE"
+                dsp_attrs['CINBY_1'] = "ENABLE"
         if parm == 'PIPE_REG':
             if val == '0':
-                dsp_attr['CPRNS_0'] = "ENABLE"
-                dsp_attr['CPRBY_0'] = "ENABLE"
-                dsp_attr['CPRNS_1'] = "ENABLE"
-                dsp_attr['CPRBY_1'] = "ENABLE"
+                dsp_attrs['CPRNS_0'] = "ENABLE"
+                dsp_attrs['CPRBY_0'] = "ENABLE"
+                dsp_attrs['CPRNS_1'] = "ENABLE"
+                dsp_attrs['CPRBY_1'] = "ENABLE"
 
     fin_attrs = set()
     for attr, val in dsp_attrs.items():
