@@ -11,7 +11,6 @@ from functools import reduce
 from random import shuffle, seed
 from warnings import warn
 from math import factorial
-import numpy as np
 from multiprocessing.dummy import Pool
 import pickle
 import json
@@ -19,6 +18,7 @@ from wirenames import wirenames, clknames
 from PIL import Image, ImageDraw
 from shutil import copytree
 
+from apycula import bitmatrix
 from apycula import attrids
 from apycula import codegen
 from apycula import bslib
@@ -179,7 +179,7 @@ def pict(bm, name):
 
 def get_bits(bm):
     bits = set()
-    rows, cols = bm.shape
+    rows, cols =bitmatrix.shape(bm)
     for row in range(rows):
         for col in range(cols):
             if bm[row][col] == 1:
@@ -302,7 +302,7 @@ if __name__ == "__main__":
         fuses = set()
         sec_img = bslib.read_bitstream(f'{sys.argv[3]}')[0]
         sec_bm = chipdb.tile_bitmap(db, sec_img)
-        diff = img ^ sec_img
+        diff = bitmatrix.xor(img, sec_img)
         diff_tiles = fuse_h4x.tile_bitmap(fse, diff)
         sec_tiles = fuse_h4x.tile_bitmap(fse, sec_img)
         print(diff_tiles.keys())
@@ -343,7 +343,7 @@ if __name__ == "__main__":
     print("consts:", consts)
 
     rbits = route_bits(db, row, col)
-    r, c = np.where(bm[(row, col)] == 1)
+    r, c = bitmatrix.nonzero(bm)
     tile = set(zip(r, c))
     bits = tile# - rbits
     fuses = set()
