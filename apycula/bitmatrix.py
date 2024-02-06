@@ -80,7 +80,6 @@ def xor(bmp_0, bmp_1):
 def histogram(lst, bins):
     """
     Compute the histogram of a list.
-    Returns a list of counters.
     """
     l_bins = len(bins) - 1
     r_lst = [0] * l_bins
