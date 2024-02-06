@@ -163,7 +163,7 @@ class Device:
 # other logical wires. Let's remember such connections.
 # If suddenly a command is given to assign an already used wire to another
 # node, then all the contents of this node are combined with the existing one,
-# and the node itself is destroyed.  only for HCLK and clock nets for now
+# and the node itself is destroyed.
 wire2node = {}
 def add_node(dev, node_name, wire_type, row, col, wire):
     if (row, col, wire) not in wire2node:
@@ -464,6 +464,8 @@ _known_tables = {
             30: 'BSRAM_SDP',
             31: 'BSRAM_SP',
             32: 'BSRAM_ROM',
+            33: 'DSP0',
+            34: 'DSP1',
             35: 'PLL',
             37: 'BANK',
             40: 'IOBC',
@@ -1398,7 +1400,7 @@ def fse_create_simplio_rows(dev, dat: Datfile):
             dev.simplio_rows.add(row)
 
 def fse_create_tile_types(dev, dat: Datfile):
-    type_chars = 'PCMIB'
+    type_chars = 'PCMIBD'
     for fn in type_chars:
         dev.tile_types[fn] = set()
     for row, rd in enumerate(dat.grid.rows):
@@ -1569,6 +1571,20 @@ def fse_bram(fse, aux = False):
     bels[name] = Bel()
     return bels
 
+# According to "UG287-1.3.3E_Gowin Digital Signal Processing (DSP) User Guide",
+# each DSP consists of two macros (whatever that is), each in turn containing
+# two multipliers.
+def fse_dsp(fse, aux = False):
+    bels = {}
+    if aux:
+        name = 'DSP_AUX'
+        bels[name] = Bel()
+    else:
+        bels['MULT18x18i00'] = Bel()  # multiplier 0 of macro 0
+        bels['MULT18x18i01'] = Bel()  # multiplier 1 of macro 0
+        bels['MULT18x18i10'] = Bel()  # multiplier 0 of macro 1
+        bels['MULT18x18i11'] = Bel()  # multiplier 1 of macro 1
+    return bels
 
 def disable_plls(dev, device):
     if device in {'GW2A-18C'}:
@@ -1589,6 +1605,8 @@ def from_fse(device, fse, dat: Datfile):
     tiles = {}
     bram_ttypes = get_tile_types_by_func(dev, dat, fse, 'B')
     bram_aux_ttypes = get_tile_types_by_func(dev, dat, fse, 'b')
+    dsp_ttypes = get_tile_types_by_func(dev, dat, fse, 'D')
+    dsp_aux_ttypes = get_tile_types_by_func(dev, dat, fse, 'd')
     for ttyp in ttypes:
         w = fse[ttyp]['width']
         h = fse[ttyp]['height']
@@ -1607,6 +1625,10 @@ def from_fse(device, fse, dat: Datfile):
             tile.bels = fse_bram(fse)
         elif ttyp in bram_aux_ttypes:
             tile.bels = fse_bram(fse, True)
+        elif ttyp in dsp_ttypes:
+            tile.bels = fse_dsp(fse)
+        elif ttyp in dsp_aux_ttypes:
+            tile.bels = fse_dsp(fse, True)
         # These are the cell types in which PLLs can be located. To determine,
         # we first take the coordinates of the cells with the letters P and p
         # from the dat['grid'] table, and then, using these coordinates,
@@ -1629,7 +1651,6 @@ def from_fse(device, fse, dat: Datfile):
     fse_create_osc(dev, device, fse)
     fse_create_gsr(dev, device)
     fse_create_logic2clk(dev, device, dat)
-    fse_create_dsp(dev, device, dat)
     disable_plls(dev, device)
     sync_extra_func(dev)
     return dev
@@ -1835,7 +1856,8 @@ def dat_portmap(dat, dev, device):
             for name, bel in tile.bels.items():
                 if bel.portmap:
                     # GW2A has same PLL in different rows
-                    if (not (name.startswith("RPLLA") and device in {'GW2A-18', 'GW2A-18C'})) and name != "BSRAM":
+                    # BSRAM and DSP repeated in rows and columns
+                    if (not (name.startswith("RPLLA") and device in {'GW2A-18', 'GW2A-18C'})) and name != "BSRAM" and not (name.startswith("MULT18x18i")):
                         continue
                 if name.startswith("IOB"):
                     if row in dev.simplio_rows:
@@ -1893,9 +1915,87 @@ def dat_portmap(dat, dev, device):
                             # dummy Input, we'll make a special pips for it
                             bel.portmap[nam] = "FCLK"
                     bel.portmap.update(_ides16_fixed_outputs)
+                elif name.startswith('MULT18x18i'):
+                    mac = int(name[-2])
+                    idx = int(name[-1])
+                    column = mac * 2 + idx
+                    # dat.portmap['MultIn'] and dat.portmap['MultInDlt'] indicate port offset in cells
+                    # Each port in these tables has 4 elements - to describe
+                    # all the multipliers, of which there are 4 per block.
+                    for i in range(len(dat.portmap['MultIn'])):
+                        off = dat.portmap['MultInDlt'][i][column]
+                        wire_idx = dat.portmap['MultIn'][i][column]
+                        if wire_idx < 0:
+                            continue
+                        wire = wirenames[wire_idx]
+                        # input wire sequence: A0-17, B0-17,
+                        # SIA0-17, SIB0-17 - these are fixed and are not switchable and should not be here
+                        # ASIGN, BSIGN, ASEL, BSEL
+                        if i < 18:
+                            nam = f'A{i}'
+                        elif i < 36:
+                            nam = f'B{i - 18}'
+                        elif i < 72 or i > 75:
+                            raise Exception(f"{name} has unexpected wire {wire} at position {i}")
+                        else:
+                            nam = ['ASIGN', 'BSIGN', 'ASEL', 'BSEL'][i - 72]
+                        # for aux cells create Himbaechel nodes
+                        if off:
+                            bel.portmap[nam] = f'{name}{nam}{wire}'
+                            node_name = f'X{col}Y{row}/{name}{nam}{wire}'
+                            add_node(dev, node_name, "DSP_I", row, col, f'{name}{nam}{wire}')
+                            add_node(dev, node_name, "DSP_I", row, col + off, wire)
+                        else:
+                            bel.portmap[nam] = wire
+                    # other inputs placed in different table for some reason
+                    # Also the rows in this table are duplicated for all the
+                    # chips examined and also describe several wires of unknown
+                    # purpose. For now use first three.
+                    for i in range(3, len(dat.portmap['CtrlIn']), 4):
+                        off = dat.portmap['CtrlInDlt'][i][column]
+                        wire_idx = dat.portmap['CtrlIn'][i][column]
+                        if wire_idx < 0:
+                            continue
+                        wire = wirenames[wire_idx]
+                        if i > 11:
+                            nam = f'DSPUNK{i}'
+                        else:
+                            nam = ['CE', 'CLK', 'RESET'][i // 4]
+                        # for aux cells create Himbaechel nodes
+                        wire_type = 'DSP_I'
+                        if wire.startswith('CLK') or wire.startswith('CE') or wire.startswith('LSR'):
+                            wire_type = 'TILE_CLK'
+                        if off:
+                            bel.portmap[nam] = f'{name}{nam}{wire}'
+                            node_name = f'X{col}Y{row}/{name}{nam}{wire}'
+                            add_node(dev, node_name, wire_type, row, col, f'{name}{nam}{wire}')
+                            add_node(dev, node_name, wire_type, row, col + off, wire)
+                        else:
+                            bel.portmap[nam] = wire
+                    # outputs
+                    for i in range(len(dat.portmap['MultOut'])):
+                        off = dat.portmap['MultOutDlt'][i][column]
+                        wire_idx = dat.portmap['MultOut'][i][column]
+                        if wire_idx < 0:
+                            continue
+                        wire = wirenames[wire_idx]
+                        # output wire sequence:
+                        # SOA0-17, SOB0-17 - these are fixed and are not switchable and should not be here
+                        # DOUT0-35
+                        if i < 36:
+                            raise Exception(f"{name} has unexpected wire {wire} at position {i}")
+                        else:
+                            nam = f'DOUT{i - 36}'
+                        # for aux cells create Himbaechel nodes
+                        if off:
+                            bel.portmap[nam] = f'{name}{nam}{wire}'
+                            node_name = f'X{col}Y{row}/{name}{nam}{wire}'
+                            add_node(dev, node_name, "DSP_O", row, col, f'{name}{nam}{wire}')
+                            add_node(dev, node_name, "DSP_O", row, col + off, wire)
+                        else:
+                            bel.portmap[nam] = wire
                 elif name == 'BSRAM':
                     # dat.portmap['BsramOutDlt'] and dat.portmap['BsramOutDlt'] indicate port offset in cells
-                    wire2node = {} # some wires used for >1 port, remember node
                     for i in range(len(dat.portmap['BsramOut'])):
                         off = dat.portmap['BsramOutDlt'][i]
                         wire_idx = dat.portmap['BsramOut'][i]
@@ -1912,12 +2012,9 @@ def dat_portmap(dat, dev, device):
                         # for aux cells create Himbaechel nodes
                         if off:
                             bel.portmap[nam] = f'BSRAM{nam}{wire}'
-                            node = wire2node.get((row, col + off, wire), None)
-                            if node:
-                                dev.nodes[node][1].add((row, col, f'BSRAM{nam}{wire}'))
-                            else:
-                                dev.nodes.setdefault(f'X{col}Y{row}/BSRAM{nam}{wire}', ("BSRAM_O", {(row, col, f'BSRAM{nam}{wire}')}))[1].add((row, col + off, wire))
-                                wire2node[(row, col + off, wire)] = f'X{col}Y{row}/BSRAM{nam}{wire}'
+                            node_name = f'X{col}Y{row}/BSRAM{nam}{wire}'
+                            add_node(dev, node_name, "BSRAM_O", row, col, f'BSRAM{nam}{wire}')
+                            add_node(dev, node_name, "BSRAM_O", row, col + off, wire)
                         else:
                             bel.portmap[nam] = wire
                     for i in range(len(dat.portmap['BsramIn']) + 6):
@@ -1963,12 +2060,9 @@ def dat_portmap(dat, dev, device):
                         # for aux cells create Himbaechel nodes
                         if off:
                             bel.portmap[nam] = f'BSRAM{nam}{wire}'
-                            node = wire2node.get((row, col + off, wire), None)
-                            if node:
-                                dev.nodes[node][1].add((row, col, f'BSRAM{nam}{wire}'))
-                            else:
-                                dev.nodes.setdefault(f'X{col}Y{row}/BSRAM{nam}{wire}', (wire_type, {(row, col, f'BSRAM{nam}{wire}')}))[1].add((row, col + off, wire))
-                                wire2node[(row, col + off, wire)] = f'X{col}Y{row}/BSRAM{nam}{wire}'
+                            node_name = f'X{col}Y{row}/BSRAM{nam}{wire}'
+                            add_node(dev, node_name, wire_type, row, col, f'BSRAM{nam}{wire}')
+                            add_node(dev, node_name, wire_type, row, col + off, wire)
                         else:
                             bel.portmap[nam] = wire
                 elif name == 'RPLLA':
@@ -2115,28 +2209,6 @@ def fuse_bitmap(db, bitmap):
         y += h
 
     return res
-
-def shared2flag(dev):
-    "Convert mode bits that are shared between bels to flags"
-    for idx, row in enumerate(dev.grid):
-        for jdx, td in enumerate(row):
-            for namea, bela in td.bels.items():
-                bitsa = bela.mode_bits
-                for nameb, belb in td.bels.items():
-                    bitsb = belb.mode_bits
-                    common_bits = bitsa & bitsb
-                    if bitsa != bitsb and common_bits:
-                        print(idx, jdx, namea, "and", nameb, "have common bits:", common_bits)
-                        for mode, bits in bela.modes.items():
-                            mode_cb = bits & common_bits
-                            if mode_cb:
-                                bela.flags[mode+"C"] = mode_cb
-                                bits -= mode_cb
-                        for mode, bits in belb.modes.items():
-                            mode_cb = bits & common_bits
-                            if mode_cb:
-                                belb.flags[mode+"C"] = mode_cb
-                                bits -= mode_cb
 
 def get_route_bits(db, row, col):
     """ All routing bits for the cell """

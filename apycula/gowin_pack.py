@@ -174,7 +174,7 @@ _bsram_cell_types = {'DP', 'SDP', 'SP', 'ROM'}
 def get_bels(data):
     later = []
     if is_himbaechel:
-        belre = re.compile(r"X(\d+)Y(\d+)/(?:GSR|LUT|DFF|IOB|MUX|ALU|ODDR|OSC[ZFHWO]?|BUF[GS]|RAM16SDP4|RAM16SDP2|RAM16SDP1|PLL|IOLOGIC|BSRAM)(\w*)")
+        belre = re.compile(r"X(\d+)Y(\d+)/(?:GSR|LUT|DFF|IOB|MUX|ALU|ODDR|OSC[ZFHWO]?|BUF[GS]|RAM16SDP4|RAM16SDP2|RAM16SDP1|PLL|IOLOGIC|BSRAM|MULT18x18i)(\w*)")
     else:
         belre = re.compile(r"R(\d+)C(\d+)_(?:GSR|SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8|ODDR|OSC[ZFHWO]?|BUFS|RAMW|rPLL|PLLVR|IOLOGIC)(\w*)")
 
@@ -595,6 +595,45 @@ def set_bsram_attrs(db, typ, params):
         if isinstance(val, str):
             val = attrids.bsram_attrvals[val]
         add_attr_val(db, 'BSRAM', fin_attrs, attrids.bsram_attrids[attr], val)
+    return fin_attrs
+
+def set_dsp_attrs(db, typ, params, num):
+    dsp_attrs = {}
+
+    # XXX
+    # != mult36x36
+    dsp_attrs["IRASHFEN_0"] = "1"
+    #  macro A mult 0
+    dsp_attrs["OR2CIB_EN0L_0"] = "ENABLE"
+    for parm, val in params.items():
+        if parm == 'AREG':
+            if val == '0':
+                dsp_attrs['IRNS_IREG0AL_0'] = "ENABLE"
+                dsp_attrs['IRBY_IREG0AL_0'] = "ENABLE"
+        if parm == 'BREG':
+            if val == '0':
+                dsp_attrs['IRNS_IREG0BL_2'] = "ENABLE"
+                dsp_attrs['IRBY_IREG0BL_2'] = "ENABLE"
+        if parm == 'ASIGN_REG':
+            if val == '0':
+                dsp_attrs['CINNS_0'] = "ENABLE"
+                dsp_attrs['CINBY_0'] = "ENABLE"
+        if parm == 'BSIGN_REG':
+            if val == '0':
+                dsp_attrs['CINNS_1'] = "ENABLE"
+                dsp_attrs['CINBY_1'] = "ENABLE"
+        if parm == 'PIPE_REG':
+            if val == '0':
+                dsp_attrs['CPRNS_0'] = "ENABLE"
+                dsp_attrs['CPRBY_0'] = "ENABLE"
+                dsp_attrs['CPRNS_1'] = "ENABLE"
+                dsp_attrs['CPRBY_1'] = "ENABLE"
+
+    fin_attrs = set()
+    for attr, val in dsp_attrs.items():
+        if isinstance(val, str):
+            val = attrids.dsp_attrvals[val]
+        add_attr_val(db, 'DSP', fin_attrs, attrids.dsp_attrids[attr], val)
     return fin_attrs
 
 def set_osc_attrs(db, typ, params):
@@ -1039,6 +1078,12 @@ def place(db, tilemap, bels, cst, args):
             bsrambits = get_shortval_fuses(db, tiledata.ttyp, bsram_attrs, f'BSRAM_{typ}')
             #print(f'({row - 1}, {col - 1}) attrs:{bsram_attrs}, bits:{bsrambits}')
             for brow, bcol in bsrambits:
+                tile[brow][bcol] = 1
+        elif typ in {'MULT18X18'}:
+            dsp_attrs = set_dsp_attrs(db, typ, parms, num)
+            dspbits = get_shortval_fuses(db, tiledata.ttyp, dsp_attrs, f'DSP{num[-1]}')
+            print(f'({row - 1}, {col - 1}) attrs:{dsp_attrs}, bits:{dspbits}')
+            for brow, bcol in dspbits:
                 tile[brow][bcol] = 1
         elif typ.startswith('RPLL'):
             pll_attrs = set_pll_attrs(db, 'RPLL', 0,  parms)

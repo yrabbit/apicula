@@ -59,6 +59,7 @@ def get_attr_name(attrname_table, code):
     for name, cod in attrname_table.items():
         if cod == code:
             return name
+    print(f'Unknown attr name for {code}/0x{code:x}.')
     return ''
 
 # fix names and types of the PLL attributes
@@ -360,6 +361,18 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                 continue
             #print(row, col, name, idx, tiledata.ttyp, attrvals)
             bels[f'{name}'] = {}
+            continue
+        if name.startswith("MULT18x18"):
+            modes = set()
+            idx = name[-2]
+            print(row, col, name, idx, tiledata.ttyp)
+            if f'DSP{idx}' in db.shortval[tiledata.ttyp].keys():
+                attrvals = parse_attrvals(tile, db.logicinfo['DSP'], db.shortval[tiledata.ttyp][f'DSP{idx}'], attrids.dsp_attrids)
+                print(row, col, name, idx, tiledata.ttyp, attrvals)
+                for attrval in attrvals:
+                    modes.add(attrval)
+            if modes:
+                bels[f'{name}{idx}'] = modes
             continue
         if name.startswith("IOLOGIC"):
             idx = name[-1]
@@ -802,7 +815,7 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
         mod.wires.update({srcg, destg})
         mod.assigns.append((destg, srcg))
 
-    belre = re.compile(r"(IOB|LUT|DFF|BANK|CFG|ALU|RAM16|ODDR|OSC[ZFHWO]?|BUFS|RPLL[AB]|PLLVR|IOLOGIC|BSRAM)(\w*)")
+    belre = re.compile(r"(IOB|LUT|DFF|BANK|CFG|ALU|RAM16|ODDR|OSC[ZFHWO]?|BUFS|RPLL[AB]|PLLVR|IOLOGIC|BSRAM|MULT18x18)(\w*)")
     bels_items = move_iologic(bels)
 
     iologic_detected = set()

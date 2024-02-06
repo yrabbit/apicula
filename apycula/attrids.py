@@ -276,6 +276,53 @@ adc_attrvals = {
         'ON':               22
     }
 
+# DSP
+dsp_attrids = {
+        'CEHMUX_CREG':           0,
+        'CEHMUX_OREG0':          1,
+        'RSTGENLMUX_REGMA0':   112,
+        'IRNS_IREG0AL_0':      214,
+        'IRBY_PRAD0BL_2':      215,
+        'IRBY_IREG0AL_0':      216,
+        'IRBY_IREG0BL_2':      217,
+        'IRNS_IREG0BL_2':      218,
+        'CINNS_0':             221,
+        'CINNS_1':             222,
+        'CINBY_0':             230,
+        'CINBY_1':             231,
+        'CPRBY_0':             239,
+        'CPRBY_1':             240,
+        'OR2CIB_EN0L_0':       246,
+        'CPRNS_0':             247,
+        'CPRNS_1':             248,
+        'IRASHFEN_0':          430,
+        }
+
+dsp_attrvals = {
+        'UNKNOWN':          0,
+        'EN':               1,
+        'ENABLE':           2,
+        '1':                3,
+        'INV':              4,
+        'DYN':              5,
+        'BYN':              6,
+        'SYNC':             7,
+        'CEIN1':            8,
+        'CEIN2':            9,
+        'CEIN3':           10,
+        'CLKIN1':          11,
+        'CLKIN2':          12,
+        'CLKIN3':          13,
+        'RSTIN1':          14,
+        'RSTIN2':          15,
+        'RSTIN3':          16,
+        'SRIAENABLE':      17,
+        'SOURCEA1ENABLE':  18,
+        'HSINSLENABLE':    19,
+        'CRALUENABLE':     20,
+        'INVHSINSL':       21,
+        'SOURCEB1ENABLE':  22,
+        }
 
 # BSRAM
 bsram_attrids = {
