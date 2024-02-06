@@ -365,7 +365,7 @@ if __name__ == "__main__":
 
     if (row3, col3, ttyp) in fuse_h4x.tile_bitmap(fse, sec_img).keys():
         rbits = route_bits(db, row, col)
-        r, c = np.where(sec_bm[(row, col)] == 1)
+        r, c = bitmatrix.nonzero(sec_bm[(row, col)])
         tile = set(zip(r, c))
         bits = tile# - rbits
         fuses = set()
