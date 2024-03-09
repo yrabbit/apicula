@@ -256,6 +256,12 @@ def attrs2log(attrs, pos):
 def st(ttyp, fuses):
     fuse_h4x.scan_tables(fse, ttyp, fuses)
 
+def find_node(name):
+    for node_key, node_rec in db.nodes.items():
+        for node in node_rec[1]:
+            if node[2] == name:
+                print('*', node_key, node_rec)
+
 if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{device}/{device}.fse", 'rb') as f:
         fse = fuse_h4x.readFse(f)
