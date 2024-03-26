@@ -2,6 +2,9 @@ import sys
 import random
 from apycula import bitmatrix
 
+if True:
+    import xcover
+
 def rint(f, w):
     val = int.from_bytes(f.read(w), 'little', signed=True)
     return val
@@ -270,6 +273,61 @@ def reduce_rows(rows, fuses, start=16, tries=1000):
         if rem_fuses != fuses:
             features.add(feat)
     return features
+
+def exact_table_cover(t_rows, start, table=None):
+    row_fuses = [set ([fuse for fuse in row[start:] if fuse!=-1]) for row in t_rows]
+    primary = set()
+    for row in row_fuses:
+        primary.update(row)
+    secondary = set()
+
+    # To enforce that every destination has a single source
+    if table == 'wire':
+        for id, row in enumerate(t_rows):
+            row_fuses[id].add(str(row[1]))
+            secondary.add(str(row[1]))
+
+    g = xcover.covers(row_fuses, primary=primary, secondary=secondary, colored=False)
+    if g:
+        for r in g:
+            #g is an iterator, so this is just a hack to return the first solution
+            return [t_rows[idx] for idx in r]
+    else:
+        return []
+
+def parse_tile_minimum(d, ttyp, tile, fuse_loc=True):
+    w = d[ttyp]['width']
+    h = d[ttyp]['height']
+    res = {}
+    for start, table in [(2, 'shortval'), (2, 'wire'), (16, 'longval'),
+                         (1, 'longfuse'), (0, 'const')]:
+        if table in d[ttyp]: # skip missing entries
+            for subtyp, tablerows in d[ttyp][table].items():
+                pos_items, neg_items = {}, {}
+                active_rows = []
+                for row in tablerows:
+                    if row[0] > 0:
+                        row_fuses  = [fuse for fuse in row[start:] if fuse >= 0]
+                        locs = [fuse_lookup(d,ttyp, fuse) for fuse in row_fuses]
+                        test = [tile[loc[0]][loc[1]] == 1 for loc in locs]
+                        if all(test):
+                            full_row = row[:start]
+                            full_row.extend(row_fuses)
+                            active_rows.append(full_row)
+
+
+                # report fuse locations
+                if (active_rows):
+                    exact_cover = exact_table_cover(active_rows, start, table)
+                    if fuse_loc:
+                        for cover_row in exact_cover:
+                            cover_row[start:] = [fuse_lookup(d, ttyp, fuse) for fuse in cover_row[start:]]
+
+
+                    res.setdefault(table, {})[subtyp] = exact_cover
+    return res
+
+
 
 if __name__ == "__main__":
     with open(sys.argv[1], 'rb') as f:
