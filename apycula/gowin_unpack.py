@@ -367,12 +367,12 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             if 'BSRAM_SP' not in db.shortval[tiledata.ttyp]:
                 continue
             idx = _bsram_cells.setdefault(get_bsram_main_cell(db, row, col, name), len(_bsram_cells))
-            #print(row, col, name, idx, tiledata.ttyp)
+            print(row, col, name, idx, tiledata.ttyp)
             attrvals = parse_attrvals(tile, db.logicinfo['BSRAM'], db.shortval[tiledata.ttyp]['BSRAM_SP'], attrids.bsram_attrids)
             if not attrvals:
                 continue
-            #print(row, col, name, idx, tiledata.ttyp, attrvals)
-            bels[f'{name}'] = {}
+            print(row, col, name, idx, tiledata.ttyp, attrvals)
+            bels[f'{name}{idx}'] = {}
             continue
         if name.startswith("ALU54D"):
             continue
@@ -942,12 +942,18 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
             for port, wname in portmap.items():
                 pll.portmap[port] = f"R{row}C{col}_{wname}"
         elif typ.startswith("BSRAM"):
-            name = f"BSRAM_{idx}"
+            print(dbrow, dbcol, typ, bel, idx)
+            if idx.startswith("_AUX"):
+                bel_name = "BSRAM_AUX"
+                name = f"BSRAM_{idx[4:]}"
+            else:
+                bel_name = "BSRAM"
+                name = f"BSRAM_{idx}"
             pll = mod.primitives.setdefault(name, codegen.Primitive("BSRAM", name))
             for paramval in flags:
                 param, _, val = paramval.partition('=')
                 pll.params[param] = val
-            portmap = db.grid[dbrow][dbcol].bels[bel].portmap
+            portmap = db.grid[dbrow][dbcol].bels[bel_name].portmap
             for port, wname in portmap.items():
                 pll.portmap[port] = f"R{row}C{col}_{wname}"
         elif typ == "ALU":

@@ -44,7 +44,7 @@ module Memory (
 
    reg [31:0] MEM [0:255]; 
 
-   localparam slow_bit=20;
+   localparam slow_bit=22;
    
 `include "riscv_assembly.v"
    integer L0_   = 8;
@@ -353,17 +353,19 @@ module top (
       .mem_rstrb(mem_rstrb),
       .x10(x10)		 
    );
-   assign led = ~x10[5:0];
+   wire lock;
+   assign led = ~{lock, x10[4:0]};
 
    // Gearbox and reset circuitry.
    Clockworks #(
-	 .SLOW(0)    //Specifying a value other than zero here may result in
+	 .SLOW(1)    //Specifying a value other than zero here may result in
 				 // nextpnr being unable to route the clock for some boards. BUGFIX is under development. 
    ) CW (
      .CLK(clk_i),
      .RESET(rst_i),
      .clk(clk),
-     .resetn(resetn)
+     .resetn(resetn),
+	 .lock(lock)
    );
    
    assign TXD  = 1'b0; // not used for now         
