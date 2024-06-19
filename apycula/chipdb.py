@@ -1652,7 +1652,7 @@ def sync_extra_func(dev):
 def set_chip_flags():
     if device not in {"GW1NS-4", "GW1N-9"}:
         dev.chip_flags.append("HAS_SP32")
-    if device in {'GW1N-1', 'GW1N-4', 'GW1NS-2', 'GW1N-9', 'GW2A-18'}
+    if device in {'GW1N-1', 'GW1N-4', 'GW1NS-2', 'GW1N-9', 'GW2A-18'}:
         dev.chip_flags.append("NEED_SP_FIX")
 
 def from_fse(device, fse, dat: Datfile):
