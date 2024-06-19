@@ -1649,7 +1649,7 @@ def sync_extra_func(dev):
         row, col = loc
         dev.extra_func.setdefault((row, col), {})['hclk_pips'] = pips
 
-def set_chip_flags():
+def set_chip_flags(dev, device):
     if device not in {"GW1NS-4", "GW1N-9"}:
         dev.chip_flags.append("HAS_SP32")
     if device in {'GW1N-1', 'GW1N-4', 'GW1NS-2', 'GW1N-9', 'GW2A-18'}:
@@ -1710,7 +1710,7 @@ def from_fse(device, fse, dat: Datfile):
     fse_create_logic2clk(dev, device, dat)
     disable_plls(dev, device)
     sync_extra_func(dev)
-    set_chip_flags();
+    set_chip_flags(dev, device);
     return dev
 
 # get fuses for attr/val set using short/longval table
