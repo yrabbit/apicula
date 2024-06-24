@@ -42,9 +42,11 @@ One more note for the future - if these additional things are intended to correc
 
 
 ### Tangnano9k and Tangnano20k
-For chips on these boards, no new elements are formed around the BSRAM, that is, we can conclude that whatever was broken in the previous families was fixed here. However, now the built-in output registers only work with 32 or 36 bits - with a different bit size, the internal registers are disabled (read mode is forced to switch to 1'b0 bypass) and external DFFCs are added
+For chips on these boards, no new elements are formed around the BSRAM, that is, we can conclude that whatever was broken in the previous families was fixed here. However, now the built-in output registers only work with 32 or 36 bits - with a different bit size, the internal registers are disabled (read mode is forced to switch to 1'b0 bypass) and external DFFs are added.
 
-![OCE connection algorithm](fig/sp-9c-algo.png)
+Which type is added, DFFCE or DFFRE, is determined by the SYNC parameter.
+
+![Tangnano9k and Tangnano20k with READ_MODE=1'b1](fig/sp-rmode-1-9c-20c.png)
 
 
 # TODO
