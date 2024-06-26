@@ -1656,6 +1656,7 @@ def set_chip_flags(dev, device):
         dev.chip_flags.append("NEED_SP_FIX")
     if device in {'GW1N-9C', 'GW2A-18C'}:
         dev.chip_flags.append("NEED_BSRAM_OUTREG_FIX")
+        dev.chip_flags.append("NEED_BLKSEL_FIX")
 
 def from_fse(device, fse, dat: Datfile):
     dev = Device()
