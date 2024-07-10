@@ -2426,7 +2426,7 @@ def place(db, tilemap, bels, cst, args):
             # Himbaechel only
             pipre = re.compile(r"X(\d+)Y(\d+)/([\w_]+)/([\w_]+)")
             if 'DQCE_PIP' not in attrs:
-                raise Exception(f"DQCE without DQCE_PIP attribute: {cellname}")
+                continue
             pip = attrs['DQCE_PIP']
             res = pipre.fullmatch(pip)
             if not res:
