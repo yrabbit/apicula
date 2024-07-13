@@ -1438,13 +1438,14 @@ def fse_create_clocks(dev, device, dat: Datfile, fse):
                 break
             extra_func = dev.extra_func.setdefault((row, col), {})
             dcs_block = extra_func.setdefault('dcs', {})
-            dcs = dcs_block.setdefault(q % 2, {})
+            dcs = dcs_block.setdefault(q // 2, {})
             spine_idx = f'SPINE{q * 8 + j + 6}'
             dcs['clkout'] = spine_idx
             dev.nodes.setdefault(spine_idx, ("GLOBAL_CLK", set()))[1].add((row, col, spine_idx))
+            dcs['clk'] = []
             for port in "ABCD":
                 wire_name = f'P{q + 1}{j + 6}{port}'
-                dcs['clk'] = wire_name
+                dcs['clk'].append(wire_name)
                 dev.nodes.setdefault(wire_name, ("GLOBAL_CLK", set()))[1].add((row, col, wire_name))
             if q < 2:
                 dcs['selforce'] = 'C2'
