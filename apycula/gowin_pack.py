@@ -144,7 +144,12 @@ def store_bsram_init_val(db, row, col, typ, parms, attrs):
 
     addr = -1
     for init_row in range(0x40):
-        init_data = parms[f'INIT_RAM_{init_row:02X}']
+        row_name = f'INIT_RAM_{init_row:02X}'
+        # skip missing init rows
+        if row_name not in parms:
+            addr += 0x100
+            continue
+        init_data = parms[row_name]
         #print(init_data)
         for ptr_bit_inc in get_bits(init_data):
             addr = ptr_bit_inc[2](addr)
@@ -180,7 +185,7 @@ _dsp_cell_types = {'ALU54D', 'MULT36X36', 'MULTALU36X18', 'MULTADDALU18X18', 'MU
 def get_bels(data):
     later = []
     if is_himbaechel:
-        belre = re.compile(r"X(\d+)Y(\d+)/(?:GSR|LUT|DFF|IOB|MUX|ALU|ODDR|OSC[ZFHWO]?|BUF[GS]|RAM16SDP4|RAM16SDP2|RAM16SDP1|PLL|IOLOGIC|BSRAM|ALU|MULTALU18X18|MULTALU36X18|MULTADDALU18X18|MULT36X36|MULT18X18|MULT9X9|PADD18|PADD9)(\w*)")
+        belre = re.compile(r"X(\d+)Y(\d+)/(?:GSR|LUT|DFF|IOB|MUX|ALU|ODDR|OSC[ZFHWO]?|BUF[GS]|RAM16SDP4|RAM16SDP2|RAM16SDP1|PLL|IOLOGIC|BSRAM|ALU|MULTALU18X18|MULTALU36X18|MULTADDALU18X18|MULT36X36|MULT18X18|MULT9X9|PADD18|PADD9|DQCE|DCS)(\w*)")
     else:
         belre = re.compile(r"R(\d+)C(\d+)_(?:GSR|SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8|ODDR|OSC[ZFHWO]?|BUFS|RAMW|rPLL|PLLVR|IOLOGIC)(\w*)")
 
@@ -2417,6 +2422,24 @@ def place(db, tilemap, bels, cst, args):
             cfg_tile = tilemap[(0, 37)]
             for r, c in bits:
                 cfg_tile[r][c] = 1
+        elif typ == 'DQCE':
+            # Himbaechel only
+            pipre = re.compile(r"X(\d+)Y(\d+)/([\w_]+)/([\w_]+)")
+            if 'DQCE_PIP' not in attrs:
+                continue
+            pip = attrs['DQCE_PIP']
+            res = pipre.fullmatch(pip)
+            if not res:
+                raise Exception(f"Bad DQCE pip {pip} at {cellname}")
+            pip_col, pip_row, dest, src = res.groups()
+            pip_row = int(pip_row)
+            pip_col = int(pip_col)
+
+            pip_tiledata = db.grid[pip_row][pip_col]
+            pip_tile = tilemap[(pip_row, pip_col)]
+            bits = pip_tiledata.clock_pips[dest][src]
+            for r, c in bits:
+                pip_tile[r][c] = 1
         else:
             print("unknown type", typ)
 
