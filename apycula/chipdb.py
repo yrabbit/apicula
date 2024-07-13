@@ -79,6 +79,9 @@ class Device:
     # allowable values of bel attributes
     # {table_name: [(attr_id, attr_value)]}
     logicinfo: Dict[str, List[Tuple[int, int]]] = field(default_factory=dict)
+    # fuses for single feature only
+    # {ttype: {table_name: {feature: {bits}}}
+    longfuses: Dict[int, Dict[str, Dict[int, Set[Coord]]]] = field(default_factory=dict)
     # fuses for a pair of the "features" (or pairs of parameter values)
     # {ttype: {table_name: {(feature_A, feature_B): {bits}}}
     shortval: Dict[int, Dict[str, Dict[Tuple[int, int], Set[Coord]]]] = field(default_factory=dict)
@@ -462,6 +465,8 @@ _known_logic_tables = {
 _known_tables = {
              4: 'CONST',
              5: 'LUT',
+            18: 'DCS6',
+            19: 'DCS7',
             20: 'GSR',
             21: 'IOLOGICA',
             22: 'IOLOGICB',
@@ -511,6 +516,15 @@ def fse_fill_logic_tables(dev, fse):
     # shortval
     ttypes = {t for row in fse['header']['grid'][61] for t in row}
     for ttyp in ttypes:
+        if 'longfuses' in fse[ttyp].keys():
+            ttyp_rec = dev.longfuses.setdefault(ttyp, {})
+            for lftable in fse[ttyp]['longfuses'].keys():
+                if lftable in _known_tables:
+                    table = ttyp_rec.setdefault(_known_tables[lftable], {})
+                else:
+                    table = ttyp_rec.setdefault(f"unknown_{stable}", {})
+                for f, *fuses in fse[ttyp]['longfuses'][stable]:
+                    table[f] = {fuse.fuse_lookup(fse, ttyp, f) for f in unpad(fuses)}
         if 'shortval' in fse[ttyp].keys():
             ttyp_rec = dev.shortval.setdefault(ttyp, {})
             for stable in fse[ttyp]['shortval'].keys():

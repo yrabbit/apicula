@@ -884,6 +884,19 @@ cls_attrvals = {
         'SET':              16,
         'RESET':            17
     }
+
+# DCS
+# just quadrant index
+dcs_attrids = {
+        '1':                1,
+        '2':                0,
+        '3':                2,
+        '4':                3,
+        }
+
+dcs_attrvals = {
+        }
+
 # DLL
 dll_attrids = {
         'CLKSEL':           0,
