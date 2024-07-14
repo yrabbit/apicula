@@ -510,14 +510,14 @@ def fse_fill_logic_tables(dev, fse):
     # shortval
     ttypes = {t for row in fse['header']['grid'][61] for t in row}
     for ttyp in ttypes:
-        if 'longfuses' in fse[ttyp].keys():
+        if 'longfuse' in fse[ttyp].keys():
             ttyp_rec = dev.longfuses.setdefault(ttyp, {})
-            for lftable in fse[ttyp]['longfuses'].keys():
+            for lftable in fse[ttyp]['longfuse'].keys():
                 if lftable in _known_tables:
                     table = ttyp_rec.setdefault(_known_tables[lftable], {})
                 else:
-                    table = ttyp_rec.setdefault(f"unknown_{stable}", {})
-                for f, *fuses in fse[ttyp]['longfuses'][stable]:
+                    table = ttyp_rec.setdefault(f"unknown_{lftable}", {})
+                for f, *fuses in fse[ttyp]['longfuse'][lftable]:
                     table[f] = {fuse.fuse_lookup(fse, ttyp, f) for f in unpad(fuses)}
         if 'shortval' in fse[ttyp].keys():
             ttyp_rec = dev.shortval.setdefault(ttyp, {})
