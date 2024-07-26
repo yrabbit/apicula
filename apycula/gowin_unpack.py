@@ -2,7 +2,6 @@ import sys
 import os
 import re
 import random
-import numpy as np
 from itertools import chain, count
 import pickle
 import gzip
@@ -22,6 +21,12 @@ _packages = {
         'GW1N-9' : 'PBGA256', 'GW1NS-4' : 'QFN48', 'GW1NS-2' : 'LQFP144', 'GW2A-18': 'PBGA256',
         'GW2A-18C' : 'PBGA256S'
 }
+
+def print_sorted_dict(start, d):
+    print(start, end='{')
+    for i in sorted(d):
+        print(f'{i}:{d[i]}, ', end='')
+    print('}')
 
 # bank iostandards
 # XXX default io standard may be board-dependent!
@@ -60,6 +65,7 @@ def get_attr_name(attrname_table, code):
     for name, cod in attrname_table.items():
         if cod == code:
             return name
+    print(f'Unknown attr name for {code}/0x{code:x}.')
     return ''
 
 # fix names and types of the PLL attributes
@@ -293,6 +299,23 @@ _iologic_mode = {
         'MIDDRX5': 'IDES10', 'IDDRX5': 'IDES10',
         'IDDRX8': 'IDES16',
         }
+
+# BSRAM has 3 cells: BSRAM, BSRAM0 and BSRAM1
+# { (row, col) : idx }
+_bsram_cells = {}
+def get_bsram_main_cell(db, row, col, typ):
+    if typ[-4:] == '_AUX':
+        col -= 1
+        if 'BSRAM_AUX' in db.grid[row][col].bels:
+            col -= 1
+    return row, col
+
+# The DSP has 9 cells: the main one and a group of auxiliary ones.
+def get_dsp_main_cell(db, row, col, typ):
+    if type[-6:-2] == '_AUX':
+        col = 1 + (col - 1) // 9
+    return row, col
+
 # noiostd --- this is the case when the function is called
 # with iostd by default, e.g. from the clock fuzzer
 # With normal gowin_unpack io standard is determined first and it is known.
@@ -339,10 +362,38 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             if modes:
                 bels[name] = modes
             continue
+        if name.startswith("BSRAM"):
+            # disabled BSRAM cells have no fuse tables
+            if 'BSRAM_SP' not in db.shortval[tiledata.ttyp]:
+                continue
+            idx = _bsram_cells.setdefault(get_bsram_main_cell(db, row, col, name), len(_bsram_cells))
+            #print(row, col, name, idx, tiledata.ttyp)
+            attrvals = parse_attrvals(tile, db.logicinfo['BSRAM'], db.shortval[tiledata.ttyp]['BSRAM_SP'], attrids.bsram_attrids)
+            if not attrvals:
+                continue
+            #print(row, col, name, idx, tiledata.ttyp, attrvals)
+            bels[f'{name}{idx}'] = {}
+            continue
+        if name.startswith("ALU54D"):
+            continue
+        if name.startswith("DSP") or name.startswith("DSP_AUX"):
+            modes = set()
+            idx = name[-1]
+            #print(row, col, name, idx, tiledata.ttyp)
+            if name.startswith("DSP_AUX"):
+                row, col = get_dsp_main_cell(db, row, col, name)
+
+            if f'DSP{idx}' in db.shortval[tiledata.ttyp]:
+                attrvals = parse_attrvals(tile, db.logicinfo['DSP'], db.shortval[tiledata.ttyp][f'DSP{idx}'], attrids.dsp_attrids)
+                #print_sorted_dict(f'{row}, {col}, {name}, {idx}, {tiledata.ttyp} - ', attrvals)
+                for attrval in attrvals:
+                    modes.add(attrval)
+            if modes and not name.startswith("DSP_AUX"):
+                bels[f'{name}{idx}'] = modes
+            continue
         if name.startswith("IOLOGIC"):
             idx = name[-1]
             attrvals = parse_attrvals(tile, db.logicinfo['IOLOGIC'], db.shortval[tiledata.ttyp][f'IOLOGIC{idx}'], attrids.iologic_attrids)
-            #print(row, col, attrvals)
             if not attrvals:
                 continue
             if 'OUTMODE' in attrvals.keys():
@@ -491,7 +542,11 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
 
     # elvds IO uses the B bel bits
     for name in skip_bels:
-        bel_a = bels[f'{name[:-1]}A']
+        bel_a_name = f'{name[:-1]}A'
+        if bel_a_name not in bels:
+            continue
+
+        bel_a = bels[bel_a_name]
         if not bel_a.intersection({'ELVDS_IBUF', 'ELVDS_OBUF', 'ELVDS_IOBUF', 'ELVDS_TBUF',
                                    'TLVDS_IBUF', 'TLVDS_OBUF', 'TLVDS_IOBUF', 'TLVDS_TBUF'}):
             mode = bels[name].intersection({'ELVDS_IBUF', 'ELVDS_OBUF', 'ELVDS_IOBUF', 'ELVDS_TBUF'})
@@ -781,7 +836,7 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
         mod.wires.update({srcg, destg})
         mod.assigns.append((destg, srcg))
 
-    belre = re.compile(r"(IOB|LUT|DFF|BANK|CFG|ALU|RAM16|ODDR|OSC[ZFHWO]?|BUFS|RPLL[AB]|PLLVR|IOLOGIC)(\w*)")
+    belre = re.compile(r"(IOB|LUT|DFF|BANK|CFG|ALU|RAM16|ODDR|OSC[ZFHWO]?|BUFS|RPLL[AB]|PLLVR|IOLOGIC|BSRAM|DSP)(\w*)")
     bels_items = move_iologic(bels)
 
     iologic_detected = set()
@@ -890,6 +945,19 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
             portmap = db.grid[dbrow][dbcol].bels[bel[:-1]].portmap
             for port, wname in portmap.items():
                 pll.portmap[port] = f"R{row}C{col}_{wname}"
+        elif typ.startswith("BSRAM"):
+            #print(dbrow, dbcol, typ, bel, idx)
+            if idx.startswith("_AUX"):
+                continue
+            bel_name = "BSRAM"
+            name = f"BSRAM_{idx}"
+            pll = mod.primitives.setdefault(name, codegen.Primitive("BSRAM", name))
+            for paramval in flags:
+                param, _, val = paramval.partition('=')
+                pll.params[param] = val
+            portmap = db.grid[dbrow][dbcol].bels[bel_name].portmap
+            for port, wname in portmap.items():
+                pll.portmap[port] = f"R{row}C{col}_{wname}"
         elif typ == "ALU":
             #print(flags)
             kind, = flags # ALU only have one flag
@@ -916,6 +984,7 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
                 elif kind == "0":
                     alu.portmap['I0'] = f"R{row}C{col}_B{idx}"
                     alu.portmap['I1'] = f"R{row}C{col}_D{idx}"
+                    alu.portmap['I3'] = f"R{row}C{col}_A{idx}"
                 elif kind == "C2L":
                     alu.portmap['I0'] = f"R{row}C{col}_B{idx}"
                     alu.portmap['I1'] = f"R{row}C{col}_D{idx}"

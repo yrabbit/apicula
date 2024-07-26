@@ -1,8 +1,8 @@
 from math import ceil
-import numpy as np
-from crcmod.predefined import mkPredefinedCrcFun
+import crc
+from apycula import bitmatrix
 
-crc16arc = mkPredefinedCrcFun('crc-16')
+crc16arc = crc.Configuration(width=16, polynomial=0x8005, reverse_input=True, reverse_output=True)
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
@@ -27,6 +27,7 @@ def read_bitstream(fname):
     crcdat = bytearray()
     preamble = 3
     frames = 0
+    calc = crc.Calculator(crc16arc)
     with open(fname) as inp:
         for line in inp:
             if line.startswith("//"): continue
@@ -64,13 +65,13 @@ def read_bitstream(fname):
                 continue
             crcdat.extend(ba[:-8])
             crc1 = (ba[-7] << 8) + ba[-8]
-            crc2 = crc16arc(crcdat)
-            assert crc1 == crc2, f"Not equal {crc1} {crc2}"
+            crc2 = calc.checksum(crcdat)
+            assert crc1 == crc2, f"Not equal {crc1} {crc2} for {crcdat}"
             crcdat = ba[-6:]
             bitmap.append(bitarr(line, padding))
             frames = max(0, frames-1)
 
-    return np.fliplr(np.array(bitmap)), hdr, ftr
+    return bitmatrix.fliplr(bitmap), hdr, ftr
 
 def compressLine(line, key8Z, key4Z, key2Z):
     newline = []
@@ -80,20 +81,27 @@ def compressLine(line, key8Z, key4Z, key2Z):
         newline += val.replace(2 * b'\x00', bytes([key2Z]))
     return newline
 
+def write_bitstream_with_bsram_init(fname, bs, hdr, ftr, compress, bsram_init):
+    new_bs = bitmatrix.vstack(bs, bsram_init)
+    new_hdr = hdr.copy()
+    frames = int.from_bytes(new_hdr[-1][2:], 'big') + bitmatrix.shape(bsram_init)[0]
+    new_hdr[-1][2:] = frames.to_bytes(2, 'big')
+    write_bitstream(fname, new_bs, new_hdr, ftr, compress)
+
 def write_bitstream(fname, bs, hdr, ftr, compress):
-    bs = np.fliplr(bs)
+    bs = bitmatrix.fliplr(bs)
     if compress:
-        padlen = (ceil(bs.shape[1] / 64) * 64) - bs.shape[1]
+        padlen = (ceil(bitmatrix.shape(bs)[1] / 64) * 64) - bitmatrix.shape(bs)[1]
     else:
-        padlen = bs.shape[1] % 8
-    pad = np.ones((bs.shape[0], padlen), dtype=np.uint8)
-    bs = np.hstack([pad, bs])
-    assert bs.shape[1] % 8 == 0
-    bs=np.packbits(bs, axis=1)
+        padlen = bitmatrix.shape(bs)[1] % 8
+    pad = bitmatrix.ones(bitmatrix.shape(bs)[0], padlen)
+    bs = bitmatrix.hstack(pad, bs)
+    assert bitmatrix.shape(bs)[1] % 8 == 0
+    bs=bitmatrix.packbits(bs, axis = 1)
 
     if compress:
         # search for smallest values not used in the bitstream
-        lst, _ = np.histogram(bs, bins=[i for i in range(256)])
+        lst = bitmatrix.histogram(bs, bins=[i for i in range(257)]) # 257 iso that the last basket is [255, 256] and not [254, 255]
         [key8Z, key4Z, key2Z] = [i for i,val in enumerate(lst) if val==0][0:3]
 
         # update line 0x51 with keys
@@ -103,6 +111,7 @@ def write_bitstream(fname, bs, hdr, ftr, compress):
 
     crcdat = bytearray()
     preamble = 3
+    calc = crc.Calculator(crc16arc)
     with open(fname, 'w') as f:
         for ba in hdr:
             if not preamble and ba[0] != 0xd2: # SPI address
@@ -115,9 +124,9 @@ def write_bitstream(fname, bs, hdr, ftr, compress):
                 ba = compressLine(ba, key8Z, key4Z, key2Z)
             f.write(''.join(f"{b:08b}" for b in ba))
             crcdat.extend(ba)
-            crc = crc16arc(crcdat)
+            crc_ = calc.checksum(crcdat)
             crcdat = bytearray(b'\xff'*6)
-            f.write(f"{crc&0xff:08b}{crc>>8:08b}")
+            f.write(f"{crc_&0xff:08b}{crc_>>8:08b}")
             f.write('1'*48)
             f.write('\n')
         for ba in ftr:
@@ -131,7 +140,7 @@ def display(fname, data):
     im = Image.frombytes(
             mode='1',
             size=data.shape[::-1],
-            data=np.packbits(data, axis=1))
+            data=bitmatrix.packbits(data, axis = 1))
     if fname:
         im.save(fname)
     return im

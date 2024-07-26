@@ -3,16 +3,15 @@ import os
 import sys
 import tempfile
 import subprocess
+from pathlib import Path
 from collections import deque, Counter, namedtuple
 from itertools import chain, count, zip_longest
 from functools import reduce
 from random import shuffle, seed
 from warnings import warn
 from math import factorial
-import numpy as np
 from multiprocessing.dummy import Pool
 import pickle
-import json
 from shutil import copytree
 
 from apycula import codegen
@@ -20,8 +19,7 @@ from apycula import bslib
 from apycula import pindef
 from apycula import fuse_h4x
 from apycula.wirenames import wirenames, clknames, wirenumbers, clknumbers
-#TODO proper API
-#from apycula import dat19_h4x
+from apycula import dat19
 from apycula import tm_h4x
 from apycula import chipdb
 from apycula import attrids
@@ -104,7 +102,7 @@ def tbrl2rc(fse, side, num):
 
 # Read the packer vendor log to identify problem with primitives/attributes
 # returns dictionary {(primitive name, error code) : [full error text]}
-_err_parser = re.compile("(\w+) +\(([\w\d]+)\).*'(inst[^\']+)\'.*")
+_err_parser = re.compile(r"(\w+) +\(([\w\d]+)\).*'(inst[^\']+)\'.*")
 def read_err_log(fname):
     errs = {}
     with open(fname, 'r') as f:
@@ -210,7 +208,7 @@ def fse_iob(fse, db, pin_locations, diff_cap_info, locations):
             bel.is_diff = is_diff
             bel.is_true_lvds = is_true_lvds
             bel.is_diff_p = is_positive
-            print(f"type:{ttyp} [{row}][{col}], IOB{bel_name[-1]}, diff:{is_diff}, true lvds:{is_true_lvds}, p:{is_positive}")
+            #print(f"type:{ttyp} [{row}][{col}], IOB{bel_name[-1]}, diff:{is_diff}, true lvds:{is_true_lvds}, p:{is_positive}")
     for ttyp, bels in iob_bels.items():
         for row, col in locations[ttyp]:
             db.grid[row][col].bels.update(iob_bels[ttyp])
@@ -220,8 +218,7 @@ if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{device}/{device}.fse", 'rb') as f:
         fse = fuse_h4x.readFse(f)
 
-    with open(f"{device}.json") as f:
-        dat = json.load(f)
+    dat = dat19.Datfile(Path(f"{gowinhome}/IDE/share/device/{device}/{device}.dat"))
 
     with open(f"{gowinhome}/IDE/share/device/{device}/{device}.tm", 'rb') as f:
         tm = tm_h4x.read_tm(f, device)
@@ -266,14 +263,17 @@ if __name__ == "__main__":
     diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
     fse_iob(fse, db, pin_locations, diff_cap_info, locations);
 
+    pad_locs = pindef.get_pll_pads_locs(device, params['package'])
+    chipdb.pll_pads(db, device, pad_locs)
+
     chipdb.dat_portmap(dat, db, device)
 
     # XXX GW1NR-9 has interesting IOBA pins on the bottom side
     if device == 'GW1N-9' :
         loc = locations[52][0]
         bel = db.grid[loc[0]][loc[1]].bels['IOBA']
-        bel.portmap['GW9_ALWAYS_LOW0'] = wirenames[dat[f'IologicAIn'][40]]
-        bel.portmap['GW9_ALWAYS_LOW1'] = wirenames[dat[f'IologicAIn'][42]]
+        bel.portmap['GW9_ALWAYS_LOW0'] = wirenames[dat.portmap['IologicAIn'][40]]
+        bel.portmap['GW9_ALWAYS_LOW1'] = wirenames[dat.portmap['IologicAIn'][42]]
     chipdb.dat_aliases(dat, db)
 
     # GSR

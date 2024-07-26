@@ -1,5 +1,7 @@
 # Project Apicula
 
+<img src="apicula.svg" width="250" />
+
 Documentation and open source tools for the Gowin FPGA bitstream format.
 
 Project Apicula uses a combination of fuzzing and parsing of the vendor data files to provide Python tools for generating bitstreams.
@@ -8,7 +10,7 @@ This project is supported by our generous sponsors. Have a look at our [contribu
 
 ## Getting Started
 
-Install the latest git [yosys](https://github.com/yosyshq/yosys#setup), [nextpnr-gowin](https://github.com/YosysHQ/nextpnr#nextpnr-gowin), [openFPGALoader](https://github.com/trabucayre/openFPGALoader), and Python 3.8 or higher. [Yowasp](http://yowasp.org/) versions of Yosys and Nextpnr are also supported.
+Install the latest git [yosys](https://github.com/yosyshq/yosys#setup), [nextpnr-himbaechel](https://github.com/YosysHQ/nextpnr#gowin), [openFPGALoader](https://github.com/trabucayre/openFPGALoader), and Python 3.8 or higher. [Yowasp](http://yowasp.org/) versions of Yosys and Nextpnr are also supported.
 
 Currently supported boards are
  * Trenz TEC0117: GW1NR-UV9QN881C6/I5
@@ -16,8 +18,11 @@ Currently supported boards are
  * Sipeed Tang Nano 1K: GW1NZ-LV1QN48C6/I5
  * Sipeed Tang Nano 4K: GW1NSR-LV4CQN48PC7/I6
  * Sipeed Tang Nano 9K: GW1NR-LV9QN88PC6/I5 [^1]
+ * Sipeed Tang Nano 20K: GW2AR-LV18QN88C8/I7
+ * Sipeed Tang Primer 20K: GW2A-LV18PG256C8/I7
  * Seeed RUNBER: GW1N-UV4LQ144C6/I5
  * @Disasm honeycomb: GW1NS-UX2CQN48C5/I4
+ * szfpga: GW1NR-LV9LQ144PC6/I5
 
 [^1]: `C` devices require passing the `--family` flag as well as `--device` to Nextpnr, and stating the family in place of device when passing `-d` to `gowin_pack` because the C isn't part of the device ID but only present in the date code. Check `examples/Makefile` for the correct command.
 
@@ -46,10 +51,10 @@ cd examples
 yosys -D LEDS_NR=8 -p "read_verilog blinky.v; synth_gowin -json blinky.json"
 DEVICE='GW1NR-UV9QN881C6/I5'  # change to your device
 BOARD='tec0117' # change to your board
-nextpnr-gowin --json blinky.json \
-              --write pnrblinky.json \
-              --device $DEVICE \
-              --cst $BOARD.cst
+nextpnr-himbaechel --json blinky.json \
+                   --write pnrblinky.json \
+                   --device $DEVICE \
+                   --vopt cst=$BOARD.cst
 gowin_pack -d $DEVICE -o pack.fs pnrblinky.json # chango to your device
 # gowin_unpack -d $DEVICE -o unpack.v pack.fs
 # yosys -p "read_verilog -lib +/gowin/cells_sim.v; clean -purge; show" unpack.v
@@ -58,11 +63,11 @@ openFPGALoader -b $BOARD pack.fs
 
 For the Tangnano9k board, you need to call nextpnr and gowin_pack with the chip family as follows:
 ```
-nextpnr-gowin --json blinky.json \
-              --write pnrblinky.json \
-              --device $DEVICE \
-              --family GW1N-9C \
-              --cst $BOARD.cst
+nextpnr-himbaechel --json blinky.json \
+                   --write pnrblinky.json \
+                   --device $DEVICE \
+                   --vopt family=GW1N-9C \
+                   --vopt cst=$BOARD.cst
 gowin_pack -d GW1N-9C -o pack.fs pnrblinky.json
 ```
 
@@ -120,9 +125,9 @@ Things that could be fuzzed:
 
 ### Parsing
 
-For each FPGA, the vendor provides `.dat`, `.fse`, `.ini`, `.pwr`, and `.tm` files. Of these, only parsers for `.dat`, `.fse` and `.tm` have been written.
+For each FPGA, the vendor provides `.dat`, `.fse`, `.ini`, `.pwr`, and `.tm` files. Of these, parsers for `.dat`, `.fse`, `.ini` and `.tm` have been written.
 
-The format of these other files is unknown, you're on your own here. I could only offer you some vague pointers based on experience from the other two files.
+The format of the `.pwr` file is unknown, you're on your own here. I could only offer you some vague pointers based on experience from the other two files.
 
 For a description of the known file formats, [see the documentation](doc/filestructure.md).
 
@@ -132,6 +137,10 @@ The main thing lacking here is a better understanding of the meaning of all thes
 The parser for the `.dat` file is more fragile and incomplete. This is mainly because it just appears to be a fixed format struct with array fields. New vendor software versions sometimes add new fields, breaking the parser. Here there are actually a few gaps in the data that have not been decoded and named. It is suspected that at least some of these gaps are related to pinouts and packaging.
 
 The format of the '.tm' appears to be just a big collection of floats. Not all of them have a meaning that is well understood, but the parser itself is fairly complete.
+
+The `.ini` file is a table of IO configuration options. The format of these files appears to be fairly stable across IDE versions and the current parser is able to handle the vast majority of available files.
+
+
 
 ### Refactoring
 
