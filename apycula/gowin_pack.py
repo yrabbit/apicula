@@ -12,7 +12,7 @@ from collections import namedtuple
 from contextlib import closing
 from apycula import codegen
 from apycula import chipdb
-from apycula.chipdb import add_attr_val, get_shortval_fuses, get_longval_fuses, get_bank_fuses
+from apycula.chipdb import add_attr_val, get_shortval_fuses, get_longval_fuses, get_bank_fuses, get_long_fuses
 from apycula import attrids
 from apycula import bslib
 from apycula import bitmatrix
@@ -94,7 +94,7 @@ def extra_dsp_bels(cell, row, col, num, cellname):
 # Explanation of what comes from and magic numbers. The process is this: you
 # create a file with one primitive from the BSRAM family. In my case pROM. You
 # give it a completely zero initialization. You generate an image. You specify
-# one single unit bit at address 0 in the initialization. You generate an
+# one single nonzero bit at address 0 in the initialization. You generate an
 # image. You compare. You sweep away garbage like CRC.
 # Repeat 16 times.
 # The 16th bit did not show much, but it allowed us to discover the meaning of
@@ -185,7 +185,7 @@ _dsp_cell_types = {'ALU54D', 'MULT36X36', 'MULTALU36X18', 'MULTADDALU18X18', 'MU
 def get_bels(data):
     later = []
     if is_himbaechel:
-        belre = re.compile(r"X(\d+)Y(\d+)/(?:GSR|LUT|DFF|IOB|MUX|ALU|ODDR|OSC[ZFHWO]?|BUF[GS]|RAM16SDP4|RAM16SDP2|RAM16SDP1|PLL|IOLOGIC|BSRAM|ALU|MULTALU18X18|MULTALU36X18|MULTADDALU18X18|MULT36X36|MULT18X18|MULT9X9|PADD18|PADD9|DQCE|DCS)(\w*)")
+        belre = re.compile(r"X(\d+)Y(\d+)/(?:GSR|LUT|DFF|IOB|MUX|ALU|ODDR|OSC[ZFHWO]?|BUF[GS]|RAM16SDP4|RAM16SDP2|RAM16SDP1|PLL|IOLOGIC|CLKDIV2|CLKDIV|BSRAM|ALU|MULTALU18X18|MULTALU36X18|MULTADDALU18X18|MULT36X36|MULT18X18|MULT9X9|PADD18|PADD9|BANDGAP|DQCE|DCS)(\w*)")
     else:
         belre = re.compile(r"R(\d+)C(\d+)_(?:GSR|SLICE|IOB|MUX2_LUT5|MUX2_LUT6|MUX2_LUT7|MUX2_LUT8|ODDR|OSC[ZFHWO]?|BUFS|RAMW|rPLL|PLLVR|IOLOGIC)(\w*)")
 
@@ -376,7 +376,6 @@ def add_pll_default_attrs(attrs):
         pll_inattrs[k] = v
     return pll_inattrs
 
-
 # typ - PLL type (RPLL, etc)
 def set_pll_attrs(db, typ, idx, attrs):
     pll_inattrs = add_pll_default_attrs(attrs)
@@ -503,11 +502,39 @@ def set_pll_attrs(db, typ, idx, attrs):
         add_attr_val(db, 'PLL', fin_attrs, attrids.pll_attrids[attr], val)
     return fin_attrs
 
+_dcs_spine2quadrant_idx = {
+        'SPINE6'  : ('1', 'DCS6'),
+        'SPINE7'  : ('1', 'DCS7'),
+        'SPINE14' : ('2', 'DCS6'),
+        'SPINE15' : ('2', 'DCS7'),
+        'SPINE22' : ('3', 'DCS6'),
+        'SPINE23' : ('3', 'DCS7'),
+        'SPINE30' : ('4', 'DCS6'),
+        'SPINE31' : ('4', 'DCS7'),
+        }
+def set_dcs_attrs(db, spine, attrs):
+    q, _ = _dcs_spine2quadrant_idx[spine]
+    dcs_attrs = {}
+    dcs_attrs[q] = attrs['DCS_MODE']
+
+    fin_attrs = set()
+    for attr, val in dcs_attrs.items():
+        if isinstance(val, str):
+            val = attrids.dcs_attrvals[val]
+        add_attr_val(db, 'DCS', fin_attrs, attrids.dcs_attrids[attr], val)
+    return fin_attrs
+
 _bsram_bit_widths = { 1: '1', 2: '2', 4: '4', 8: '9', 9: '9', 16: '16', 18: '16', 32: 'X36', 36: 'X36'}
 def set_bsram_attrs(db, typ, params):
     bsram_attrs = {}
     bsram_attrs['MODE'] = 'ENABLE'
     bsram_attrs['GSR'] = 'DISABLE'
+
+    # We bring it into line with what is observed in the Gowin images - in the
+    # ROM, port A has a signal CE = VCC and inversion is turned on on this pin.
+    # We will provide VCC in nextpnr, and enable the inversion here.
+    if typ == 'ROM':
+        bsram_attrs['CEMUX_CEA'] = 'INV'
 
     for parm, val in params.items():
         if parm == 'BIT_WIDTH':
@@ -1962,6 +1989,53 @@ def set_osc_attrs(db, typ, params):
         add_attr_val(db, 'OSC', fin_attrs, attrids.osc_attrids[attr], val)
     return fin_attrs
 
+def bin_str_to_dec(str_val):
+    bin_pattern = r'^[0,1]+'
+    bin_str = re.findall(bin_pattern, str_val)
+    if bin_str:
+        dec_num = int(bin_str[0], 2)
+        return str(dec_num)
+    return None
+    
+
+
+_hclk_default_params ={"GSREN": "false", "DIV_MODE":"2"}
+def set_hclk_attrs(db, params, num, typ, cell_name):
+    name_pattern = r'^_HCLK([0,1])_SECT([0,1])$'
+    params = dict(params or _hclk_default_params)   
+    attrs = {}
+    pattern_match = re.findall(name_pattern, num)
+    if (not pattern_match):
+        raise Exception (f"Unknown HCLK Bel/HCLK Section: {typ}{num}")
+    hclk_idx, section_idx = pattern_match[0]
+
+    valid_div_modes = ["2", "3.5", "4", "5"]
+    if device in ["GW1N-1S","GW1N-2","GW1NR-2","GW1NS-4","GW1NS-4C","GW1NSR-4",\
+                       "GW1NSR-4C","GW1NSER-4C","GW1N-9","GW1NR-9", "GW1N-9C","GW1NR-9C","GW1N-1P5"]:
+        valid_div_modes.append("8")
+    
+    if (params["DIV_MODE"]) not in valid_div_modes:
+        bin_match = bin_str_to_dec(params["DIV_MODE"])
+        if bin_match is None or bin_match not in valid_div_modes:
+            raise Exception(f"Invalid DIV_MODE {bin_match or params['DIV_MODE']} for CLKDIV {cell_name} on device {device}")
+        params["DIV_MODE"] = str(bin_match[0])
+
+      
+    if (typ == "CLKDIV2"):
+        attrs[f"BK{section_idx}MUX{hclk_idx}_OUTSEL"] = "DIV2"
+    elif (typ == "CLKDIV"):
+        attrs[f"HCLKDIV{hclk_idx}_DIV"] = params["DIV_MODE"]         
+        if (section_idx == '1'):
+            attrs[f"HCLKDCS{hclk_idx}_SEL"] = f"HCLKBK{section_idx}{hclk_idx}"
+    
+    fin_attrs = set()
+    for attr, val in attrs.items():
+        if isinstance(val, str):
+            val = attrids.hclk_attrvals[val]
+        add_attr_val(db, 'HCLK', fin_attrs, attrids.hclk_attrids[attr], val)
+    return fin_attrs
+
+
 _iologic_default_attrs = {
         'DUMMY': {},
         'IOLOGIC': {},
@@ -2027,7 +2101,8 @@ def set_iologic_attrs(db, attrs, param):
             in_attrs['ISI'] = 'ENABLE'
         in_attrs['LSRIMUX_0'] = '0'
         in_attrs['CLKOMUX'] = 'ENABLE'
-        #in_attrs['LSRMUX_LSR'] = 'INV'
+        # in_attrs['LSRMUX_LSR'] = 'INV'
+
     if 'INMODE' in attrs:
         if param['IOLOGIC_TYPE'] not in {'IDDR', 'IDDRC'}:
             #in_attrs['CLKODDRMUX_WRCLK'] = 'ECLK0'
@@ -2236,6 +2311,8 @@ def place(db, tilemap, bels, cst, args):
 
         if typ == "GSR":
             pass
+        elif typ == "BANDGAP":
+            pass
         elif typ.startswith('MUX2_'):
             pass
         elif typ == "BUFS":
@@ -2254,6 +2331,7 @@ def place(db, tilemap, bels, cst, args):
                 en_tiledata = db.grid[db.rows - 1][db.cols - 1]
                 en_tile = tilemap[(db.rows - 1, db.cols - 1)]
                 en_tile[23][63] = 0
+                en_tile[22][63] = 1
             # clear powersave fuses
             clear_attrs = set()
             add_attr_val(db, 'OSC', clear_attrs, attrids.osc_attrids['POWER_SAVE'], attrids.osc_attrvals['ENABLE'])
@@ -2422,6 +2500,9 @@ def place(db, tilemap, bels, cst, args):
             cfg_tile = tilemap[(0, 37)]
             for r, c in bits:
                 cfg_tile[r][c] = 1
+        elif typ in ["CLKDIV", "CLKDIV2"]:
+            hclk_attrs = set_hclk_attrs(db, parms, num, typ, cellname)
+            bits = get_shortval_fuses(db, tiledata.ttyp, hclk_attrs, "HCLK")
         elif typ == 'DQCE':
             # Himbaechel only
             pipre = re.compile(r"X(\d+)Y(\d+)/([\w_]+)/([\w_]+)")
@@ -2440,6 +2521,15 @@ def place(db, tilemap, bels, cst, args):
             bits = pip_tiledata.clock_pips[dest][src]
             for r, c in bits:
                 pip_tile[r][c] = 1
+        elif typ == 'DCS':
+            if 'DCS_MODE' not in attrs:
+                continue
+            spine = db.extra_func[row - 1, col - 1]['dcs'][int(num)]['clkout']
+            dcs_attrs = set_dcs_attrs(db, spine, attrs)
+            _, idx = _dcs_spine2quadrant_idx[spine]
+            bits = get_long_fuses(db, tiledata.ttyp, dcs_attrs, idx)
+            for r, c in bits:
+                tile[r][c] = 1
         else:
             print("unknown type", typ)
 
@@ -2758,11 +2848,12 @@ def main():
         is_himbaechel = True
 
     # For tool integration it is allowed to pass a full part number
-    m = re.match("GW1N(S|Z)?[A-Z]*-(LV|UV|UX)([0-9])C?([A-Z]{2}[0-9]+P?)(C[0-9]/I[0-9])", device)
+    m = re.match("(GW..)(S|Z)?[A-Z]*-(LV|UV|UX)([0-9]{1,2})C?([A-Z]{2}[0-9]+P?)(C[0-9]/I[0-9])", device)
     if m:
-        mods = m.group(1) or ""
-        luts = m.group(3)
-        device = f"GW1N{mods}-{luts}"
+        series = m.group(1)
+        mods = m.group(2) or ""
+        num = m.group(4)
+        device = f"{series}{mods}-{num}"
     with importlib.resources.path('apycula', f'{device}.pickle') as path:
         with closing(gzip.open(path, 'rb')) as f:
             db = pickle.load(f)
