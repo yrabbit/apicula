@@ -2632,6 +2632,10 @@ def dat_portmap(dat, dev, device):
                         elif nam == 'FCLK':
                             # dummy Input, we'll make a special pips for it
                             bel.portmap[nam] = "FCLK"
+                    if buf == 'A':
+                        bel.portmap['CE'] ='CE0'
+                    else:
+                        bel.portmap['CE'] ='CE1'
                     for idx, nam in _iologic_outputs:
                         w_idx = dat.portmap[f'Iologic{buf}Out'][idx]
                         if w_idx >= 0:

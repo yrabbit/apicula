@@ -398,6 +398,28 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                 continue
             # additional IOLOGIC components
             # XXX delays and FFs in IO
+            #
+            print(f'({row}, {col}) {idx} ', attrvals)
+            """
+            We have a loss of information when unpacking - a set of attributes
+            are returned, each one individually, but the decision to set one
+            single bit of fuse could have been made based on a couple
+            attributes.
+
+            Let's say the fuse (8, 1) (which is a row and column bit), is set in the following cases:
+            (38, 54) {(8, 1)}
+            (38, 55) {(8, 1)}
+            (38, 57) {(8, 1)}
+            (38, 58) {(8, 1)}
+            (40, 54) {(8, 1)}
+            (40, 55) {(8, 1)}
+            (40, 57) {(8, 1)}
+            (40, 58) {(8, 1)}
+            where 38 is the CLKOMUX_1=0 attribute, 40 is CLKOMUX_CLK=INV, 54 is REGMODE=FF, and 55 is REGMODE=LATCH,
+            the point is that here it is too late to decide whether it is
+            FlipFlop or Latch - we need to make a decision at the stage of bit
+            extraction, but for now it is postponed.
+            """
             # main component
             if 'OUTMODE' in attrvals.keys():
                 # XXX skip oddr
@@ -445,7 +467,6 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
         if name.startswith("IOB"):
             idx = name[-1]
             attrvals = parse_attrvals(tile, db.logicinfo['IOB'], db.longval[tiledata.ttyp][f'IOB{idx}'], attrids.iob_attrids)
-            #print(row, col, attrvals)
             try: # we can ask for invalid pin here because the IOBs share some stuff
                 bank = chipdb.loc2bank(db, row, col)
             except KeyError:

@@ -2076,10 +2076,10 @@ _iologic_default_attrs = {
         'DUMMY': {},
         'IOLOGIC': {},
         'IOLOGIC_DUMMY': {},
-        'IOLOGICI_EMPTY': {'GSREN': 'false', 'LSREN': 'true'},
-        'IOLOGICO_EMPTY': {'GSREN': 'false', 'LSREN': 'true'},
-        'ODDR': { 'TXCLK_POL': '0'},
-        'ODDRC': { 'TXCLK_POL': '0'},
+        'IOLOGICI_EMPTY': {'GSREN': 'false', 'LSREN': 'false'},
+        'IOLOGICO_EMPTY': {'GSREN': 'false', 'LSREN': 'false'},
+        'ODDR': { 'TXCLK_POL': '0', 'LSREN': 'false'},
+        'ODDRC': { 'TXCLK_POL': '0', 'LSREN': 'true'},
         'OSER4': { 'GSREN': 'false', 'LSREN': 'true', 'TXCLK_POL': '0', 'HWL': 'false'},
         'OSER8': { 'GSREN': 'false', 'LSREN': 'true', 'TXCLK_POL': '0', 'HWL': 'false'},
         'OSER10': { 'GSREN': 'false', 'LSREN': 'true'},
@@ -2093,7 +2093,22 @@ _iologic_default_attrs = {
         'IDDRC' : {'CLKIMUX': 'ENABLE', 'LSRIMUX_0': '1', 'LSROMUX_0': '0'},
         'IDES16': { 'GSREN': 'false', 'LSREN': 'true', 'CLKIMUX': 'ENABLE'},
         }
-def iologic_mod_attrs(attrs):
+"""
+The local RESET signal passes through two MUXes, the input LSRIMUX and the output LSROMUX. The problem is that the fuses responsible for these MUXes are so-called “negative” fuses, i.e. the corresponding bits must be cleared.
+
+We don't clear the bits instead we use a technique where if the corresponding
+attribute is not specified, the bits are set.
+
+This works for simple primitives, but for composite primitives we have to
+memorize the set "negative" fuses as in this particular case we cannot specify
+only the state of LSRIMUX because specifying/unspecifying a "foreign" LSROMUX
+attribute will change its state.
+
+Here we memorize the state of the local RESET in all IOLOGIC cells in order not
+to interfere with "foreign" ones.
+"""
+_iologic_lsr = {}
+def iologic_mod_attrs(attrs, cellpos):
     if 'TXCLK_POL' in attrs:
         if int(attrs['TXCLK_POL']) == 0:
             attrs['TSHX'] = 'SIG'
@@ -2108,8 +2123,25 @@ def iologic_mod_attrs(attrs):
         if attrs['GSREN'] == 'true':
             attrs['GSR'] = 'ENGSR'
         del attrs['GSREN']
+    if 'LSREN' in attrs:
+        if cellpos in _iologic_lsr:
+            attrs.update(_iologic_lsr[cellpos])
+        if attrs['LSREN'] == 'true':
+            value = 'UNKNOWN'
+            if 'OUTPUT' in attrs:
+                mux = 'LSROMUX_0'
+            else:
+                mux = 'LSRIMUX_0'
+        else:
+            value = '0'
+            if 'OUTPUT' in attrs:
+                mux = 'LSROMUX_0'
+            else:
+                mux = 'LSRIMUX_0'
+        attrs[mux] = value
+        _iologic_lsr.setdefault(cellpos, {}).update({mux: value})
+        del attrs['LSREN']
     # XXX ignore for now
-    attrs.pop('LSREN', None)
     attrs.pop('Q0_INIT', None)
     attrs.pop('Q1_INIT', None)
 
@@ -2131,10 +2163,91 @@ def make_iodelay_attrs(in_attrs, param):
             in_attrs[f'DELAY_DEL{i - 1}'] = '1'
     in_attrs.pop('C_STATIC_DLY', None);
 
-def set_iologic_attrs(db, attrs, param):
+_ioregattrs = {
+        'DFF'   : {'SRMODE': 'LSR_OVER_CE', 'REGSET': 'RESET', 'CLK': 'INV'},
+        'DFFN'  : {'SRMODE': 'LSR_OVER_CE', 'REGSET': 'RESET', 'CLK': 'SIG'},
+        'DFFC'  : {'SRMODE': 'ASYNC',       'REGSET': 'RESET', 'CLK': 'INV'},
+        'DFFNC' : {'SRMODE': 'ASYNC',       'REGSET': 'RESET', 'CLK': 'SIG'},
+        'DFFP'  : {'SRMODE': 'ASYNC',       'REGSET': 'SET',   'CLK': 'INV'},
+        'DFFNP' : {'SRMODE': 'ASYNC',       'REGSET': 'SET',   'CLK': 'SIG'},
+        'DFFR'  : {'SRMODE': 'LSR_OVER_CE', 'REGSET': 'RESET', 'CLK': 'INV'},
+        'DFFNR' : {'SRMODE': 'LSR_OVER_CE', 'REGSET': 'RESET', 'CLK': 'SIG'},
+        'DFFS'  : {'SRMODE': 'LSR_OVER_CE', 'REGSET': 'SET',   'CLK': 'INV'},
+        'DFFNS' : {'SRMODE': 'LSR_OVER_CE', 'REGSET': 'SET',   'CLK': 'SIG'},
+        }
+def make_ioreg_attrs(in_attrs, params, cellpos):
+    if 'HAS_REG' not in params:
+        return
+    if 'IREG_TYPE' in params:
+        mode = str(params['IREG_TYPE'])
+        if mode[-1] == 'E':
+            in_attrs['CEIOMUX_CE'] = 'INV'
+        else:
+            in_attrs['CEIMUX_1'] = '1'
+
+        mode = mode.strip('E')
+        in_attrs['IREG_INREGMODE'] = 'FF'
+        in_attrs['IREG_REGSET'] = _ioregattrs[mode]['REGSET']
+        in_attrs['CLKIMUX'] = 'ENABLE'
+        in_attrs['CLKIMUX_1'] = 'UNKNOWN'
+        in_attrs['CLKIMUX_CLK'] = _ioregattrs[mode]['CLK']
+        if mode in {'DFF', 'DFFN'}:
+            _iologic_lsr[cellpos]['LSRIMUX_0'] = '0'
+        else:
+            _iologic_lsr[cellpos]['LSRIMUX_0'] = 'UNKNOWN'
+        in_attrs['LSRIMUX_0'] = _iologic_lsr[cellpos]['LSRIMUX_0']
+        if 'LSROMUX_0' in _iologic_lsr[cellpos]:
+            in_attrs['LSROMUX_0'] = _iologic_lsr[cellpos]['LSROMUX_0']
+
+    if 'OREG_TYPE' in params:
+        mode = str(params['OREG_TYPE'])
+        if mode[-1] == 'E':
+            in_attrs['CEIOMUX_CE'] = 'INV'
+        else:
+            in_attrs['CEOMUX_1'] = '1'
+
+        mode = mode.strip('E')
+        in_attrs['OREG_OUTREGMODE'] = 'FF'
+        in_attrs['OREG_REGSET'] = _ioregattrs[mode]['REGSET']
+        in_attrs['CLKOMUX'] = 'ENABLE'
+        in_attrs['CLKOMUX_1'] = 'UNKNOWN'
+        in_attrs['CLKOMUX_CLK'] = _ioregattrs[mode]['CLK']
+        in_attrs['OUTMODE'] = 'OREG'
+        if mode in {'DFF', 'DFFN'}:
+            _iologic_lsr[cellpos]['LSROMUX_0'] = '0'
+        else:
+            _iologic_lsr[cellpos]['LSROMUX_0'] = 'UNKNOWN'
+        in_attrs['LSRIMUX_0'] = _iologic_lsr[cellpos]['LSRIMUX_0']
+        if 'LSROMUX_0' in _iologic_lsr[cellpos]:
+            in_attrs['LSROMUX_0'] = _iologic_lsr[cellpos]['LSROMUX_0']
+
+    if 'TREG_TYPE' in params:
+        mode = str(params['TREG_TYPE'])
+        if mode[-1] == 'E':
+            in_attrs['CEIOMUX_CE'] = 'INV'
+        else:
+            in_attrs['CEOMUX_1'] = '1'
+
+        mode = mode.strip('E')
+        in_attrs['TREG_OUTREGMODE'] = 'FF'
+        in_attrs['TREG_REGSET'] = _ioregattrs[mode]['REGSET']
+        in_attrs['CLKOMUX'] = 'ENABLE'
+        in_attrs['CLKOMUX_1'] = 'UNKNOWN'
+        in_attrs['CLKOMUX_CLK'] = _ioregattrs[mode]['CLK']
+        if mode in {'DFF', 'DFFN'}:
+            in_attrs['LSROMUX_0'] = '0'
+            _iologic_lsr[cellpos]['LSROMUX_0'] = '0'
+        else:
+            _iologic_lsr[cellpos]['LSROMUX_0'] = 'UNKNOWN'
+        in_attrs['LSRIMUX_0'] = _iologic_lsr[cellpos]['LSRIMUX_0']
+        in_attrs['LSROMUX_0'] = _iologic_lsr[cellpos]['LSROMUX_0']
+
+    in_attrs['SRMODE'] = _ioregattrs[mode]['SRMODE']
+
+def set_iologic_attrs(db, attrs, param, cellpos):
     in_attrs = _iologic_default_attrs[param['IOLOGIC_TYPE']].copy()
     in_attrs.update(attrs)
-    iologic_mod_attrs(in_attrs)
+    iologic_mod_attrs(in_attrs, cellpos)
     fin_attrs = set()
     if 'OUTMODE' in attrs:
         if param['IOLOGIC_TYPE'] == 'IOLOGICO_EMPTY':
@@ -2142,10 +2255,10 @@ def set_iologic_attrs(db, attrs, param):
         else:
             if attrs['OUTMODE'] != 'ODDRX1':
                 in_attrs['CLKODDRMUX_WRCLK'] = 'ECLK0'
-            if attrs['OUTMODE'] != 'ODDRX1' or param['IOLOGIC_TYPE'] == 'ODDRC':
-                in_attrs['LSROMUX_0'] = '1'
-            else:
-                in_attrs['LSROMUX_0'] = '0'
+            #if attrs['OUTMODE'] != 'ODDRX1' or param['IOLOGIC_TYPE'] == 'ODDRC':
+            #    in_attrs['LSROMUX_0'] = '1'
+            #else:
+            #    in_attrs['LSROMUX_0'] = '0'
             in_attrs['CLKODDRMUX_ECLK'] = 'UNKNOWN'
             if param['IOLOGIC_FCLK'] in {'SPINE12', 'SPINE13'}:
                 in_attrs['CLKODDRMUX_ECLK'] = 'ECLK1'
@@ -2158,9 +2271,7 @@ def set_iologic_attrs(db, attrs, param):
                 in_attrs['ISI'] = 'ENABLE'
             if attrs['OUTMODE'] == 'DDRENABLE':
                 in_attrs['ISI'] = 'ENABLE'
-            in_attrs['LSRIMUX_0'] = '0'
             in_attrs['CLKOMUX'] = 'ENABLE'
-            # in_attrs['LSRMUX_LSR'] = 'INV'
 
     if 'INMODE' in attrs:
         if param['IOLOGIC_TYPE'] == 'IOLOGICI_EMPTY':
@@ -2173,7 +2284,6 @@ def set_iologic_attrs(db, attrs, param):
                 in_attrs['CLKIDDRMUX_ECLK'] = 'ECLK1'
             elif param['IOLOGIC_FCLK'] in {'SPINE10', 'SPINE11'}:
                 in_attrs['CLKIDDRMUX_ECLK'] = 'ECLK0'
-            in_attrs['LSRIMUX_0'] = '1'
             if attrs['INMODE'] == 'IDDRX8' or attrs['INMODE'] == 'DDRENABLE16':
                 in_attrs['LSROMUX_0'] = '0'
             if attrs['INMODE'] == 'DDRENABLE16':
@@ -2181,10 +2291,9 @@ def set_iologic_attrs(db, attrs, param):
                 in_attrs['ISI'] = 'ENABLE'
             if attrs['INMODE'] == 'DDRENABLE':
                 in_attrs['ISI'] = 'ENABLE'
-            in_attrs['LSROMUX_0'] = '0'
             in_attrs['CLKIMUX'] = 'ENABLE'
     make_iodelay_attrs(in_attrs, param);
-    #print(in_attrs)
+    make_ioreg_attrs(in_attrs, param, cellpos);
 
     for k, val in in_attrs.items():
         if k not in attrids.iologic_attrids:
@@ -2508,7 +2617,7 @@ def place(db, tilemap, bels, cst, args):
                 tile[brow][bcol] = 1
         elif typ ==  'IOLOGIC':
             #print(row, col, cellname)
-            iologic_attrs = set_iologic_attrs(db, parms, attrs)
+            iologic_attrs = set_iologic_attrs(db, parms, attrs, (row, col, num))
             bits = set()
             table_type = f'IOLOGIC{num}'
             bits = get_shortval_fuses(db, tiledata.ttyp, iologic_attrs, table_type)
