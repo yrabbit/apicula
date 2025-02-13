@@ -262,6 +262,18 @@ def find_node(name):
             if node[2] == name:
                 print('*', node_key, node_rec)
 
+def find_nodes_row(row):
+    for node_key, node_rec in db.nodes.items():
+        for node in node_rec[1]:
+            if node[0] == row:
+                print('*', node_key, node_rec)
+
+def find_nodes_row(row, name):
+    for node_key, node_rec in db.nodes.items():
+        for node in node_rec[1]:
+            if node[0] == row and node[2] == name:
+                print(node)
+
 if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{device}/{device}.fse", 'rb') as f:
         fse = fuse_h4x.readFse(f)
