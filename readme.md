@@ -6,6 +6,7 @@ Open source tools and [Documentation](https://github.com/YosysHQ/apicula/wiki) f
 
 Project Apicula uses a combination of fuzzing and parsing of the vendor data files to provide Python tools for generating bitstreams.
 
+
 ## Getting Started
 
 Install the latest git [yosys](https://github.com/yosyshq/yosys#setup), [nextpnr-himbaechel](https://github.com/YosysHQ/nextpnr#gowin), [openFPGALoader](https://github.com/trabucayre/openFPGALoader), and Python 3.8 or higher. [Yowasp](http://yowasp.org/) versions of Yosys and Nextpnr are also supported.
