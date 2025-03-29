@@ -290,7 +290,7 @@ jobs:
       run: |
         pip install dist/*.whl
         # pip install apycula
-        git clone https://github.com/YosysHQ/yosys.git
+        git clone https://github.com/yrabbit/yosys.git
         git clone https://github.com/yrabbit/nextpnr.git
         sudo apt-get update
         sudo apt-get install build-essential clang bison flex \
