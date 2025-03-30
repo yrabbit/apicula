@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - master
+      - my-ci
     tags:
       - '*'
   pull_request:
@@ -302,6 +303,12 @@ jobs:
         git checkout ${{ matrix.yosys }}
         git submodule update --init --recursive
         make config-gcc
+        # XXX
+        if grep -q MUX4 techlibs/gowin/cells_xtra_gw1n.v; then
+          echo "module MUX4 (...); input I0, I1, I2, I3; input S0, S1; output O; endmodule" >> techlibs/gowin/cells_xtra_gw1n.v
+          echo "module MUX4 (...); input I0, I1, I2, I3; input S0, S1; output O; endmodule" >> techlibs/gowin/cells_xtra_gw2a.v
+          echo "module MUX4 (...); input I0, I1, I2, I3; input S0, S1; output O; endmodule" >> techlibs/gowin/cells_xtra_gw5a.v
+        fi
         make -j$(nproc)
         sudo make install
         cd ../nextpnr
