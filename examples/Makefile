@@ -6,7 +6,7 @@ NEXTPNR ?= nextpnr-himbaechel
 all: \
 	attosoc-tangnano9k.fs
 
-unpacked:\
+unpacked: \
 	attosoc-tangnano9k-unpacked.v
 
 clean: 
