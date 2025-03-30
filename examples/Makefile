@@ -23,7 +23,7 @@ all: \
 	i3c-tangnano9k.fs mipi-tangnano9k.fs mipi-out-tangnano9k.fs
 
 unpacked:\
-	blinky-tangnano20k-unpacked.v shift-tangnano20k-unpacked.v
+	blinky-tangnano9k-unpacked.v
 
 clean: 
 	rm -f *.json *.fs *-unpacked.v
