@@ -105,6 +105,19 @@ def tbrl2rc(fse, side, num):
         col = len(fse['header']['grid'][61][0])-1
     return (row, col)
 
+def rc2tbrl(db, row, col, num):
+    edge = 'T'
+    idx = col
+    if row == db.rows:
+        edge = 'B'
+    elif col == 1:
+        edge = 'L'
+        idx = row
+    elif col == db.cols:
+        edge = 'R'
+        idx = row
+    return f"IO{edge}{idx}{num}"
+
 # Read the packer vendor log to identify problem with primitives/attributes
 # returns dictionary {(primitive name, error code) : [full error text]}
 _err_parser = re.compile(r"(\w+) +\(([\w\d]+)\).*'(inst[^\']+)\'.*")
@@ -144,7 +157,7 @@ def run_pnr(mod, constr, config):
         "bit_encrypt"           : "0",
         "bit_security"          : "1",
         "bit_incl_bsram_init"   : "0",
-        #"loading_rate"          : "250/100",
+        "loading_rate"          : "250/100",
         "spi_flash_addr"        : "0x00FFF000",
         "bit_format"            : "txt",
         "bg_programming"        : "off",
@@ -153,13 +166,12 @@ def run_pnr(mod, constr, config):
     opt = codegen.PnrOptions({
         "gen_posp"          : "1",
         "gen_io_cst"        : "1",
-        #"gen_ibis"          : "1",
+        "gen_ibis"          : "1",
         "ireg_in_iob"       : "0",
         "oreg_in_iob"       : "0",
         "ioreg_in_iob"      : "0",
         "timing_driven"     : "0",
-        "cst_warn_to_error" : "0"
-        })
+        "cst_warn_to_error" : "0"})
     #"show_all_warn" : "1",
 
     pnr = codegen.Pnr()
@@ -260,12 +272,11 @@ if __name__ == "__main__":
         ttyp_pins = pin_locations.setdefault(ttyp, {})
         ttyp_pins.setdefault(name[:-1], set()).add(name)
 
-
     pnr_empty = run_pnr(codegen.Module(), codegen.Constraints(), {})
     db.cmd_hdr = pnr_empty.hdr
     db.cmd_ftr = pnr_empty.ftr
     db.template = pnr_empty.bitmap
- 
+
     # IOB
     diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
     fse_iob(fse, db, pin_locations, diff_cap_info, locations);
@@ -276,26 +287,23 @@ if __name__ == "__main__":
     chipdb.dat_portmap(dat, db, device)
     chipdb.add_hclk_bels(dat, db, device)
 
+
     # XXX GW1NR-9 has interesting IOBA pins on the bottom side
     if device == 'GW1N-9' :
         loc = locations[52][0]
         bel = db.grid[loc[0]][loc[1]].bels['IOBA']
         bel.portmap['GW9_ALWAYS_LOW0'] = wirenames[dat.portmap['IologicAIn'][40]]
         bel.portmap['GW9_ALWAYS_LOW1'] = wirenames[dat.portmap['IologicAIn'][42]]
-    chipdb.dat_aliases(dat, db)
 
     # GSR
     if device in {'GW2A-18', 'GW2A-18C', 'GW5A-25A'}:
-        db.grid[27][50].bels.setdefault('GSR', chipdb.Bel()).portmap['GSRI'] = 'C4'
-        #print("timing: ", db.timing)
-
+        db.grid[27][50].bels.setdefault('GSR', chipdb.Bel()).portmap['GSRI'] = 'C4';
     elif device in {'GW1N-1', 'GW1N-4', 'GW1NS-4', 'GW1N-9', 'GW1N-9C', 'GW1NS-2', 'GW1NZ-1'}:
-        db.grid[0][0].bels.setdefault('GSR', chipdb.Bel()).portmap['GSRI'] = 'C4'
+        db.grid[0][0].bels.setdefault('GSR', chipdb.Bel()).portmap['GSRI'] = 'C4';
     else:
         raise Exception(f"No GSR for {device}")
 
 
     #TODO proper serialization format
-
     with open(f"{device}_stage1.pickle", 'wb') as f:
         pickle.dump(db, f)
