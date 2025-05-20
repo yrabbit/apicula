@@ -74,7 +74,7 @@ params = {
     "GW2A-18C": {
         "package": "PBGA256S",
         "device": "GW2A-18C",
-        "partnumber": "GW2A-LV18PG256SC8/I7", #"GW2AR-LV18PG256SC8/I7", "GW2AR-LV18QN88C8/I7" 
+        "partnumber": "GW2A-LV18PG256SC8/I7", #"GW2AR-LV18PG256SC8/I7", "GW2AR-LV18QN88C8/I7"
     },
     "GW5A-25A": {
         "package": "MBGA121N",
@@ -157,7 +157,7 @@ def run_pnr(mod, constr, config):
         "bit_encrypt"           : "0",
         "bit_security"          : "1",
         "bit_incl_bsram_init"   : "0",
-        "loading_rate"          : "250/100",
+        #"loading_rate"          : "250/100",
         "spi_flash_addr"        : "0x00FFF000",
         "bit_format"            : "txt",
         "bg_programming"        : "off",
@@ -233,12 +233,12 @@ def fse_iob(fse, db, pin_locations, diff_cap_info, locations):
 
 
 if __name__ == "__main__":
-    with open(f"{gowinhome}/IDE/share/device/{device}/{device}.fse", 'rb') as f:
+    with open(f"{gowinhome}/IDE/share/device/{params['device']}/{params['device']}.fse", 'rb') as f:
         fse = fuse_h4x.readFse(f, device)
 
-    dat = dat19.Datfile(Path(f"{gowinhome}/IDE/share/device/{device}/{device}.dat"))
+    dat = dat19.Datfile(Path(f"{gowinhome}/IDE/share/device/{params['device']}/{params['device']}.dat"))
 
-    with open(f"{gowinhome}/IDE/share/device/{device}/{device}.tm", 'rb') as f:
+    with open(f"{gowinhome}/IDE/share/device/{params['device']}/{params['device']}.tm", 'rb') as f:
         tm = tm_h4x.read_tm(f, device)
 
     db = chipdb.from_fse(device, fse, dat)
