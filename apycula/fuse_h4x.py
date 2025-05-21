@@ -3,9 +3,9 @@ import random
 import os
 from apycula import bitmatrix
 
-gowinhome = os.getenv("GOWINHOME")
-if not gowinhome:
-    raise Exception("GOWINHOME not set")
+#gowinhome = os.getenv("GOWINHOME")
+#if not gowinhome:
+#    raise Exception("GOWINHOME not set")
 
 # device = os.getenv("DEVICE")
 device = sys.argv[1]
@@ -105,11 +105,11 @@ def readOneFile(f, tileType, device):
             typn = "longval"
             t = readTable(f, size, 28, 2)
         elif typ == 0x43:
-            if device in {'GW1N-1', 'GW1N-9', 'GW1N-4', 'GW1NS-4',
+            if device in {'GW1N-1', 'GW1NZ-1', 'GW1N-9', 'GW1N-9C', 'GW1N-4', 'GW1NS-4',
                         'GW2A-18', 'GW2A-18C', 'GW5A-25A', 'GW5AS-25A'}:
                 typn = "logicinfo"
                 t = readTable(f, size, 3, 2)
-            else: # GW1N-9C GW5A-138B GW5AST-138B GW5AT-138 GW5AT-138B GW5AT-75B
+            else: # GW5A-138B GW5AST-138B GW5AT-138 GW5AT-138B GW5AT-75B
                 typn = "signedlogicinfo"
                 t = readTable(f, size, 6, 2)
         elif typ in {0x86, 0x87}:
@@ -428,12 +428,3 @@ def reduce_rows(rows, fuses, start=16, tries=1000):
             features.add(feat)
     return features
 
-if __name__ == "__main__":
-
-    with open(f"{gowinhome}/IDE/share/device/{device}/{device}.fse", 'rb') as f:
-        d = readFse(f, device)
-
-    bm = render_bitmap(d, device)
-    display("fuse.png", bm)
-    t = render_tile(d, 50, device)
-    display("tile.png", t)

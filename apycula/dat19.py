@@ -493,26 +493,26 @@ class Datfile:
             "MdicInDlt": self.read_clkins(0x36),
             "CtrlIn": self.read_mult(0xE),
             "CtrlInDlt": self.read_mult(0xE),
-            "dsp12x12Ins": self.read_clkins(30),
-            "dsp12x12Outs": self.read_clkins(24),
-            "dsp12x12InDlt": self.read_clkins(30),
-            "dsp12x12OutDlt": self.read_clkins(24),
-            "dsp12x12SumIns": self.read_arr16(113),
-            "dsp12x12SumOuts": self.read_arr16(112),
-            "dsp12x12SumInDlt": self.read_arr16(113),
-            "dsp12x12SumOutDlt": self.read_arr16(112),
-            "dsp27x18Ins": self.read_arr16(163),
-            "dsp27x18Outs": self.read_arr16(139),
-            "dsp27x18InDlt": self.read_arr16(163),
-            "dsp27x18OutDlt": self.read_arr16(139),
-            "dspCtrlIns": self.read_clkins(6),
-            "dspCtrlInDlt": self.read_clkins(6),
+            #"dsp12x12Ins": self.read_clkins(30),
+            #"dsp12x12Outs": self.read_clkins(24),
+            #"dsp12x12InDlt": self.read_clkins(30),
+            #"dsp12x12OutDlt": self.read_clkins(24),
+            #"dsp12x12SumIns": self.read_arr16(113),
+            #"dsp12x12SumOuts": self.read_arr16(112),
+            #"dsp12x12SumInDlt": self.read_arr16(113),
+            #"dsp12x12SumOutDlt": self.read_arr16(112),
+            #"dsp27x18Ins": self.read_arr16(163),
+            #"dsp27x18Outs": self.read_arr16(139),
+            #"dsp27x18InDlt": self.read_arr16(163),
+            #"dsp27x18OutDlt": self.read_arr16(139),
+            #"dspCtrlIns": self.read_clkins(6),
+            #"dspCtrlInDlt": self.read_clkins(6),
         }
-        assert self._cur == 0x58c8e
+        assert self._cur == 0x58272 #0x58c8e
         return ret
 
     def read_io(self):
-        self._cur = 363662 # 0x58c8e
+        self._cur = 0x58272
         ret = {}
         ret["CiuConnection"] = {}
         for i in range(320):
@@ -560,7 +560,7 @@ class Datfile:
         ret["SpmiOuts"] = self.read_outs(0x2F)
         ret["I3cIns"] = self.read_outs(0x26)
         ret["I3cOuts"] = self.read_outs(0x28)
-        assert self._cur == 0x7BE5A, hex(self._cur)
+        assert self._cur == 0x7b43e, hex(self._cur)
         return ret
 
     def read_something5A(self):
