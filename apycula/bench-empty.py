@@ -34,6 +34,7 @@ from apycula import tm_h4x
 from apycula import chipdb
 
 gowinhome = os.getenv("GOWINHOME")
+gowinhome = "/home/rabbit/stuff/Gowin/gowin-1.9.10.03"
 if not gowinhome:
     raise Exception("GOWINHOME not set")
 
@@ -43,48 +44,53 @@ device = sys.argv[1]
 params = {
     "GW1NS-2": {
         "package": "LQFP144",
-        "device": "GW1NS-2C-LQ144-5",
+        "device": "GW1NS-2C",
         "partnumber": "GW1NS-UX2CLQ144C5/I4",
     },
     "GW1NS-4": {
-          "package": "MBGA64",
-          "device": "GW1NS-4C-MBGA64-6",
-          "partnumber": "GW1NS-LV4CMG64C6/I5",
+        "package": "QFN48",
+        "device": "GW1NSR-4C",
+        "partnumber": "GW1NSR-LV4CQN48PC7/I6",
     },
     "GW1N-9": {
         "package": "PBGA256",
-        "device": "GW1N-9-PBGA256-6",
+        "device": "GW1N-9",
         "partnumber": "GW1N-LV9PG256C6/I5",
     },
     "GW1N-9C": {
         "package": "UBGA332",
-        "device": "GW1N-9C-UBGA332-6",
+        "device": "GW1N-9C",
         "partnumber": "GW1N-LV9UG332C6/I5",
     },
     "GW1N-4": {
         "package": "PBGA256",
-        "device": "GW1N-4-PBGA256-6",
+        "device": "GW1N-4",
         "partnumber": "GW1N-LV4PG256C6/I5",
     },
     "GW1N-1": {
         "package": "LQFP144",
-        "device": "GW1N-1-LQFP144-6",
+        "device": "GW1N-1",
         "partnumber": "GW1N-LV1LQ144C6/I5",
     },
     "GW1NZ-1": {
         "package": "QFN48",
-        "device": "GW1NZ-1-QFN48-6",
+        "device": "GW1NZ-1",
         "partnumber": "GW1NZ-LV1QN48C6/I5",
     },
     "GW2A-18": {
         "package": "PBGA256",
-        "device": "GW2A-18-PBGA256-8",
+        "device": "GW2A-18",
         "partnumber": "GW2A-LV18PG256C8/I7",
     },
     "GW2A-18C": {
         "package": "PBGA256S",
-        "device": "GW2AR-18C",
-        "partnumber": "GW2AR-LV18PG256SC8/I7",
+        "device": "GW2A-18C",
+        "partnumber": "GW2A-LV18PG256SC8/I7", #"GW2AR-LV18PG256SC8/I7", "GW2AR-LV18QN88C8/I7"
+    },
+    "GW5A-25A": {
+        "package": "MBGA121N",
+        "device": "GW5A-25A",
+        "partnumber": "GW5A-LV25MG121NC1/I0",
     },
 }[device]
 
@@ -275,14 +281,14 @@ def find_nodes_row(row, name):
                 print(node)
 
 if __name__ == "__main__":
-    with open(f"{gowinhome}/IDE/share/device/{device}/{device}.fse", 'rb') as f:
-        fse = fuse_h4x.readFse(f)
+    with open(f"{gowinhome}/IDE/share/device/{params['device']}/{params['device']}.fse", 'rb') as f:
+        fse = fuse_h4x.readFse(f, device)
+
+    with open(f"{gowinhome}/IDE/share/device/{params['device']}/{params['device']}.tm", 'rb') as f:
+        tm = tm_h4x.read_tm(f, device)
 
     with open(f"{device}.json") as f:
         dat = json.load(f)
-
-    with open(f"{gowinhome}/IDE/share/device/{device}/{device}.tm", 'rb') as f:
-        tm = tm_h4x.read_tm(f, device)
 
     with gzip.open(f"/home/rabbit/src/apicula/apycula/{device}.pickle", "rb") as f:
         db = pickle.load(f)
