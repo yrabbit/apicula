@@ -139,7 +139,8 @@ PnrResult = namedtuple('PnrResult', [
     'constrs',        # constraints
     'config',         # device config
     'attrs',          # port attributes
-    'errs'            # parsed log file
+    'errs',           # parsed log file
+    'version',        # IDE version
     ])
 
 def run_pnr(mod, constr, config):
@@ -195,9 +196,11 @@ def run_pnr(mod, constr, config):
         try:
             return PnrResult(
                     *bslib.read_bitstream(tmpdir+"/impl/pnr/top.fs"),
+                    #*bslib.read_bitstream("/home/rabbit/src/templates/GW1NZ-1.fs"),
                     constr,
                     config, constr.attrs,
-                    read_err_log(tmpdir+"/impl/pnr/top.log"))
+                    read_err_log(tmpdir+"/impl/pnr/top.log"),
+                    bslib.read_bitstream_version(tmpdir+"/impl/pnr/top.fs"))
         except FileNotFoundError:
             print(tmpdir)
             input()
@@ -276,6 +279,7 @@ if __name__ == "__main__":
     db.cmd_hdr = pnr_empty.hdr
     db.cmd_ftr = pnr_empty.ftr
     db.template = pnr_empty.bitmap
+    db.tool_version = pnr_empty.version
 
     # IOB
     diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)

@@ -19,6 +19,14 @@ def bitarr(frame, pad):
     data = frame.strip()[pad:-64]
     return [int(n, base=2) for n in data]
 
+def read_bitstream_version(fname):
+    ver = "UNKNOWN"
+    with open(fname) as inp:
+        for line in inp:
+            if line.startswith("//Tool Version:"):
+                ver = line[16:]
+                break
+    return ver
 
 def read_bitstream(fname):
     bitmap = []

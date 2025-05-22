@@ -63,6 +63,8 @@ class Tile:
 
 @dataclass
 class Device:
+    # IDE used
+    tool_version : str = field(default_factory=str)
     # a grid of tiles
     grid: List[List[Tile]] = field(default_factory=list)
     timing: Dict[str, Dict[str, List[float]]] = field(default_factory=dict)
