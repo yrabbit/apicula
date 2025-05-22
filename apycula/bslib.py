@@ -220,10 +220,19 @@ def write_bitstream(fname, bs, hdr, ftr, compress):
 
 def display(fname, data):
     from PIL import Image
+    """
     im = Image.frombytes(
             mode='1',
             size=data.shape[::-1],
             data=bitmatrix.packbits(data, axis = 1))
+    """
+
+    tdata = bitmatrix.packbits(data, axis = 1)
+    im = Image.new('RGB', bitmatrix.shape(tdata)[::-1], 255)
+    idata = im.load()
+    for x in range(im.size[0]):
+        for y in range(im.size[1]):
+            idata[x, y] = (tdata[y][x], tdata[y][x], tdata[y][x])
     if fname:
         im.save(fname)
     return im

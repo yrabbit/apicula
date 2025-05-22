@@ -154,7 +154,7 @@ def run_pnr(mod, constr, config):
         "use_mode_as_gpio"      : config.get('mode', "1"),
         "use_i2c_as_gpio"       : config.get('i2c', "1"),
         "bit_crc_check"         : "1",
-        "bit_compress"          : "0",
+        "bit_compress"          : "1",
         "bit_encrypt"           : "0",
         "bit_security"          : "1",
         "bit_incl_bsram_init"   : "0",
@@ -195,8 +195,8 @@ def run_pnr(mod, constr, config):
         #print(tmpdir); input()
         try:
             return PnrResult(
-                    *bslib.read_bitstream(tmpdir+"/impl/pnr/top.fs"),
-                    #*bslib.read_bitstream("/home/rabbit/src/templates/GW1NZ-1.fs"),
+                    #*bslib.read_bitstream(tmpdir+"/impl/pnr/top.fs"),
+                    *bslib.read_bitstream("/home/rabbit/src/templates/GW1NZ-1.fs"),
                     constr,
                     config, constr.attrs,
                     read_err_log(tmpdir+"/impl/pnr/top.log"),
@@ -279,6 +279,11 @@ if __name__ == "__main__":
     db.cmd_hdr = pnr_empty.hdr
     db.cmd_ftr = pnr_empty.ftr
     db.template = pnr_empty.bitmap
+
+    for i in range(len(db.template)):
+        for j in range(len(db.template[i])):
+            db.template[i][j] = 0
+
     db.tool_version = pnr_empty.version
 
     # IOB
