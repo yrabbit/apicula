@@ -129,7 +129,7 @@ def store_bsram_init_val(db, row, col, typ, parms, attrs):
     if not has_bsram_init:
         has_bsram_init = True
         # 256 * bsram rows * chip bit width
-        bsram_init_map = bitmatrix.zeros(256 * len(db.simplio_rows), bitmatrix.shape(db.template)[1])
+        bsram_init_map = bitmatrix.zeros(256 * len(db.simplio_rows), db.width)
     # 3 BSRAM cells have width 3 * 60
     loc_map = bitmatrix.zeros(256, 3 * 60)
     #print("mapping")
@@ -3056,7 +3056,7 @@ def main():
     _gnd_net = pnr['modules']['top']['netnames'].get(const_nets['GND'], {'bits': []})['bits']
     _vcc_net = pnr['modules']['top']['netnames'].get(const_nets['VCC'], {'bits': []})['bits']
 
-    tilemap = chipdb.tile_bitmap(db, db.template, empty=True)
+    tilemap = chipdb.tile_bitmap(db, bitmatrix.zeros(db.height, db.width), empty=True)
     cst = codegen.Constraints()
     pips = get_pips(pnr)
     route(db, tilemap, pips)
