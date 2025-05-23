@@ -2937,7 +2937,7 @@ def gsr(db, tilemap, args):
             add_attr_val(db, 'GSR', gsr_attrs, attrids.gsr_attrids[k], attrids.gsr_attrvals[val])
 
     cfg_attrs = set()
-    for k, val in {'GSR': 'USED', 'POWER_SAVE': 'YES', 'GOE': 'F1'}.items():
+    for k, val in {'GSR': 'USED', 'GOE': 'F1'}.items():
         if k not in attrids.cfg_attrids:
             print(f'XXX CFG GSR: add {k} key handle')
         else:
