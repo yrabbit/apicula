@@ -132,8 +132,8 @@ def write_bitstream(fname, bs, hdr, ftr, compress):
     bs = bitmatrix.hstack(pad, bs)
     assert bitmatrix.shape(bs)[1] % 8 == 0
     bs=bitmatrix.packbits(bs, axis = 1)
-    frames = int.from_bytes(new_hdr[-1][2:], 'big') + bitmatrix.shape(bs)[0]
-    new_hdr[-1][2:] = frames.to_bytes(2, 'big')
+    frames = int.from_bytes(hdr[-1][2:], 'big') + bitmatrix.shape(bs)[0]
+    hdr[-1][2:] = frames.to_bytes(2, 'big')
 
     unused_bytes = []
     if compress:
