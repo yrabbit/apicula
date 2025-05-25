@@ -157,5 +157,6 @@ if tiled_fuzzer.device in params:
 
         db.sip_cst.setdefault(device["device"], {})[device["package"]] = pinmap
 """
+
 with open(f"{tiled_fuzzer.device}_stage2.pickle", 'wb') as f:
     pickle.dump(db, f)

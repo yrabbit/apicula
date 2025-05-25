@@ -72,7 +72,6 @@ def read_bitstream(fname):
                     print("frame count: ", frames, ba)
                     is_hdr = False
                 if not preamble and ba[0] == 0x06: # device ID
-                    print("Device ID:", ba)
                     if ba == b'\x06\x00\x00\x00\x11\x00\x58\x1b':     # GW1N-9
                         padding = 4
                         compress_padding = 44
@@ -88,9 +87,6 @@ def read_bitstream(fname):
                     elif ba == b'\x06\x00\x00\x00\x01\x00h\x1b':      # GW1NZ-1
                         padding = 0
                         compress_padding = 0
-                    elif ba == b'\x06\x00\x00\x00\x03\x00\x18\x1b':   # XXX
-                        padding = 0
-                        compress_padding = 0
                     elif ba == b'\x06\x00\x00\x00\x01\x00\x98\x1b':   # GW1NS-4
                         padding = 0
                         compress_padding = 8
@@ -104,7 +100,6 @@ def read_bitstream(fname):
                         raise ValueError("Unsupported device", ba)
                 preamble = max(0, preamble-1)
                 continue
-
             if is5ASeries == False:
                 crcdat.extend(ba[:-8])
                 crc1 = (ba[-7] << 8) + ba[-8]
@@ -154,12 +149,12 @@ def compressLine(line, key8Z, key4Z, key2Z):
 def write_bitstream_with_bsram_init(fname, bs, hdr, ftr, compress, bsram_init):
     new_bs = bitmatrix.vstack(bs, bsram_init)
     new_hdr = hdr.copy()
-    frames = int.from_bytes(new_hdr[-1][2:], 'big') + bitmatrix.shape(bsram_init)[0]
-    new_hdr[-1][2:] = frames.to_bytes(2, 'big')
     write_bitstream(fname, new_bs, new_hdr, ftr, compress)
 
 def write_bitstream(fname, bs, hdr, ftr, compress):
     bs = bitmatrix.fliplr(bs)
+    hdr[-1][2:] = bitmatrix.shape(bs)[0].to_bytes(2, 'big')
+
     if compress:
         padlen = (ceil(bitmatrix.shape(bs)[1] / 64) * 64) - bitmatrix.shape(bs)[1]
     else:

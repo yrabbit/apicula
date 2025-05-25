@@ -129,7 +129,7 @@ def store_bsram_init_val(db, row, col, typ, parms, attrs):
     if not has_bsram_init:
         has_bsram_init = True
         # 256 * bsram rows * chip bit width
-        bsram_init_map = bitmatrix.zeros(256 * len(db.simplio_rows), bitmatrix.shape(db.template)[1])
+        bsram_init_map = bitmatrix.zeros(256 * len(db.simplio_rows), db.width)
     # 3 BSRAM cells have width 3 * 60
     loc_map = bitmatrix.zeros(256, 3 * 60)
     #print("mapping")
@@ -2104,7 +2104,7 @@ def bin_str_to_dec(str_val):
 _hclk_default_params ={"GSREN": "false", "DIV_MODE":"2"}
 def set_hclk_attrs(db, params, num, typ, cell_name):
     name_pattern = r'^_HCLK([0,1])_SECT([0,1])$'
-    params = dict(params or _hclk_default_params)
+    params = dict(_hclk_default_params | params)
     attrs = {}
     pattern_match = re.findall(name_pattern, num)
     if (not pattern_match):
@@ -2937,11 +2937,12 @@ def gsr(db, tilemap, args):
             add_attr_val(db, 'GSR', gsr_attrs, attrids.gsr_attrids[k], attrids.gsr_attrvals[val])
 
     cfg_attrs = set()
-    for k, val in {'GSR': 'USED'}.items():
+    for k, val in {'GSR': 'USED', 'GOE': 'F1'}.items():
         if k not in attrids.cfg_attrids:
             print(f'XXX CFG GSR: add {k} key handle')
         else:
             add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids[k], attrids.cfg_attrvals[val])
+    add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids['GSR'], attrids.cfg_attrvals['F1'])
 
     # The configuration fuses are described in the ['shortval'][60] table, global set/reset is
     # described in the ['shortval'][20] table. Look for cells with type with these tables
@@ -3056,15 +3057,15 @@ def main():
     _gnd_net = pnr['modules']['top']['netnames'].get(const_nets['GND'], {'bits': []})['bits']
     _vcc_net = pnr['modules']['top']['netnames'].get(const_nets['VCC'], {'bits': []})['bits']
 
-    tilemap = chipdb.tile_bitmap(db, db.template, empty=True)
+    tilemap = chipdb.tile_bitmap(db, bitmatrix.zeros(db.height, db.width), empty=True)
     cst = codegen.Constraints()
     pips = get_pips(pnr)
     route(db, tilemap, pips)
     isolate_segments(pnr, db, tilemap)
     bels = get_bels(pnr)
+    gsr(db, tilemap, args)
     # routing can add pass-through LUTs
     place(db, tilemap, itertools.chain(bels, _pip_bels) , cst, args)
-    gsr(db, tilemap, args)
     dualmode_pins(db, tilemap, args)
     # XXX Z-1 some kind of power saving for pll, disable
     # When comparing images with a working (IDE) and non-working PLL (apicula),
