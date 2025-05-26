@@ -334,12 +334,6 @@ if __name__ == "__main__":
     db.cmd_hdr = gen_hdr()
     db.cmd_ftr = gen_ftr()
 
-    for i in range(len(db.template)):
-        for j in range(len(db.template[i])):
-            db.template[i][j] = 0
-
-    db.tool_version = pnr_empty.version
-
     # IOB
     diff_cap_info = pindef.get_diff_cap_info(device, params['package'], True)
     fse_iob(fse, db, pin_locations, diff_cap_info, locations);
