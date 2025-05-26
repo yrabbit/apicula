@@ -3091,7 +3091,6 @@ def main():
     if args.cst:
         with open(args.cst, "w") as f:
                 cst.write(f)
-    print(f'The chip db was created with IDE version:{db.tool_version}')
 
 if __name__ == '__main__':
     main()
