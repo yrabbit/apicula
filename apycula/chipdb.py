@@ -51,6 +51,11 @@ class Tile:
     ttyp: int
     # a mapping from dest, source wire to bit coordinates
     pips: Dict[str, Dict[str, Set[Coord]]] = field(default_factory=dict)
+    # This table will probably play an important role when setting the fuse,
+    # for now we use it to create default wires (as it was in older versions of
+    # the IDE)
+    # {dst: ({src}, {bits})}
+    alonenode: Dict[str, Tuple[Set[str], Set[Coord]]] = field(default_factory=dict)
     # XXX pure_clock_pips not used in apicula anymore but leave it untouched
     # for now as nextpnr is still counting on this field
     clock_pips: Dict[str, Dict[str, Set[Coord]]] = field(default_factory=dict)
@@ -231,6 +236,14 @@ def fse_pips(fse, ttyp, device, table=2, wn=wirenames):
             pips.setdefault(dest, {})[src] = fuses
 
     return pips
+
+# use sources from alonenode to find missing source->sink pairs in pips
+def create_default_pips(tile):
+    for dest, srcs_fuse in tile.alonenode.items():
+        if dest in tile.pips:
+            for src in srcs_fuse[0]:
+                if src not in tile.pips[dest]:
+                    tile.pips.setdefault(dest, {})[src] = set()
 
 _supported_hclk_wires = {'SPINE2', 'SPINE3', 'SPINE4', 'SPINE5', 'SPINE10', 'SPINE11',
                          'SPINE12', 'SPINE13', 'SPINE16', 'SPINE17', 'SPINE18', 'SPINE19',
@@ -2545,7 +2558,9 @@ def from_fse(device, fse, dat: Datfile):
         tile.clock_pips = fse_pips(fse, ttyp, device, 38, clknames)
         # XXX remove after nextpnr update
         tile.pure_clock_pips = copy.deepcopy(tile.clock_pips)
+        tile.alonenode = fse_alonenode(fse, ttyp, device, 69)
         tile.alonenode_6 = fse_alonenode(fse, ttyp, device, 6)
+        create_default_pips(tile)
         if 5 in fse[ttyp]['shortval']:
             tile.bels = fse_luts(fse, ttyp, device)
         elif 51 in fse[ttyp]['shortval']:
