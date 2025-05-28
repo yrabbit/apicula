@@ -1199,8 +1199,8 @@ cfg_attrvals = {
         'F1':               4,
         'F2':               5,
         'F3':               6,
-        'USED':             7,
-        'UNUSED':           8,
+        'UNUSED':           7,
+        'USED':             8,
         'FALSE':            9
     }
 
@@ -1403,7 +1403,7 @@ iologic_attrids = {
         'IOLOGIC_UNKNOWN129':      129,
         'IOLOGIC_UNKNOWN130':      130,
         'IOLOGIC_UNKNOWN135':      135,
-        'IOLOGIC_UNKNOWN136':      136        
+        'IOLOGIC_UNKNOWN136':      136
     }
 
 iologic_attrvals = {
