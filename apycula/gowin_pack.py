@@ -2908,7 +2908,7 @@ def route(db, tilemap, pips):
                 bits = tiledata.pips[dest][src]
                 # check if we have 'not conencted to' situation
                 if dest in tiledata.alonenode:
-                    srcs, fuses = tiledata[dest]
+                    srcs, fuses = tiledata.alonenode[dest]
                     if src not in srcs:
                         bits |= fuses
         except KeyError:
