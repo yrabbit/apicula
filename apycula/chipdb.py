@@ -245,6 +245,32 @@ def create_default_pips(tile):
                 if src not in tile.pips[dest]:
                     tile.pips.setdefault(dest, {})[src] = set()
 
+# The new IDE introduces Q6 and Q7 as sources, but since we don't know what to
+# do with them (there should be no DFFs there), we remove those wires.
+def create_vcc_pips(dev, dat, tiles):
+    # XXX look what X11 are
+    prims = ['Lut', 'X0', 'X1', 'X2', 'X8', 'Clk', 'Lsr', 'Ce', 'Sel']
+    for ttyp, tile in tiles.items():
+        if ttyp in dev.tile_types['C']: # only CFU cells
+            # remove Q6 and Q7
+            pips_to_remove = []
+            for dst, src_fuses in tile.pips.items():
+                for q in ['Q6', 'Q7']:
+                    if q in src_fuses:
+                       del src_fuses[q]
+                if not src_fuses:
+                    pips_to_remove.append(dst)
+            for pip in pips_to_remove:
+                del tile.pips[pip]
+            # search for sinks which are directly connected to the VCC and add these pips
+            for prim in dat.primitives:
+                if prim.name not in prims:
+                    continue
+                for inp_idx, srcs in enumerate(prim.input_src):
+                    if wirenumbers['VCC'] in srcs:
+                        tile.pips.setdefault(wirenames[prim.inputs[inp_idx]], {})['VCC'] = set()
+
+
 _supported_hclk_wires = {'SPINE2', 'SPINE3', 'SPINE4', 'SPINE5', 'SPINE10', 'SPINE11',
                          'SPINE12', 'SPINE13', 'SPINE16', 'SPINE17', 'SPINE18', 'SPINE19',
                          'VSS', 'VCC', 'PCLKT0', 'PCLKT1', 'PCLKB0', 'PCLKB1',
@@ -2584,6 +2610,7 @@ def from_fse(device, fse, dat: Datfile):
     fse_create_pll_clock_aliases(dev, device)
     fse_create_bottom_io(dev, device)
     fse_create_tile_types(dev, dat)
+    create_vcc_pips(dev, dat, tiles)
     fse_create_diff_types(dev, device)
     fse_create_hclk_nodes(dev, device, fse, dat)
     fse_create_mipi(dev, device, dat)
