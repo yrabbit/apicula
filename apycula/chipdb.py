@@ -246,30 +246,24 @@ def create_default_pips(tile):
                     tile.pips.setdefault(dest, {})[src] = set()
 
 # The new IDE introduces Q6 and Q7 as sources, but since we don't know what to
-# do with them (there should be no DFFs there), we remove those wires.
+# do with them (there should be no DFFs there), we remove Q6.
+# With Q7 it's a different story - Q7 connection fuses look suspiciously
+# similar to VCC connection fuses, so we rename Q7 to VCC.
 def create_vcc_pips(dev, dat, tiles):
-    # XXX look what X11 are
-    prims = ['Lut', 'X0', 'X1', 'X2', 'X8', 'Clk', 'Lsr', 'Ce', 'Sel']
     for ttyp, tile in tiles.items():
         if ttyp in dev.tile_types['C']: # only CFU cells
-            # remove Q6 and Q7
+            # remove Q6
             pips_to_remove = []
             for dst, src_fuses in tile.pips.items():
-                for q in ['Q6', 'Q7']:
-                    if q in src_fuses:
-                       del src_fuses[q]
-                if not src_fuses:
-                    pips_to_remove.append(dst)
+                if 'Q6' in src_fuses:
+                    del src_fuses['Q6']
+                    if not src_fuses:
+                       pips_to_remove.append(dst)
+                if 'Q7' in src_fuses:
+                    src_fuses['VCC'] = src_fuses['Q7']
+                    del src_fuses['Q7']
             for pip in pips_to_remove:
                 del tile.pips[pip]
-            # search for sinks which are directly connected to the VCC and add these pips
-            for prim in dat.primitives:
-                if prim.name not in prims:
-                    continue
-                for inp_idx, srcs in enumerate(prim.input_src):
-                    if wirenumbers['VCC'] in srcs:
-                        tile.pips.setdefault(wirenames[prim.inputs[inp_idx]], {})['VCC'] = set()
-
 
 _supported_hclk_wires = {'SPINE2', 'SPINE3', 'SPINE4', 'SPINE5', 'SPINE10', 'SPINE11',
                          'SPINE12', 'SPINE13', 'SPINE16', 'SPINE17', 'SPINE18', 'SPINE19',
