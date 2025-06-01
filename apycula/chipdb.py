@@ -238,32 +238,29 @@ def fse_pips(fse, ttyp, device, table=2, wn=wirenames):
     return pips
 
 # use sources from alonenode to find missing source->sink pairs in pips
-def create_default_pips(tile):
-    for dest, srcs_fuse in tile.alonenode.items():
-        if dest in tile.pips:
-            for src in srcs_fuse[0]:
-                if src not in tile.pips[dest]:
-                    tile.pips.setdefault(dest, {})[src] = set()
+def create_default_pips(tiles):
+    for tile in tiles.values():
+        for dest, srcs_fuse in tile.alonenode.items():
+            if dest in tile.pips:
+                for src in srcs_fuse[0]:
+                    if src not in tile.pips[dest]:
+                        tile.pips.setdefault(dest, {})[src] = set()
 
-# The new IDE introduces Q6 and Q7 as sources, but since we don't know what to
-# do with them (there should be no DFFs there), we remove Q6.
-# With Q7 it's a different story - Q7 connection fuses look suspiciously
-# similar to VCC connection fuses, so we rename Q7 to VCC.
+# The new IDE introduces Q6 and Q7 as sources, and their connection fuses look suspiciously
+# similar to VCC connection fuses, so we rename Q6 and Q7 to VCC.
 def create_vcc_pips(dev, dat, tiles):
     for ttyp, tile in tiles.items():
         if ttyp in dev.tile_types['C']: # only CFU cells
-            # remove Q6
-            pips_to_remove = []
             for dst, src_fuses in tile.pips.items():
-                if 'Q6' in src_fuses:
-                    del src_fuses['Q6']
-                    if not src_fuses:
-                       pips_to_remove.append(dst)
-                if 'Q7' in src_fuses:
-                    src_fuses['VCC'] = src_fuses['Q7']
-                    del src_fuses['Q7']
-            for pip in pips_to_remove:
-                del tile.pips[pip]
+                for q in ['Q6', 'Q7']:
+                    if q in src_fuses:
+                        src_fuses['VCC'] = src_fuses[q]
+                        del src_fuses[q]
+            for dest, srcs_fuse in tile.alonenode.items():
+                if 'Q6' in srcs_fuse[0] or 'Q7' in srcs_fuse[0]:
+                    print(srcs_fuse[0])
+                    tile.alonenode[dest] = ({src for src in srcs_fuse[0] if src not in {'Q6', 'Q7'}} | {'VCC'}, srcs_fuse[1])
+                    print(tile.alonenode[dest])
 
 _supported_hclk_wires = {'SPINE2', 'SPINE3', 'SPINE4', 'SPINE5', 'SPINE10', 'SPINE11',
                          'SPINE12', 'SPINE13', 'SPINE16', 'SPINE17', 'SPINE18', 'SPINE19',
@@ -2580,7 +2577,6 @@ def from_fse(device, fse, dat: Datfile):
         tile.pure_clock_pips = copy.deepcopy(tile.clock_pips)
         tile.alonenode = fse_alonenode(fse, ttyp, device, 69)
         tile.alonenode_6 = fse_alonenode(fse, ttyp, device, 6)
-        create_default_pips(tile)
         if 5 in fse[ttyp]['shortval']:
             tile.bels = fse_luts(fse, ttyp, device)
         elif 51 in fse[ttyp]['shortval']:
@@ -2605,6 +2601,7 @@ def from_fse(device, fse, dat: Datfile):
     fse_create_bottom_io(dev, device)
     fse_create_tile_types(dev, dat)
     create_vcc_pips(dev, dat, tiles)
+    create_default_pips(tiles)
     fse_create_diff_types(dev, device)
     fse_create_hclk_nodes(dev, device, fse, dat)
     fse_create_mipi(dev, device, dat)
