@@ -1,368 +1,81 @@
-import re
-import os
 import sys
-import tempfile
-import subprocess
-import importlib.resources
-from collections import deque, Counter, namedtuple
-from itertools import chain, count, zip_longest
-from functools import reduce
-from random import shuffle, seed
-from warnings import warn
-from math import factorial
-import numpy as np
-from multiprocessing.dummy import Pool
+import os
+import re
 import pickle
+import gzip
+import itertools
+import math
 import json
-from wirenames import wirenames, clknames
-from PIL import Image, ImageDraw
-from shutil import copytree
-
+import argparse
+import importlib.resources
+from collections import namedtuple
+from contextlib import closing
 from apycula import codegen
-from apycula import bslib
-from apycula import pindef
-from apycula import fuse_h4x
-from apycula import gowin_pack
-from apycula import tiled_fuzzer
-from apycula import codegen
-from apycula import bslib
-#TODO proper API
-#from apycula import dat19_h4x
-from apycula import tm_h4x
 from apycula import chipdb
+from apycula.chipdb import add_attr_val, get_shortval_fuses, get_longval_fuses, get_bank_fuses, get_long_fuses
+from apycula import attrids
+from apycula import bslib
+from apycula import bitmatrix
+from apycula.wirenames import wirenames, wirenumbers
+from deepdiff import DeepDiff
 
-gowinhome = os.getenv("GOWINHOME")
-if not gowinhome:
-    raise Exception("GOWINHOME not set")
+db_new = None
+db_old = None
 
-# device = os.getenv("DEVICE")
-device = sys.argv[1]
+def main(device):
+    global db_new
+    global db_old
 
-params = {
-    "GW1NS-2": {
-        "package": "LQFP144",
-        "device": "GW1NS-2C-LQ144-5",
-        "partnumber": "GW1NS-UX2CLQ144C5/I4",
-    },
-    "GW1NS-4": {
-        "package": "QFN48",
-        "device": "GW1NSR-4C-QFN48-7",
-        "partnumber": "GW1NSR-LV4CQN48PC7/I6",
-    },
-    "GW1N-9": {
-        "package": "PBGA256",
-        "device": "GW1N-9-PBGA256-6",
-        "partnumber": "GW1N-LV9PG256C6/I5",
-    },
-    "GW1N-4": {
-        "package": "PBGA256",
-        "device": "GW1N-4-PBGA256-6",
-        "partnumber": "GW1N-LV4PG256C6/I5",
-    },
-    "GW1N-1": {
-        "package": "LQFP144",
-        "device": "GW1N-1-LQFP144-6",
-        "partnumber": "GW1N-LV1LQ144C6/I5",
-    },
-    "GW1N-9C": {
-        "package": "UBGA332",
-        "device": "GW1N-9C-UBGA332-6",
-        "partnumber": "GW1N-LV9UG332C6/I5",
-    },
-    "GW1NZ-1": {
-        "package": "QFN48",
-        "device": "GW1NZ-1-QFN48-6",
-        "partnumber": "GW1NZ-LV1QN48C6/I5",
-    },
-}[device]
+    old_path = sys.argv[1]
+    new_path = sys.argv[2]
 
-# collect all routing bits of the tile
-_route_mem = {}
-def route_bits(db, row, col):
-    mem = _route_mem.get((row, col), None)
-    if mem != None:
-        return mem
+    print(f'Compare {device}...')
+    path = f'{old_path}/{device}.pickle'
+    with closing(gzip.open(path, 'rb')) as f:
+        db_old = pickle.load(f)
 
-    bits = set()
-    for w in db.grid[row][col].pips.values():
-        for v in w.values():
-            bits.update(v)
-    _route_mem.setdefault((row, col), bits)
-    return bits
+    path = f'{new_path}/{device}.pickle'
+    with closing(gzip.open(path, 'rb')) as f:
+        db_new = pickle.load(f)
 
-def get_fuse_num(ttyp, bits):
-    # bits YYXX
-    for i, fs in enumerate(fse['header']['fuse'][1]):
-        if fs[ttyp] == bits:
-            return i
-    return -1
-
-def print_longval(ttyp, table, contains = None, must_all = False):
-    "ttyp, num, contains = 0"
-    for row in fse[ttyp]['longval'][table]:
-        if contains == None:
-            print(row)
+    # checks
+    for name, old, new in [
+            ('Chip flags',  db_old.chip_flags, db_new.chip_flags),
+            ('Extra func',  db_old.extra_func, db_new.extra_func),
+            ('HCLK pips',   db_old.hclk_pips, db_new.hclk_pips),
+            ('Diff IO types',  db_old.diff_io_types, db_new.diff_io_types),
+            ('Tile types',  db_old.tile_types, db_new.tile_types),
+            ('Pad PLL',  db_old.pad_pll, db_new.pad_pll),
+            ('Simplio rows',  db_old.simplio_rows, db_new.simplio_rows),
+            ('Botom IO',  db_old.bottom_io, db_new.bottom_io),
+            ('Nodes',  db_old.nodes, db_new.nodes),
+            ('Longval',  db_old.longval, db_new.longval),
+            ('Shortval',  db_old.shortval, db_new.shortval),
+            ('Long fuses',  db_old.longfuses, db_new.longfuses),
+            ('Logicinfo',  db_old.logicinfo, db_new.logicinfo),
+            ('Pin bank',  db_old.pin_bank, db_new.pin_bank),
+            ('Pinout',  db_old.pinout, db_new.pinout),
+            ('Packages',  db_old.packages, db_new.packages),
+            ('Wire delay',  db_old.wire_delay, db_new.wire_delay),
+            ('Timing',  db_old.timing, db_new.timing),
+            #('Grid',  db_old.grid, db_new.grid),
+            ]:
+        diff = DeepDiff(old, new)
+        if diff:
+            print(f'{name}: DIFF')
+            if False and name == 'Grid':
+                for diff_r, diff_d in diff.items():
+                    print(diff_r, ':', diff_d)
         else:
-            are_all = must_all
-            for val in contains:
-                if val in row[16:]:
-                    are_all = True
-                    if not must_all:
-                        break
-                else:
-                    if must_all:
-                        are_all = False
-                        break
-            if are_all:
-                print(row)
+            print(f'{name}: Ok')
+    import ipdb; ipdb.set_trace()
 
-def print_longval_key(ttyp, table, key, ignore_key_elem = 0, zeros = True):
-    if zeros:
-        sorted_key = (sorted(key) + [0] * 16)[:16 - ignore_key_elem]
-        end = 16
-    else:
-        sorted_key = sorted(key)
-        end = ignore_key_elem + len(sorted_key)
-    for rec in fse[ttyp]['longval'][table]:
-        k = rec[ignore_key_elem:end]
-        if k == sorted_key:
-            print(rec)
-
-def print_alonenode(ttyp, contains = 0):
-    "ttyp, contains = 0"
-    for row in fse[ttyp]['alonenode'][69]:
-        if contains == 0 or contains in row:
-            print(row)
-
-def get_wires_to(fse, ttyp, wiren):
-    for wr in [wire for wire in fse[ttyp]['wire'][2] if wire[1] == wiren]:
-        print(wr)
-
-def get_wires_from(fse, ttyp, wiren):
-    for wr in [wire for wire in fse[ttyp]['wire'][2] if wire[0] == wiren]:
-        print(wr)
-
-def get_grid_rc(fse, row, col):
-    grow = 0
-    h = fse[fse['header']['grid'][61][row][col]]['height']
-    while row:
-        grow += h
-        h = fse[fse['header']['grid'][61][row][col]]['height']
-        row -= 1
-    gcol = 0
-    w = fse[fse['header']['grid'][61][row][col]]['width']
-    while col:
-        gcol += w
-        w = fse[fse['header']['grid'][61][row][col]]['width']
-        col -= 1
-    return (grow, gcol, h, w)
-
-def pict(bm, name):
-    im = bslib.display(None, bm)
-    im_scaled = im.resize((im.width * 10, im.height * 10), Image.NEAREST)
-    im_scaled.save(f"/home/rabbit/tmp/{name}")
-
-def deep_bank_cmp(bel, ref_bel):
-    keys = set(bel.bank_flags.keys())
-    ref_keys = set(ref_bel.bank_flags.keys())
-    if keys != ref_keys:
-        print(f' keys diff:{keys ^ ref_keys}')
-        return
-    for key, val in bel.bank_flags.items():
-        if val != ref_bel.bank_flags[key]:
-            print(f' val diff: {key}:{val} vs {ref_bel.bank_flags[key]}')
-
-def deep_io_cmp(bel, ref_bel, irow, icol, ibel):
-    iostd_keys = set(bel.iob_flags.keys())
-    ref_iostd_keys = set(ref_bel.iob_flags.keys())
-    if iostd_keys != ref_iostd_keys:
-        print(f' iostd diff:{iostd_keys ^ ref_iostd_keys}')
-    for iostd_key, typ_rec in bel.iob_flags.items():
-        ref_typ_rec = ref_bel.iob_flags[iostd_key]
-        if set(typ_rec.keys()) != set(ref_typ_rec.keys()):
-            print(f' type diff:{iostd_key} {set(typ_rec.keys()) ^ set(ref_typ_rec.keys())}')
-            continue
-        if typ_rec == ref_typ_rec:
-            continue
-        print(f' {iostd_key}')
-        for typ_key, flag_rec in typ_rec.items():
-            ref_flag_rec = ref_typ_rec[typ_key]
-            if set(flag_rec.flags.keys()) != set(ref_flag_rec.flags.keys()):
-                print(f'  flag diff:{iostd_key} {typ_key} {set(flag_rec.flags.keys()) ^ set(ref_flag_rec.flags.keys())}')
-                continue
-            if flag_rec == ref_flag_rec:
-                continue;
-            print(f'  {typ_key}')
-            if flag_rec.encode_bits != ref_flag_rec.encode_bits:
-                print(f'  encode diff:({irow}, {icol})[{ibel}] {iostd_key} {typ_key} {flag_rec.encode_bits ^ ref_flag_rec.encode_bits}')
-            for flag_key, opt_rec in flag_rec.flags.items():
-                ref_opt_rec = ref_flag_rec.flags[flag_key]
-                if set(opt_rec.options.keys()) != set(ref_opt_rec.options.keys()):
-                    print(f'   opt diff:{iostd_key} {typ_key} {flag_key} {set(opt_rec.options.keys()) ^ set(ref_opt_rec.options.keys())}')
-                    continue
-                if opt_rec == ref_opt_rec:
-                    continue
-                print(f'   {flag_key}')
-                for opt_key, bits in opt_rec.options.items():
-                    ref_bits = ref_opt_rec.options[opt_key]
-                    if bits != ref_bits:
-                        print(f'    bits diff:{iostd_key} {typ_key} {flag_key} {opt_key} {bits} vs {ref_bits}')
-
-
-def tbrl2rc(fse, side, num):
-    if side == 'T':
-        row = 0
-        col = int(num) - 1
-    elif side == 'B':
-        row = len(fse['header']['grid'][61])-1
-        col = int(num) - 1
-    elif side == 'L':
-        row = int(num) - 1
-        col = 0
-    elif side == 'R':
-        row = int(num) - 1
-        col = len(fse['header']['grid'][61][0])-1
-    return (row, col)
-
-def attrs2log(attrs, pos):
-    for name, p in attrs[0].items():
-        if p == pos:
-            return f'{pos}:{attrs[1][name]}:{name}'
-
-def is_lvcmos12_drive_4(attrs, pos):
-    for name, p in attrs[0].items():
-        if p == pos:
-            if 'DRIVE' not in attrs[1][name].keys():
-                return False
-            if 'IO_TYPE' not in attrs[1][name].keys():
-                return False
-            return attrs[1][name]['DRIVE'] == '4' and attrs[1][name]['IO_TYPE'] == 'LVCMOS12'
-
-def get_cfg_bits(db, row, col):
-    bits = set()
-    if 'CFG' in db.grid[row][col].bels :
-        for v in db.grid[row][col].bels['CFG'].flags.values():
-            bits.update(v)
-    return bits
-
-if __name__ == "__main__":
-    with open(f"{gowinhome}/IDE/share/device/{device}/{device}.fse", 'rb') as f:
-        fse = fuse_h4x.readFse(f)
-
-    with open(f"{device}.json") as f:
-        dat = json.load(f)
-
-    with open(f"{gowinhome}/IDE/share/device/{device}/{device}.tm", 'rb') as f:
-        tm = tm_h4x.read_tm(f, device)
-
-    with importlib.resources.open_binary("apycula", f"{device}.pickle") as f:
-        db = pickle.load(f)
-
-    # init pindef
-    pindef.all_packages(device)
-    #print('Compare IOs...')
-    pin_names = pindef.get_locs(device, params['package'], True)
-    edges = {'T': fse['header']['grid'][61][0],
-             'B': fse['header']['grid'][61][-1],
-             'L': [row[0] for row in fse['header']['grid'][61]],
-             'R': [row[-1] for row in fse['header']['grid'][61]]}
-    pin_bels = {}
-    pin_re = re.compile(r"IO([TBRL])(\d+)\[?([A-Z])\]?")
-    for name in pin_names:
-        side, num, pin = pin_re.match(name).groups()
-        ttyp = edges[side][int(num)-1]
-        ttyp_pins = pin_bels.setdefault(ttyp, {})
-        ttyp_pins.setdefault(tbrl2rc(fse, side, num), set()).add(f"IOB{pin}")
-
-    if len(sys.argv) <= 2:
-        exit()
-
-    (_, dirnames, _) = next(os.walk(sys.argv[2]))
-    total = len(dirnames)
-    done  = total
-    errs  = 0
-    print("Comparing banks and IOs")
-    for dirname in dirnames:
-        print(f'{total} {done} {errs}', end = '    \r'); done = done - 1
-        img = bslib.read_bitstream(f'{sys.argv[2]}/{dirname}/top.fs')[0]
-        bm = chipdb.tile_bitmap(db, img, empty = True)
-        ref_img = bslib.read_bitstream(f'{sys.argv[2]}/{dirname}/impl/pnr/top.fs')[0]
-        ref_bm = chipdb.tile_bitmap(db, ref_img, empty = True)
-
-        with open(f'{sys.argv[2]}/{dirname}/attrs.json') as f:
-            attrs = json.load(f)
-
-        # banks
-        for idx in db.corners.keys():
-            row, col = idx
-            if 'BANK' not in db.grid[row][col].bels.keys():
-                continue
-            ttyp = fse['header']['grid'][61][row][col]
-            # bits w/o routing
-            rbits = route_bits(db, row, col)
-            rbits.update(get_cfg_bits(db, row, col))
-            r, c = np.where(ref_bm[(row, col)] == 1)
-            tile = set(zip(r, c))
-            ref_bits = tile - rbits
-            r, c = np.where(bm[(row, col)] == 1)
-            tile = set(zip(r, c))
-            bits = tile - rbits
-            if bits != ref_bits:
-                if ref_bits != bits:
-                    errs = errs + 1
-                    print(f' {dirname}: [{ttyp}] ({row}, {col}): {ref_bits ^ bits}')
-                    print(' correct:', end = ' ')
-                    for df in (ref_bits ^ bits):
-                        if df in ref_bits:
-                            print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
-                    print()
-                    print(' bad:', end = ' ')
-                    for df in (ref_bits ^ bits):
-                        if df in bits:
-                            print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
-                    print()
-                    #import ipdb; ipdb.set_trace()
-
-        # io pins
-        if True:
-            for pos in attrs[0].values():
-                if is_lvcmos12_drive_4(attrs, pos):
-                    continue
-                side, num, pin = pin_re.match(pos).groups()
-                row, col  = tbrl2rc(fse, side, num)
-                ttyp = fse['header']['grid'][61][row][col]
-                # bits w/o routing
-                rbits = route_bits(db, row, col)
-                r, c = np.where(ref_bm[(row, col)] == 1)
-                tile = set(zip(r, c))
-                ref_bits = tile - rbits
-                r, c = np.where(bm[(row, col)] == 1)
-                tile = set(zip(r, c))
-                bits = tile - rbits
-                if bits != ref_bits:
-                    if ref_bits != bits:
-                        # 12/15/18 modes
-                        print(f'{dirname}', ttyp, pin)
-                        m18 = tiled_fuzzer.get_longval(fse, ttyp, tiled_fuzzer._pin_mode_longval[pin],
-                                                     tiled_fuzzer.recode_key({66}))
-                        diff = ref_bits ^ bits
-                        #if len(diff) == 1:
-                            #if diff == m18:
-                            #    print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
-                            #    continue
-                        errs = errs + 1
-                        print()
-                        print(f' {dirname}:{ttyp}:{row}:{col}:{ref_bits ^ bits}, {attrs2log(attrs, pos)}')
-                        print(' correct:', end = ' ')
-                        for df in (ref_bits ^ bits):
-                            if df in ref_bits:
-                                print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
-                        print()
-                        print(' bad:', end = ' ')
-                        for df in (ref_bits ^ bits):
-                            if df in bits:
-                                print(get_fuse_num(ttyp, df[0] * 100 + df[1]), end = ' ')
-                        print()
-    print('\nOk')
-
-
+if __name__ == '__main__':
+    old_path = sys.argv[1]
+    new_path = sys.argv[2]
+    print(f'Compare old bases:{old_path} with new bases:{new_path}')
+    #for device in ['GW1N-1', 'GW2A-18C']:
+    for device in [sys.argv[3]]:
+    #for device in ['GW2A-18C']:
+        main(device)
+        print()
