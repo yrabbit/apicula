@@ -248,19 +248,35 @@ def create_default_pips(tiles):
 
 # The new IDE introduces Q6 and Q7 as sources, and their connection fuses look suspiciously
 # similar to VCC connection fuses, so we rename Q6 and Q7 to VCC.
-def create_vcc_pips(dev, dat, tiles):
+def create_vcc_pips(dev, tiles):
     for ttyp, tile in tiles.items():
-        if ttyp in dev.tile_types['C']: # only CFU cells
-            for dst, src_fuses in tile.pips.items():
+        if ttyp in dev.tile_types['C'] or ttyp in dev.tile_types['M']: # only CFU cells
+            for src_fuses in tile.pips.values():
                 for q in ['Q6', 'Q7']:
                     if q in src_fuses:
                         src_fuses['VCC'] = src_fuses[q]
-                        del src_fuses[q]
+                src_fuses.pop('Q6', None)
+                src_fuses.pop('Q7', None)
             for dest, srcs_fuse in tile.alonenode.items():
                 if 'Q6' in srcs_fuse[0] or 'Q7' in srcs_fuse[0]:
-                    print(srcs_fuse[0])
-                    tile.alonenode[dest] = ({src for src in srcs_fuse[0] if src not in {'Q6', 'Q7'}} | {'VCC'}, srcs_fuse[1])
-                    print(tile.alonenode[dest])
+                    tile.alonenode[dest] = (srcs_fuse[0] | {'VCC'}, srcs_fuse[1])
+
+# Remove suspicious PIPs
+# These PIPs contain one less fuse than the old bases. This applies to GW1N-9C,
+# GW2A-18 and GW2A-18C. For now, it's best to disable these things until we
+# find out. This will slightly worsen routing in the case of GW2A and will not
+# actually affect GW1N-9C.
+def remove_suspicious_pips(dev, device, tiles):
+    if device == 'GW1N-9C':
+        del dev.grid[0][46].pips['SEL3']['X02']
+        del dev.grid[0][46].pips['SEL3']['X04']
+        del dev.grid[0][46].pips['SEL3']['E242']
+    elif device in {'GW2A-18', 'GW2A-18C'}:
+        for ttyp, tile in tiles.items():
+            if ttyp in dev.tile_types['C']: # only CFU cells
+                del tile.pips['SEL7']['X01']
+                del tile.pips['SEL7']['X04']
+                del tile.pips['SEL7']['W242']
 
 _supported_hclk_wires = {'SPINE2', 'SPINE3', 'SPINE4', 'SPINE5', 'SPINE10', 'SPINE11',
                          'SPINE12', 'SPINE13', 'SPINE16', 'SPINE17', 'SPINE18', 'SPINE19',
@@ -2600,8 +2616,11 @@ def from_fse(device, fse, dat: Datfile):
     fse_create_pll_clock_aliases(dev, device)
     fse_create_bottom_io(dev, device)
     fse_create_tile_types(dev, dat)
-    create_vcc_pips(dev, dat, tiles)
+
+    create_vcc_pips(dev, tiles)
     create_default_pips(tiles)
+    remove_suspicious_pips(dev, device, tiles)
+
     fse_create_diff_types(dev, device)
     fse_create_hclk_nodes(dev, device, fse, dat)
     fse_create_mipi(dev, device, dat)
