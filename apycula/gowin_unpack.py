@@ -61,11 +61,11 @@ def _io_mode_sort_func(mode):
     return l
 
 #
-def get_attr_name(attrname_table, code):
+def get_attr_name(attrname_table, code, tableName):
     for name, cod in attrname_table.items():
         if cod == code:
             return name
-    print(f'Unknown attr name for {code}/0x{code:x}.')
+    print(f'Unknown attr name for table: {tableName} code:{code}')
     return ''
 
 # fix names and types of the PLL attributes
@@ -191,7 +191,7 @@ def get_dff_type(dff_idx, in_attrs):
 # parse attributes and values use 'logicinfo' table
 # returns {attr: value}
 # attribute names are decoded with the attribute table, but the values are returned in raw form
-def parse_attrvals(tile, logicinfo_table, fuse_table, attrname_table):
+def parse_attrvals(tile, logicinfo_table, fuse_table, attrname_table, tableName):
     def is_neg_key(key):
         for k in key:
             if k < 0:
@@ -218,6 +218,8 @@ def parse_attrvals(tile, logicinfo_table, fuse_table, attrname_table):
             set_mask.update(bits)
     set_bits =  {(row, col) for row, col in set_mask if tile[row][col] == 1}
     neg_bits = {(row, col) for row, col in zero_mask if tile[row][col] == 1}
+    #set_bits = {}
+    #neg_bits = {}
 
     # find candidates from fuse table
     # the set bits are more unique
@@ -234,7 +236,7 @@ def parse_attrvals(tile, logicinfo_table, fuse_table, attrname_table):
             attrvals.update(clean_av) # set attributes
             for idx in clean_av:
                 attr, val = logicinfo_table[idx]
-                res[get_attr_name(attrname_table, attr)] = val
+                res[get_attr_name(attrname_table, attr, tableName)] = val
 
     # records with a negative keys and used fuses
     neg_attrvals = set()
@@ -257,7 +259,7 @@ def parse_attrvals(tile, logicinfo_table, fuse_table, attrname_table):
 
     for idx in neg_attrvals:
         attr, val = logicinfo_table[idx]
-        res[get_attr_name(attrname_table, attr)] = val
+        res[get_attr_name(attrname_table, attr, tableName)] = val
 
     # records with a negative keys and unused fuses
     cnd = {av for av, bits in fuse_table.items() if is_neg_key(av) and not bits.issubset(neg_bits)}
@@ -270,7 +272,7 @@ def parse_attrvals(tile, logicinfo_table, fuse_table, attrname_table):
         if keep:
             for idx in get_negative(av):
                 attr, val = logicinfo_table[idx]
-                res[get_attr_name(attrname_table, attr)] = val
+                res[get_attr_name(attrname_table, attr, tableName)] = val
     return res
 
 # { (row, col, type) : idx}
@@ -290,14 +292,15 @@ def get_pll_A(db, row, col, typ):
     return row, col, 'A'
 
 _iologic_mode = {
-        'MODDRX2': 'OSER4',  'ODDRX2': 'OSER4',
-        'MODDRX4': 'OSER8',  'ODDRX4': 'OSER8',
-        'MODDRX5': 'OSER10', 'ODDRX5': 'OSER10',
-        'VIDEORX': 'OVIDEO', 'ODDRX8': 'OSER16',
-        'MIDDRX2': 'IDES4',  'IDDRX2': 'IDES4',
-        'MIDDRX4': 'IDES8',  'IDDRX4': 'IDES8',
-        'MIDDRX5': 'IDES10', 'IDDRX5': 'IDES10',
-        'IDDRX8': 'IDES16',
+        'MODDRX2':  'OSER4',  'ODDRX2': 'OSER4',
+        'MODDRX21': 'OSER4',  'ODDRX2': 'OSER4',
+        'MODDRX4':  'OSER8',  'ODDRX4': 'OSER8',
+        'MODDRX5':  'OSER10', 'ODDRX5': 'OSER10',
+        'VIDEORX':  'OVIDEO', 'ODDRX8': 'OSER16',
+        'MIDDRX2':  'IDES4',  'IDDRX2': 'IDES4',
+        'MIDDRX4':  'IDES8',  'IDDRX4': 'IDES8',
+        'MIDDRX5':  'IDES10', 'IDDRX5': 'IDES10',
+        'IDDRX8':   'IDES16',
         }
 
 # BSRAM has 3 cells: BSRAM, BSRAM0 and BSRAM1
@@ -312,7 +315,7 @@ def get_bsram_main_cell(db, row, col, typ):
 
 # The DSP has 9 cells: the main one and a group of auxiliary ones.
 def get_dsp_main_cell(db, row, col, typ):
-    if type[-6:-2] == '_AUX':
+    if typ[-6:-2] == '_AUX':
         col = 1 + (col - 1) // 9
     return row, col
 
@@ -320,7 +323,7 @@ def get_dsp_main_cell(db, row, col, typ):
 # with iostd by default, e.g. from the clock fuzzer
 # With normal gowin_unpack io standard is determined first and it is known.
 # (bels, pips, clock_pips)
-def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True):
+def parse_tile_(db, row, col, tile, default=True, noiostd = True):
     if not _bank_fuse_tables:
         # create bank fuse table
         for ttyp in db.longval.keys():
@@ -332,6 +335,21 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
     skip_bels = set()
     print((row, col))
     tiledata = db.grid[row][col]
+    #if 'HCLK' in db.shortval[tiledata.ttyp].keys():
+    #    attrvals =parse_attrvals(tile, db.logicinfo['HCLK'], db.shortval[tiledata.ttyp]['HCLK'], attrids.hclk_attrids)
+    #    if attrvals:
+    #        print(row, col, attrvals)
+
+    #if tiledata.ttyp in db.longfuses:
+    #    if 'DLLDEL0' in db.longfuses[tiledata.ttyp].keys():
+    #        attrvals =parse_attrvals(tile, db.logicinfo['DLLDLY'], db.longfuses[tiledata.ttyp]['DLLDEL0'], attrids.dlldly_attrids)
+    #        if attrvals:
+    #            print(row, col, attrvals)
+    #    if 'DLLDEL1' in db.longfuses[tiledata.ttyp].keys():
+    #        attrvals =parse_attrvals(tile, db.logicinfo['DLLDLY'], db.longfuses[tiledata.ttyp]['DLLDEL1'], attrids.dlldly_attrids)
+    #        if attrvals:
+    #            print(row, col, attrvals)
+
     clock_pips = {}
     bels = {}
     for name, bel in tiledata.bels.items():
@@ -339,7 +357,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             idx = _pll_cells.setdefault(get_pll_A(db, row, col, name[4]), len(_pll_cells))
             modes = { f'DEVICE="{_device}"' }
             if 'PLL' in db.shortval[tiledata.ttyp].keys():
-                attrvals = pll_attrs_refine(parse_attrvals(tile, db.logicinfo['PLL'], db.shortval[tiledata.ttyp]['PLL'], attrids.pll_attrids))
+                attrvals = pll_attrs_refine(parse_attrvals(tile, db.logicinfo['PLL'], db.shortval[tiledata.ttyp]['PLL'], attrids.pll_attrids, "PLL"))
                 for attrval in attrvals:
                     modes.add(attrval)
             if modes:
@@ -347,7 +365,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             continue
         if name == "PLLVR":
             idx = _pll_cells.setdefault(get_pll_A(db, row, col, 'A'), len(_pll_cells))
-            attrvals = pll_attrs_refine(parse_attrvals(tile, db.logicinfo['PLL'], db.shortval[tiledata.ttyp]['PLL'], attrids.pll_attrids))
+            attrvals = pll_attrs_refine(parse_attrvals(tile, db.logicinfo['PLL'], db.shortval[tiledata.ttyp]['PLL'], attrids.pll_attrids, "PLL"))
             modes = { f'DEVICE="{_device}"' }
             for attrval in attrvals:
                 modes.add(attrval)
@@ -355,7 +373,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                 bels[f'{name}{idx}'] = modes
             continue
         if name.startswith("OSC"):
-            attrvals = osc_attrs_refine(parse_attrvals(tile, db.logicinfo['OSC'], db.shortval[tiledata.ttyp]['OSC'], attrids.osc_attrids))
+            attrvals = osc_attrs_refine(parse_attrvals(tile, db.logicinfo['OSC'], db.shortval[tiledata.ttyp]['OSC'], attrids.osc_attrids, "OSC"))
             modes = set()
             for attrval in attrvals:
                 modes.add(attrval)
@@ -368,7 +386,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                 continue
             idx = _bsram_cells.setdefault(get_bsram_main_cell(db, row, col, name), len(_bsram_cells))
             #print(row, col, name, idx, tiledata.ttyp)
-            attrvals = parse_attrvals(tile, db.logicinfo['BSRAM'], db.shortval[tiledata.ttyp]['BSRAM_SP'], attrids.bsram_attrids)
+            attrvals = parse_attrvals(tile, db.logicinfo['BSRAM'], db.shortval[tiledata.ttyp]['BSRAM_SP'], attrids.bsram_attrids, "BSRAM")
             if not attrvals:
                 continue
             #print(row, col, name, idx, tiledata.ttyp, attrvals)
@@ -384,7 +402,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                 row, col = get_dsp_main_cell(db, row, col, name)
 
             if f'DSP{idx}' in db.shortval[tiledata.ttyp]:
-                attrvals = parse_attrvals(tile, db.logicinfo['DSP'], db.shortval[tiledata.ttyp][f'DSP{idx}'], attrids.dsp_attrids)
+                attrvals = parse_attrvals(tile, db.logicinfo['DSP'], db.shortval[tiledata.ttyp][f'DSP{idx}'], attrids.dsp_attrids, "DSP")
                 #print_sorted_dict(f'{row}, {col}, {name}, {idx}, {tiledata.ttyp} - ', attrvals)
                 for attrval in attrvals:
                     modes.add(attrval)
@@ -393,9 +411,12 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
             continue
         if name.startswith("IOLOGIC"):
             idx = name[-1]
-            attrvals = parse_attrvals(tile, db.logicinfo['IOLOGIC'], db.shortval[tiledata.ttyp][f'IOLOGIC{idx}'], attrids.iologic_attrids)
+            attrvals = parse_attrvals(tile, db.logicinfo['IOLOGIC'], db.shortval[tiledata.ttyp][f'IOLOGIC{idx}'], attrids.iologic_attrids, "IOLOGIC")
             if not attrvals:
                 continue
+            # additional IOLOGIC components
+            # XXX delays and FFs in IO
+            # main component
             if 'OUTMODE' in attrvals.keys():
                 # XXX skip oddr
                 if attrvals['OUTMODE'] in {attrids.iologic_attrvals['MODDRX1'], attrids.iologic_attrvals['ODDRX1']}:
@@ -430,18 +451,20 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                 bels.setdefault(name, set()).add(f"CLKODDRMUX_ECLK={attrids.iologic_num2val[attrvals['CLKODDRMUX_ECLK']]}")
         if name.startswith("DFF"):
             idx = int(name[3])
-            attrvals = parse_attrvals(tile, db.logicinfo['SLICE'], db.shortval[tiledata.ttyp][f'CLS{idx // 2}'], attrids.cls_attrids)
-            #print(row, col, attrvals)
+            attrvals = parse_attrvals(tile, db.logicinfo['SLICE'], db.shortval[tiledata.ttyp][f'CLS{idx // 2}'], attrids.cls_attrids, "CLS")
+            #print('parse', row, col, attrvals)
             # skip ALU and unsupported modes
             if attrvals.get('MODE') == attrids.cls_attrvals['SSRAM']:
                 continue
             dff_type = get_dff_type(idx, attrvals)
             if dff_type:
                 bels[f'{name}'] = {dff_type}
+            if f'REG{idx % 2}_SD' in attrvals:
+                bels[f'{name}'].update({'SD'})
             continue
         if name.startswith("IOB"):
             idx = name[-1]
-            attrvals = parse_attrvals(tile, db.logicinfo['IOB'], db.longval[tiledata.ttyp][f'IOB{idx}'], attrids.iob_attrids)
+            attrvals = parse_attrvals(tile, db.logicinfo['IOB'], db.longval[tiledata.ttyp][f'IOB{idx}'], attrids.iob_attrids, "IOB")
             #print(row, col, attrvals)
             try: # we can ask for invalid pin here because the IOBs share some stuff
                 bank = chipdb.loc2bank(db, row, col)
@@ -451,34 +474,45 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                 mode = 'IBUF'
                 if attrvals.get('PERSISTENT', None) == attrids.iob_attrvals['OFF']:
                     mode = 'IOBUF'
-                elif 'ODMUX' in attrvals.keys() or 'ODMUX_1' in attrvals.keys():
+                elif 'ODMUX' in attrvals or 'ODMUX_1' in attrvals:
                     mode = 'OBUF'
                 # Z-1 row 6
                 if _device in {'GW1NZ-1', 'GW1N-1'} and row == 5:
                     mode = 'IOBUF'
-                if 'LVDS_OUT' in attrvals.keys():
+                if 'LVDS_OUT' in attrvals:
                     if mode == 'IOBUF':
                         mode = 'TBUF'
-                    mode = f'TLVDS_{mode}'
+                    if 'MIPI' in attrvals:
+                        mode = 'MIPI_OBUF'
+                    else:
+                        mode = f'TLVDS_{mode}'
                     # skip B bel
                     skip_bels.update({name[:-1] + 'B'})
-                elif idx == 'B' and 'DRIVE' not in attrvals.keys() and 'IO_TYPE' in attrvals.keys():
+                elif 'OD' in attrvals:
+                    mode = 'I3C_IOBUF'
+                elif idx == 'B' and 'DRIVE' not in attrvals and 'IO_TYPE' in attrvals:
                     mode = f'ELVDS_{mode}'
                     # skip B bel
                     skip_bels.update({name})
-                elif 'IOBUF_MIPI_LP' in attrvals.keys():
+                elif 'LPRX_A1' in attrvals:
+                    mode = f'MIPI_IBUF'
+                    # skip B bel
+                    skip_bels.update({name[:-1] + 'B'})
+                elif 'IOBUF_MIPI_LP' in attrvals:
                     mode = f'ELVDS_{mode}'
                     # skip B bel
                     skip_bels.update({name[:-1] + 'B'})
 
                 bels.setdefault(name, set()).add(mode)
         if name.startswith("BANK"):
-            attrvals = parse_attrvals(tile, db.logicinfo['IOB'], _bank_fuse_tables[tiledata.ttyp][name], attrids.iob_attrids)
+            attrvals = parse_attrvals(tile, db.logicinfo['IOB'], _bank_fuse_tables[tiledata.ttyp][name], attrids.iob_attrids, "IOB")
+            #print('bank', row, col, attrvals)
+
             for a, v in attrvals.items():
                 bels.setdefault(name, set()).add(f'{a}={attrids.iob_num2val[v]}')
         if name.startswith("ALU"):
             idx = int(name[3])
-            attrvals = parse_attrvals(tile, db.logicinfo['SLICE'], db.shortval[tiledata.ttyp][f'CLS{idx // 2}'], attrids.cls_attrids)
+            attrvals = parse_attrvals(tile, db.logicinfo['SLICE'], db.shortval[tiledata.ttyp][f'CLS{idx // 2}'], attrids.cls_attrids, "CLS")
             # skip ALU and unsupported modes
             if attrvals.get('MODE') != attrids.cls_attrvals['ALU']:
                 continue
@@ -535,9 +569,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
                      for row, col in pip_bits
                      if tile[row][col] == 1}
         for src, bits in srcs.items():
-            # only report connection aliased to by a spine
-            # HCLKs are also switched here, so for now we are also considering SPINExx type wires
-            if bits == used_bits and (noalias or (row, col, src) in db.aliases or (src.startswith('SPINE') and dest.startswith('SPINE'))):
+            if bits == used_bits:
                 clock_pips[dest] = src
 
     # elvds IO uses the B bel bits
@@ -548,7 +580,7 @@ def parse_tile_(db, row, col, tile, default=True, noalias=False, noiostd = True)
 
         bel_a = bels[bel_a_name]
         if not bel_a.intersection({'ELVDS_IBUF', 'ELVDS_OBUF', 'ELVDS_IOBUF', 'ELVDS_TBUF',
-                                   'TLVDS_IBUF', 'TLVDS_OBUF', 'TLVDS_IOBUF', 'TLVDS_TBUF'}):
+                                   'TLVDS_IBUF', 'TLVDS_OBUF', 'TLVDS_IOBUF', 'TLVDS_TBUF', 'MIPI_IBUF', 'MIPI_OBUF'}):
             mode = bels[name].intersection({'ELVDS_IBUF', 'ELVDS_OBUF', 'ELVDS_IOBUF', 'ELVDS_TBUF'})
             if mode:
                 old_mode = bel_a.intersection({'IBUF', 'OBUF', 'IOBUF', 'TBUF'})
@@ -581,6 +613,9 @@ iobmap = {
     "ELVDS_TBUF": {"wires": ["I", "OE"], "outputs": ["O", "OB"]},
     "ELVDS_IBUF": {"wires": ["O"], "inputs": ["I", "IB"]},
     "ELVDS_IOBUF": {"wires": ["I", "O", "OE"], "inouts": ["IO", "IOB"]},
+    "MIPI_IBUF": {"wires": ["I", "IB", "OEN", "OENB", "HSREN", "OH", "OL", "OB"], "inouts": ["IO", "IOB"]},
+    "MIPI_OBUF": {"wires": ["I", "IB", "IL", "MODESEL"], "inouts": ["O", "OB"]},
+    "I3C_IOBUF": {"wires": ["I", "O", "MODESEL"], "inouts": ["IO"]},
 }
 
 # OE -> OEN
@@ -829,8 +864,8 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
     # db is 0-based, floorplanner is 1-based
     row = dbrow+1
     col = dbcol+1
-    aliases = db.grid[dbrow][dbcol].aliases
-    for dest, src in chain(pips.items(), aliases.items(), clock_pips.items()):
+
+    for dest, src in chain(pips.items(), clock_pips.items()):
         srcg = chipdb.wire2global(row, col, db, src)
         destg = chipdb.wire2global(row, col, db, dest)
         mod.wires.update({srcg, destg})
@@ -933,7 +968,7 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
             for paramval in flags:
                 param, _, val = paramval.partition('=')
                 pll.params[param] = val
-            portmap = db.grid[dbrow][dbcol].bels[bel[:-1]].portmap
+            portmap = db.grid[dbrow][dbcol].bels[bel[:5]].portmap
             for port, wname in portmap.items():
                 pll.portmap[port] = f"R{row}C{col}_{wname}"
         elif typ.startswith("PLLVR"):
@@ -1027,6 +1062,10 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
             mod.primitives[name] = osc
         elif typ == "DFF":
             #print(flags)
+            sd = False
+            if 'SD' in flags:
+                sd = True
+                flags.remove('SD')
             kind, = flags # DFF only have one flag
             if kind == "RAM": continue
             idx = int(idx)
@@ -1034,7 +1073,10 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
             name = f"R{row}C{col}_{typ}E_{idx}"
             dff = codegen.Primitive(kind+"E", name)
             dff.portmap['CLK'] = f"R{row}C{col}_CLK{idx//2}"
-            dff.portmap['D'] = f"R{row}C{col}_F{idx}"
+            if sd:
+                dff.portmap['D'] = f"R{row}C{col}_SEL{idx}"
+            else:
+                dff.portmap['D'] = f"R{row}C{col}_F{idx}"
             dff.portmap['Q'] = f"R{row}C{col}_Q{idx}"
             dff.portmap['CE'] = f"R{row}C{col}_CE{idx//2}"
             if port:
@@ -1048,7 +1090,28 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
             except ValueError:
                 continue
             flags.remove(kind)
-            portmap = db.grid[dbrow][dbcol].bels[bel].portmap
+            if kind == 'MIPI_IBUF':
+                portmap = {}
+                portmap['I'] = db.grid[dbrow][dbcol].bels["IOBA"].portmap['I']
+                portmap['IB'] = db.grid[dbrow][dbcol].bels["IOBB"].portmap['I']
+                portmap['OEN'] = db.grid[dbrow][dbcol].bels["IOBA"].portmap['OE']
+                portmap['OENB'] = db.grid[dbrow][dbcol].bels["IOBB"].portmap['OE']
+                portmap['OH'] = db.grid[dbrow][dbcol].bels["IOBA"].portmap['O']
+                portmap['OB'] = db.grid[dbrow][dbcol].bels["IOBB"].portmap['O']
+                portmap['HSREN'] = db.grid[dbrow][dbcol].bels["IOLOGICB"].portmap['SETN']
+                portmap['OL'] = db.grid[dbrow][dbcol + 1].bels["IOBA"].portmap['O']
+            elif kind == 'MIPI_OBUF':
+                portmap = {}
+                portmap['I'] = db.grid[dbrow][dbcol].bels["IOBA"].portmap['I']
+                portmap['IB'] = db.grid[dbrow][dbcol].bels["IOBB"].portmap['I']
+                portmap['IL'] = db.grid[dbrow][dbcol].bels["IOBA"].portmap['I']
+                portmap['MODESEL'] = db.grid[dbrow][dbcol].bels["IOBA"].portmap['OE']
+            elif kind == 'I3C_IOBUF':
+                portmap = db.grid[dbrow][dbcol].bels[bel].portmap.copy()
+                portmap['MODESEL'] = portmap['OE']
+                portmap.pop('OE', None)
+            else:
+                portmap = db.grid[dbrow][dbcol].bels[bel].portmap
             name = f"R{row}C{col}_{kind}_{idx}"
             wires = set(iobmap[kind]['wires'])
             ports = set(chain.from_iterable(iobmap[kind].values())) - wires
@@ -1061,7 +1124,20 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
                 wires_suffix = ''
             for port in wires:
                 wname = portmap[port]
-                iob.portmap[portname(port)] = f"R{row}C{col}_{wname}{wires_suffix}"
+                if kind == 'MIPI_IBUF':
+                    if port == 'OH':
+                        wires_suffix_mipi = wires_suffix
+                    else:
+                        wires_suffix_mipi = ''
+                    iob.portmap[portname(port)] = f"R{row}C{col}_{wname}{wires_suffix_mipi}"
+                elif kind == 'MIPI_OBUF':
+                    if port == 'I':
+                        wires_suffix_mipi = wires_suffix
+                    else:
+                        wires_suffix_mipi = ''
+                    iob.portmap[portname(port)] = f"R{row}C{col}_{wname}{wires_suffix_mipi}"
+                else:
+                    iob.portmap[portname(port)] = f"R{row}C{col}_{wname}{wires_suffix}"
 
             for port in ports:
                 iob.portmap[port] = f"R{row}C{col}_{port}{idx}"
@@ -1074,7 +1150,8 @@ def tile2verilog(dbrow, dbcol, bels, pips, clock_pips, mod, cst, db):
             mod.primitives[name] = iob
             # constraints
             pos = chipdb.loc2pin_name(db, dbrow, dbcol)
-            bank = chipdb.loc2bank(db, dbrow, dbcol)
+            # XXX tangnano4k uses IOT30 not found in the package
+            #bank = chipdb.loc2bank(db, dbrow, dbcol)
             cst.ports[name] = f"{pos}{idx}"
             if kind[0:5] == 'TLVDS':
                 cst.ports[name] = f"{pos}{idx},{pos}{chr(ord(idx) + 1)}"
@@ -1163,6 +1240,26 @@ def main():
     mod = codegen.Module()
     cst = codegen.Constraints()
 
+    # make wire aliases from Himbaechel nodes
+    def by_name_len(el):
+        return len(el[2])
+
+    for node_desc in db.nodes.values():
+        root_wire = None
+        for row, col, wire in sorted(node_desc[1], key = by_name_len):
+            wire_name = f'R{row + 1}C{col + 1}_{wire}'
+            if not root_wire:
+                root_wire = wire_name
+                continue
+            mod.wire_aliases[wire_name] = root_wire
+    for row in range(db.rows):
+        for col in range(db.cols):
+            for i in [1, 2]:
+                mod.wire_aliases[chipdb.wire2global(row + 0, col + 1, db, f'N1{i}1')] = f'R{row + 1}C{col + 1}_SN{i}0'
+                mod.wire_aliases[chipdb.wire2global(row + 2, col + 1, db, f'S1{i}1')] = f'R{row + 1}C{col + 1}_SN{i}0'
+                mod.wire_aliases[chipdb.wire2global(row + 1, col + 0, db, f'W1{i}1')] = f'R{row + 1}C{col + 1}_EW{i}0'
+                mod.wire_aliases[chipdb.wire2global(row + 1, col + 2, db, f'E1{i}1')] = f'R{row + 1}C{col + 1}_EW{i}0'
+
     # XXX this PLLs have empty main cell
     if _device in {'GW1N-9C', 'GW1N-9'}:
         bm_pll = chipdb.tile_bitmap(db, bitmap, empty = True)
@@ -1174,12 +1271,6 @@ def main():
         bm[(9, 55)] = bm_pll[(9, 55)]
         bm[(45, 0)] = bm_pll[(45, 0)]
         bm[(45, 55)] = bm_pll[(45, 55)]
-
-    for (drow, dcol, dname), (srow, scol, sname) in db.aliases.items():
-        src = f"R{srow+1}C{scol+1}_{sname}"
-        dest = f"R{drow+1}C{dcol+1}_{dname}"
-        mod.wires.update({src, dest})
-        mod.assigns.append((dest, src))
 
     # banks first: need to know iostandards
     for pos in db.corners.keys():
@@ -1197,12 +1288,6 @@ def main():
         # skip banks & dual pisn
         if (row, col) in db.corners:
             continue
-        #for bitrow in t:
-        #    print(*bitrow, sep='')
-        #if idx == (5, 0):
-        #    from fuse_h4x import *
-        #    fse = readFse(open("/home/pepijn/bin/gowin/IDE/share/device/GW1N-1/GW1N-1.fse", 'rb'))
-        #    breakpoint()
         bels, pips, clock_pips = parse_tile_(db, row, col, t, noiostd = False)
         #print("bels:", idx, bels)
         #print(pips)
