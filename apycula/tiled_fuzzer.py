@@ -201,8 +201,8 @@ def run_pnr(mod, constr, config):
                     read_err_log(tmpdir+"/impl/pnr/top.log"),
                     bslib.read_bitstream_version(tmpdir+"/impl/pnr/top.fs"))
         except FileNotFoundError:
-            print(tmpdir)
-            input()
+            print('ERROR', tmpdir)
+            #input()
             return None
 
 _tbrlre = re.compile(r"IO([TBRL])(\d+)")
