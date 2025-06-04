@@ -47,7 +47,7 @@ def main(device):
             ('Tile types',  db_old.tile_types, db_new.tile_types),
             ('Pad PLL',  db_old.pad_pll, db_new.pad_pll),
             ('Simplio rows',  db_old.simplio_rows, db_new.simplio_rows),
-            ('Botom IO',  db_old.bottom_io, db_new.bottom_io),
+            ('Bottom IO',  db_old.bottom_io, db_new.bottom_io),
             ('Nodes',  db_old.nodes, db_new.nodes),
             ('Longval',  db_old.longval, db_new.longval),
             ('Shortval',  db_old.shortval, db_new.shortval),
