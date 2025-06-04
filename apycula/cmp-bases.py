@@ -59,7 +59,7 @@ def main(device):
             ('Wire delay',  db_old.wire_delay, db_new.wire_delay),
             ('Timing',  db_old.timing, db_new.timing),
             #('Grid',  db_old.grid, db_new.grid),
-            ('Sip cst',  db_old.timing, db_new.timing),
+            ('Sip cst',  db_old.sip_cts, db_new.sip_cst),
             ]:
         diff = DeepDiff(old, new)
         if diff:
