@@ -287,8 +287,8 @@ if __name__ == "__main__":
     with open(f"{gowinhome}/IDE/share/device/{params['device']}/{params['device']}.tm", 'rb') as f:
         tm = tm_h4x.read_tm(f, device)
 
-    with open(f"{device}.json") as f:
-        dat = json.load(f)
+    with open(f"/home/rabbit/src/apicula/{device}-dat.pickle", 'rb') as f:
+        dat = pickle.load(f)
 
     with gzip.open(f"/home/rabbit/src/apicula/apycula/{device}.pickle", "rb") as f:
         db = pickle.load(f)
