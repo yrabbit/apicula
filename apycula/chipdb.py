@@ -2616,6 +2616,11 @@ def from_fse(device, fse, dat: Datfile):
     fse_create_pll_clock_aliases(dev, device)
     fse_create_bottom_io(dev, device)
     fse_create_tile_types(dev, dat)
+    #XXX
+    if device in {'GW5A-25A'}:
+        dev.tile_types['P'] = set()
+        dev.tile_types['B'] = set()
+        dev.tile_types['D'] = set()
 
     create_vcc_pips(dev, tiles)
     create_default_pips(tiles)

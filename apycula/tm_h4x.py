@@ -312,8 +312,10 @@ def read_tm(f, device):
         ]
     elif device.lower().startswith("gw5a"):
         chunk_order = [
-            "1",
-            "2",
+            "ES", # In the case of GW5A-25 engineering samples (ES), ‘C1/I0’
+                  # and ‘A0’ use the same delay variant. A duplicate set of delays
+                  # should be considered in the future.
+            "C2/I1",
             "3",
             "4",
             "5",
