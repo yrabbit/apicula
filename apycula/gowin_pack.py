@@ -2828,8 +2828,7 @@ def place(db, tilemap, bels, cst, args):
 
             for iob_idx, atr in [(idx, in_iob_attrs), ('B', in_iob_b_attrs)]:
                 #XXX GW5 may have A-only
-                import ipdb; ipdb.set_trace()
-                if 'IOBB' not in tiledata.bels:
+                if 'IOBB' not in db.longval[tiledata.ttyp]:
                     break
                 iob_attrs = set()
                 for k, val in atr.items():
@@ -2999,6 +2998,9 @@ def dualmode_pins(db, tilemap, args):
     cfg_type = {50, 51}
     if device in {'GW2A-18', 'GW2A-18C'}:
         cfg_type = {1, 51}
+    elif device in {'GW5A-25A'}:
+        cfg_type = {49, 51}
+
     for row, rd in enumerate(db.grid):
         for col, rc in enumerate(rd):
             bits = set()
