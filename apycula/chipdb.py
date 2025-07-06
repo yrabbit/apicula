@@ -1407,6 +1407,8 @@ def fse_iologic(device, fse, ttyp):
         return bels
     if device in {'GW1NS-4'} and ttyp in {86, 87, 135, 136, 137, 138}:
         return bels
+    if device in {'GW5A-25A'}:
+        return bels
     if 'shortval' in fse[ttyp].keys():
         if 21 in fse[ttyp]['shortval'].keys():
             bels['IOLOGICA'] = Bel()
