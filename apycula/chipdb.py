@@ -168,8 +168,8 @@ class Device:
     def bank_tiles(self):
         # { bank# : (row, col) }
         res = {}
-        for row in range(db.rows):
-            for col in range(db.cols):
+        for row in range(self.rows):
+            for col in range(self.cols):
                 for bel in self.grid[row][col].bels.keys():
                     if bel.startswith('BANK'):
                         res.update({ bel[4:] : (row, col) })
