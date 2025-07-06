@@ -74,7 +74,7 @@ params = {
     "GW5A-25A": {
         "package": "MBGA121N",
         "device": "GW5A-25A",
-        "partnumber": "GW5A-LV25MG121NC1/I0",
+        "partnumber": "GW5A-LV25MG121NES",
     },
 }[device]
 

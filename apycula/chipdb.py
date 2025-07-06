@@ -168,11 +168,11 @@ class Device:
     def bank_tiles(self):
         # { bank# : (row, col) }
         res = {}
-        for pos in self.corners.keys():
-            row, col = pos
-            for bel in self.grid[row][col].bels.keys():
-                if bel[0:4] == 'BANK':
-                    res.update({ bel[4:] : pos })
+        for row in range(db.rows):
+            for col in range(db.cols):
+                for bel in self.grid[row][col].bels.keys():
+                    if bel.startswith('BANK'):
+                        res.update({ bel[4:] : (row, col) })
         return res
 
 # XXX GW1N-4 and GW1NS-4 have next data in dat.portmap['CmuxIns']:
@@ -478,15 +478,13 @@ def fse_osc(device, fse, ttyp):
     return osc
 
 def set_banks(fse, db):
-    # fill the bank# : corner tile table
-    w = db.cols - 1
-    h = db.rows - 1
-    for row, col in [(0, 0), (0, w), (h, 0), (h, w)]:
-        ttyp = fse['header']['grid'][61][row][col]
-        if 'longval' in fse[ttyp].keys():
-            if 37 in fse[ttyp]['longval'].keys():
-                for rd in fse[ttyp]['longval'][37]:
-                    db.grid[row][col].bels.setdefault(f"BANK{rd[0]}", Bel())
+    for row in range(db.rows):
+        for col in range(db.cols):
+            ttyp = db.grid[row][col].ttyp
+            if ttyp in db.longval:
+                if 'BANK' in db.longval[ttyp]:
+                    for rd in db.longval[ttyp]['BANK']:
+                        db.grid[row][col].bels.setdefault(f"BANK{rd[0]}", Bel())
 
 _known_logic_tables = {
             8:  'DCS',
