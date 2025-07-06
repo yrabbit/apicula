@@ -73,7 +73,7 @@ def read_bitstream(fname):
                 if not preamble and ba[0] == 0x06: # device ID
                     if ba == b'\x06\x00\x00\x00\x11\x00\x58\x1b':     # GW1N-9
                         padding = 4
-                        compress_padding = 44
+                        compress_padding = 44 # <-- when using compression, the width of one row in bits must be a multiple of 64
                     elif ba == b'\x06\x00\x00\x00\x11\x00H\x1b':      # GW1N-9C
                         padding = 4
                         compress_padding = 44
@@ -94,6 +94,7 @@ def read_bitstream(fname):
                         compress_padding = 16
                     elif ba == b'\x06\x00\x00\x00\x00\x01\x28\x1b':   # GW5A-25A
                         padding = 0
+                        compress_padding = 0
                         is5ASeries = True
                     else:
                         raise ValueError("Unsupported device", ba)
