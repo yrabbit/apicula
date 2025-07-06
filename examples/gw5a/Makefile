@@ -17,7 +17,7 @@ clean:
 	gowin_pack -c -d GW5A-25A -o $@ $<
 
 %-primer25k.json: %-primer25k-synth.json primer25k.cst
-	$(NEXTPNR) --json $< --write $@ --device GW5A-LV25MG121NES --vopt cst=primer25k.cst
+	$(NEXTPNR) -v --debug --json $< --write $@ --device GW5A-LV25MG121NES --vopt cst=primer25k.cst
 
 %-primer25k-synth.json: %.v
 	$(YOSYS) -D LEDS_NR=6 -D OSC_TYPE_OSC -D INV_BTN=0 -D CPU_FREQ=27 -D BAUD_RATE=115200 -D NUM_HCLK=5 -p "read_verilog $^; synth_gowin -json $@ -family gw5a"
