@@ -1559,9 +1559,14 @@ _clock_data = {
         'GW1N-9C': { 'tap_start': [[3, 2, 1, 0], [3, 2, 1, 0]], 'quads': {( 1, 0, 10, 1, 0), (19, 10, 29, 2, 3)}},
         'GW2A-18': { 'tap_start': [[3, 2, 1, 0], [3, 2, 1, 0]], 'quads': {(10, 0, 28, 1, 0), (46, 28, 55, 2, 3)}},
         'GW2A-18C': { 'tap_start': [[3, 2, 1, 0], [3, 2, 1, 0]], 'quads': {(10, 0, 28, 1, 0), (46, 28, 55, 2, 3)}},
-        'GW5A-25A': { 'tap_start': [[3, 2, 1, 0], [3, 2, 1, 0]], 'quads': {(10, 0, 28, 1, 0), (46, 28, 55, 2, 3)}}, # Fix me
+        #'GW5A-25A': { 'tap_start': [[3, 2, 1, 0], [3, 2, 1, 0]], 'quads': {(10, 0, 28, 1, 0), (46, 28, 55, 2, 3)}}, # Fix me
         }
 def fse_create_clocks(dev, device, dat: Datfile, fse):
+    # XXX
+    if device not in _clock_data:
+        print(f"No clocks for {device} for now.")
+        return
+
     center_col = dat.grid.center_x - 1
     clkpin_wires = {}
     taps = {}
@@ -2601,7 +2606,7 @@ def from_fse(device, fse, dat: Datfile):
             tile.bels = fse_bram(fse)
         elif ttyp in bram_aux_ttypes:
             tile.bels = fse_bram(fse, True)
-        elif ttyp in dsp_ttypes:
+        elif ttyp in dsp_ttypes and device not in {'GW5A-25A'}:
             tile.bels = fse_dsp(fse)
         elif ttyp in dsp_aux_ttypes:
             tile.bels = fse_dsp(fse, True)
@@ -4044,6 +4049,11 @@ def fse_wire_delays(db):
         db.wire_delay[f'HCLK_OUT{i}'] = "HclkOutMux"
     for wire in {'DLLDLY_OUT', 'DLLDLY_CLKOUT', 'DLLDLY_CLKOUT0', 'DLLDLY_CLKOUT1'}:
         db.wire_delay[wire] = "ISB" # XXX
+    # XXX for now
+    for wire in chain(clknames.values(), wirenames.values(), hclknames.values()):
+        if wire not in db.wire_delay:
+            db.wire_delay[wire] = "X8"
+
 
 # assign pads with plls
 # for now use static table and store the bel name although it is always PLL without a number

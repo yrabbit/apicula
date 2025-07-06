@@ -339,6 +339,9 @@ def read_tm(f, device):
         # XXX no gw5 for now
         if len(chunk) != chunklen:
             continue
+        # XXX GW5A-25A check it
+        if i >= 3 and device in {'GW5A-25A'}:
+            break
         tmdat[speed_class] = {}
         print(f'{i:2} class:{speed_class}' , "len(chunk):", len(chunk), "chunklen:", chunklen)
         #assert len(chunk) == chunklen # 5A the last chunk is smaller 12922 vs. 15552
