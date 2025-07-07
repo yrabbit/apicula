@@ -3082,6 +3082,7 @@ def main():
     # If the PLL configurations match, then the assumption has been made that this
     # bit simply disables it somehow.
 
+    import ipdb; ipdb.set_trace()
     if device in {'GW1NZ-1'}:
         tile = tilemap[(db.rows - 1, db.cols - 1)]
         for row, col in {(23, 63)}:
