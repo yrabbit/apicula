@@ -3018,6 +3018,7 @@ def dualmode_pins(db, tilemap, args):
 def main():
     global device
     global pnr
+    global bsram_init_map
 
     pil_available = True
     try:
@@ -3082,21 +3083,25 @@ def main():
     # If the PLL configurations match, then the assumption has been made that this
     # bit simply disables it somehow.
 
-    import ipdb; ipdb.set_trace()
     if device in {'GW1NZ-1'}:
         tile = tilemap[(db.rows - 1, db.cols - 1)]
         for row, col in {(23, 63)}:
             tile[row][col] = 0
 
-    res = chipdb.fuse_bitmap(db, tilemap)
-    header_footer(db, res, args.compress)
+    main_map = chipdb.fuse_bitmap(db, tilemap)
+    if device in {'GW5A-25A'}:
+        main_map = bitmatrix.transpose(main_map)
+
+    header_footer(db, main_map, args.compress)
     if pil_available and args.png:
         bslib.display(args.png, res)
 
     if has_bsram_init:
-        bslib.write_bitstream_with_bsram_init(args.output, res, db.cmd_hdr, db.cmd_ftr, args.compress, bsram_init_map)
+        if device in {'GW5A-25A'}:
+            bsram_init_map = bitmatrix.transpose(bsram_init_map)
+        bslib.write_bitstream_with_bsram_init(args.output, main_map, db.cmd_hdr, db.cmd_ftr, args.compress, bsram_init_map)
     else:
-        bslib.write_bitstream(args.output, res, db.cmd_hdr, db.cmd_ftr, args.compress)
+        bslib.write_bitstream(args.output, main_map, db.cmd_hdr, db.cmd_ftr, args.compress)
     if args.cst:
         with open(args.cst, "w") as f:
                 cst.write(f)

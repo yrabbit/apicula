@@ -1236,7 +1236,6 @@ def main():
     _pinout = db.pinout[_device][_packages[_device]]
 
     bitmap = read_bitstream(args.bitstream)[0]
-    import ipdb; ipdb.set_trace()
     bm = chipdb.tile_bitmap(db, bitmap)
     mod = codegen.Module()
     cst = codegen.Constraints()
