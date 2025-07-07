@@ -43,12 +43,14 @@ def read_bitstream(fname):
     calc = crc.Calculator(crc16arc)
     compressed = False
     compress_keys = {}
+    import ipdb; ipdb.set_trace()
     with open(fname) as inp:
         for line in inp:
             if line.startswith("//"):
                 #print("line: ", line)
                 continue
             ba = bytearr(line)
+            print(ba)
             if not frames:
                 if is_hdr:
                     #print("header:", ba)
@@ -153,6 +155,7 @@ def write_bitstream_with_bsram_init(fname, bs, hdr, ftr, compress, bsram_init):
 
 def write_bitstream(fname, bs, hdr, ftr, compress):
     bs = bitmatrix.fliplr(bs)
+    import ipdb; ipdb.set_trace()
     hdr[-1][2:] = bitmatrix.shape(bs)[0].to_bytes(2, 'big')
 
     if compress:

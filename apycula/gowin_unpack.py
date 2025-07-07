@@ -556,6 +556,7 @@ def parse_tile_(db, row, col, tile, default=True, noiostd = True):
     for dest, srcs in tiledata.pips.items():
         pip_bits = set().union(*srcs.values())
         print(row, col, db.grid[row][col].width, db.grid[row][col].height, pip_bits)
+        import ipdb; ipdb.set_trace()
         used_bits = {(row, col)
                      for row, col in pip_bits
                      if tile[row][col] == 1}
@@ -1237,6 +1238,7 @@ def main():
     _pinout = db.pinout[_device][_packages[_device]]
 
     bitmap = read_bitstream(args.bitstream)[0]
+    import ipdb; ipdb.set_trace()
     bm = chipdb.tile_bitmap(db, bitmap)
     mod = codegen.Module()
     cst = codegen.Constraints()
