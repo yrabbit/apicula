@@ -555,7 +555,6 @@ def parse_tile_(db, row, col, tile, default=True, noiostd = True):
     pips = {}
     for dest, srcs in tiledata.pips.items():
         pip_bits = set().union(*srcs.values())
-        print(row, col, db.grid[row][col].width, db.grid[row][col].height, pip_bits)
         used_bits = {(row, col)
                      for row, col in pip_bits
                      if tile[row][col] == 1}

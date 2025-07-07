@@ -58,10 +58,8 @@ class Tile:
     # [‘wire’][2] table, this is not the case in the new IDE.
     # {dst: [({src}, {bits})]}
     alonenode: Dict[str, List[Tuple[Set[str], Set[Coord]]]] = field(default_factory=dict)
-    # XXX pure_clock_pips not used in apicula anymore but leave it untouched
     # for now as nextpnr is still counting on this field
     clock_pips: Dict[str, Dict[str, Set[Coord]]] = field(default_factory=dict)
-    pure_clock_pips: Dict[str, Dict[str, Set[Coord]]] = field(default_factory=dict)
     # fuses to disable the long wire columns. This is the table 'alonenode[6]' in the vendor file
     # {dst: [({src}, {bits})]}
     alonenode_6: Dict[str, List[Tuple[Set[str], Set[Coord]]]] = field(default_factory=dict)
@@ -233,8 +231,8 @@ def fse_pips(fse, ttyp, device, table=2, wn=wirenames):
             if srcid < 0:
                 fuses = set()
                 srcid = -srcid
-            src = wn.get(srcid, str(srcid))
-            dest = wn.get(destid, str(destid))
+            src = wn[srcid]
+            dest = wn[destid]
             pips.setdefault(dest, {})[src] = fuses
 
     return pips
@@ -2583,8 +2581,6 @@ def from_fse(device, fse, dat: Datfile):
         tile = Tile(w, h, ttyp)
         tile.pips = fse_pips(fse, ttyp, device, 2, wirenames)
         tile.clock_pips = fse_pips(fse, ttyp, device, 38, clknames)
-        # XXX remove after nextpnr update
-        tile.pure_clock_pips = copy.deepcopy(tile.clock_pips)
         tile.alonenode = fse_alonenode(fse, ttyp, device, 69)
         tile.alonenode_6 = fse_alonenode(fse, ttyp, device, 6)
         if 5 in fse[ttyp]['shortval']:
@@ -4017,8 +4013,8 @@ def fse_wire_delays(db):
     for i in range(1049, 1130):
         db.wire_delay[str(i)] = "X8"
     # clock wires
-    for i in range(261):
-        db.wire_delay[clknames[i]] = "TAP_BRANCH_PCLK" # XXX
+    #for i in range(261):
+    #    db.wire_delay[clknames[i]] = "TAP_BRANCH_PCLK" # XXX
     for i in range(32):
         db.wire_delay[clknames[i]] = "SPINE_TAP_PCLK"
     for i in range(81, 105): # clock inputs (PLL outs)
