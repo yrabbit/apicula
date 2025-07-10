@@ -2152,10 +2152,14 @@ def fse_create_gsr(dev, device):
     # to the button and see how the routing has changed in which of the
     # previously found cells.
     row, col = (0, 0)
+    wire = 'C4'
     if device in {'GW2A-18', 'GW2A-18C'}:
         row, col = (27, 50)
+    elif device in {'GW5A-25A'}:
+        row, col = (28, 89)
+        wire = 'LSR0'
     dev.extra_func.setdefault((row, col), {}).update(
-        {'gsr': {'wire': 'C4'}})
+        {'gsr': {'wire': wire}})
 
 def fse_create_bandgap(dev, device):
     # The cell and wire are found by a test compilation where the BGEN input is
