@@ -11,7 +11,7 @@ from contextlib import closing
 from apycula import codegen
 from apycula import chipdb
 from apycula import attrids
-from apycula.bslib import read_bitstream
+from apycula.bslib import read_bitstream, display
 from apycula.wirenames import wirenames
 
 _device = ""
@@ -1211,12 +1211,20 @@ def fix_plls(db, mod):
         fix_pll_ports(pll)
 
 def main():
+    pil_available = True
+    try:
+        from PIL import Image
+    except ImportError:
+        pil_available = False
+
     parser = argparse.ArgumentParser(description='Unpack Gowin bitstream')
     parser.add_argument('bitstream')
     parser.add_argument('-d', '--device', required=True)
     parser.add_argument('-o', '--output', default='unpack.v')
     parser.add_argument('-s', '--cst', default=None)
     parser.add_argument('--noalu', action = 'store_true')
+    if pil_available:
+        parser.add_argument('--png')
 
     args = parser.parse_args()
 
@@ -1240,6 +1248,9 @@ def main():
     bm = chipdb.tile_bitmap(db, bitmap)
     mod = codegen.Module()
     cst = codegen.Constraints()
+
+    if pil_available and args.png:
+        display(args.png, bitmap)
 
     # make wire aliases from Himbaechel nodes
     def by_name_len(el):
