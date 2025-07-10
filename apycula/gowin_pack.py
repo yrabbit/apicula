@@ -23,6 +23,8 @@ pnr = None
 has_bsram_init = False
 bsram_init_map = None
 
+used_cells = set()
+
 # Sometimes it is convenient to know where a port is connected to enable
 # special fuses for VCC/VSS cases.
 
@@ -270,6 +272,8 @@ def get_pips(data):
 # both ends. Nextpnr detects and lists the wires that need to be isolated, here
 # we parse this information and disconnect using the "alonenode" table.
 def isolate_segments(pnr, db, tilemap):
+    global used_cells
+
     wire_re = re.compile(r"X(\d+)Y(\d+)/([\w]+)")
     for net in pnr['modules']['top']['netnames'].values():
         if 'SEG_WIRES_TO_ISOLATE' not in net['attributes']:
@@ -291,6 +295,7 @@ def isolate_segments(pnr, db, tilemap):
                 if len(tiledata.alonenode_6[wire]) != 1:
                     raise Exception(f"Incorrect alonenode fuse table for {wire}")
                 bits = tiledata.alonenode_6[wire][0][1]
+                used_cells.update({(row, col)})
                 for row, col in bits:
                     tile[row][col] = 1
             else:
@@ -2386,6 +2391,8 @@ _mipi_aux_attrs = {
 
 _sides = "AB"
 def place(db, tilemap, bels, cst, args):
+    global used_cells
+
     for typ, row, col, num, parms, attrs, cellname, cell in bels:
         tiledata = db.grid[row-1][col-1]
         tile = tilemap[(row-1, col-1)]
@@ -2450,6 +2457,7 @@ def place(db, tilemap, bels, cst, args):
                 for k, val in _mipi_aux_attrs[iob_idx]:
                     add_attr_val(db, 'IOB', iob_attrs, attrids.iob_attrids[k], attrids.iob_attrvals[val])
                 bits = get_longval_fuses(db, tiledata.ttyp, iob_attrs, f'IOB{iob_idx}')
+                used_cells.update({(row - 1, col - 1)})
                 for row_, col_ in bits:
                     tile[row_][col_] = 1
             pass
@@ -2481,6 +2489,7 @@ def place(db, tilemap, bels, cst, args):
 
             osc_attrs = set_osc_attrs(db, typ, parms)
             bits = get_shortval_fuses(db, tiledata.ttyp, osc_attrs, 'OSC')
+            used_cells.update({(row - 1, col - 1)})
             for r, c in bits:
                 tile[r][c] = 1
         elif typ.startswith("DFF"):
@@ -2581,6 +2590,7 @@ def place(db, tilemap, bels, cst, args):
             add_attr_val(db, 'SLICE', ram_attrs, attrids.cls_attrids['LSR_MUX_LSR'], attrids.cls_attrvals['INV'])
             rambits.update(get_shortval_fuses(db, tiledata.ttyp, ram_attrs, 'CLS2'))
             #print(f'({row - 1}, {col - 1}) attrs:{ram_attrs}, bits:{rambits}')
+            used_cells.update({(row - 1, col - 1)})
             for brow, bcol in rambits:
                 tile[brow][bcol] = 1
         elif typ ==  'IOLOGIC':
@@ -2589,6 +2599,7 @@ def place(db, tilemap, bels, cst, args):
             bits = set()
             table_type = f'IOLOGIC{num}'
             bits = get_shortval_fuses(db, tiledata.ttyp, iologic_attrs, table_type)
+            used_cells.update({(row - 1, col - 1)})
             for r, c in bits:
                 tile[r][c] = 1
         elif typ in _bsram_cell_types or typ == 'BSRAM_AUX':
@@ -2598,6 +2609,7 @@ def place(db, tilemap, bels, cst, args):
             bsram_attrs = set_bsram_attrs(db, typ, parms)
             bsrambits = get_shortval_fuses(db, tiledata.ttyp, bsram_attrs, f'BSRAM_{typ}')
             #print(f'({row - 1}, {col - 1}) attrs:{bsram_attrs}, bits:{bsrambits}')
+            used_cells.update({(row - 1, col - 1)})
             for brow, bcol in bsrambits:
                 tile[brow][bcol] = 1
         elif typ in {'MULTADDALU18X18', 'MULTALU36X18', 'MULTALU18X18', 'MULT36X36', 'MULT18X18', 'MULT9X9', 'PADD18', 'PADD9', 'ALU54D'} or typ == 'DSP_AUX':
@@ -2618,6 +2630,7 @@ def place(db, tilemap, bels, cst, args):
                         dspbits.update(get_shortval_fuses(db, tiledata.ttyp, dsp_attrs[mac], f'DSP{mac}'))
 
             #1406.0iprint(f'({row - 1}, {col - 1}) attrs:{dsp_attrs}, bits:{sorted(dspbits)}')
+            used_cells.update({(row - 1, col - 1)})
             for brow, bcol in dspbits:
                 tile[brow][bcol] = 1
         elif typ.startswith('RPLL'):
@@ -2626,6 +2639,7 @@ def place(db, tilemap, bels, cst, args):
             if 'PLL' in db.shortval[tiledata.ttyp]:
                 bits = get_shortval_fuses(db, tiledata.ttyp, pll_attrs, 'PLL')
             #print(typ, tiledata.ttyp, bits)
+            used_cells.update({(row - 1, col - 1)})
             for r, c in bits:
                 tile[r][c] = 1
         elif typ.startswith('ALU'):
@@ -2637,6 +2651,7 @@ def place(db, tilemap, bels, cst, args):
             pll_attrs = set_pll_attrs(db, 'PLLVR', idx, parms)
             bits = get_shortval_fuses(db, tiledata.ttyp, pll_attrs, 'PLL')
             #print(typ, bits)
+            used_cells.update({(row - 1, col - 1)})
             for r, c in bits:
                 tile[r][c] = 1
             # only for 4C, we know exactly where CFG is
@@ -2651,6 +2666,7 @@ def place(db, tilemap, bels, cst, args):
                 dlldly_tiledata = db.grid[dlldly_row][dlldly_col]
                 dlldly_tile = tilemap[(dlldly_row, dlldly_col)]
                 bits = get_long_fuses(db, dlldly_tiledata.ttyp, dlldly_attrs, f'DLLDEL{num}')
+                used_cells.update({(dlldly_row, dlldly_col)})
                 for r, c in bits:
                     dlldly_tile[r][c] = 1
         elif typ == 'DHCEN':
@@ -2664,6 +2680,7 @@ def place(db, tilemap, bels, cst, args):
         elif typ.startswith("CLKDIV"):
             hclk_attrs = set_hclk_attrs(db, parms, num, typ, cellname)
             bits = get_shortval_fuses(db, tiledata.ttyp, hclk_attrs, "HCLK")
+            used_cells.update({(row - 1, col - 1)})
             for r, c in bits:
                 tile[r][c] = 1
         elif typ == 'DQCE':
@@ -2682,6 +2699,7 @@ def place(db, tilemap, bels, cst, args):
             pip_tiledata = db.grid[pip_row][pip_col]
             pip_tile = tilemap[(pip_row, pip_col)]
             bits = pip_tiledata.clock_pips[dest][src]
+            used_cells.update({(pip_row, pip_col)})
             for r, c in bits:
                 pip_tile[r][c] = 1
         elif typ == 'DCS':
@@ -2691,6 +2709,7 @@ def place(db, tilemap, bels, cst, args):
             dcs_attrs = set_dcs_attrs(db, spine, attrs)
             _, idx = _dcs_spine2quadrant_idx[spine]
             bits = get_long_fuses(db, tiledata.ttyp, dcs_attrs, idx)
+            used_cells.update({(row - 1, col - 1)})
             for r, c in bits:
                 tile[r][c] = 1
         else:
@@ -2846,6 +2865,7 @@ def place(db, tilemap, bels, cst, args):
                 #print(f"io{idx}:({row}, {col}):{sorted(iob_attrs)}")
                 bits = get_longval_fuses(db, tiledata.ttyp, iob_attrs, f'IOB{iob_idx}')
                 tile = tilemap[(row, col)]
+                used_cells.update({(row, col)})
                 for row_, col_ in bits:
                     tile[row_][col_] = 1
                 if idx == 'B':
@@ -2866,6 +2886,7 @@ def place(db, tilemap, bels, cst, args):
         #print(f"bank{int(bank)}:({brow}, {bcol}):{sorted(bank_attrs)}")
         bits = get_bank_fuses(db, tiledata.ttyp, bank_attrs, 'BANK', int(bank))
         btile = tilemap[(brow, bcol)]
+        used_cells.update({(brow, bcol)})
         for row, col in bits:
             btile[row][col] = 1
 
@@ -2909,6 +2930,7 @@ def route(db, tilemap, pips):
             print(src, dest, "not found in tile", row, col)
             breakpoint()
             continue
+        used_cells.update({(row - 1, col - 1)})
         for row, col in bits:
             tile[row][col] = 1
 
@@ -2936,14 +2958,17 @@ def gsr(db, tilemap, args):
             add_attr_val(db, 'GSR', gsr_attrs, attrids.gsr_attrids[k], attrids.gsr_attrvals[val])
 
     cfg_attrs = set()
-    for k, val in {'GSR': 'USED', 'GOE': 'F0'}.items():
+    cfg_function = 'F0'
+    if device in {'GW5A-25A'}:
+        cfg_function = 'F1'
+    for k, val in {'GSR': 'USED', 'GOE': cfg_function}.items():
         if k not in attrids.cfg_attrids:
             print(f'XXX CFG GSR: add {k} key handle')
         else:
             add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids[k], attrids.cfg_attrvals[val])
-    add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids['GSR'], attrids.cfg_attrvals['F0'])
-    add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids['DONE'], attrids.cfg_attrvals['F0'])
-    add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids['GWD'], attrids.cfg_attrvals['F0'])
+    add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids['GSR'], attrids.cfg_attrvals[cfg_function])
+    add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids['DONE'], attrids.cfg_attrvals[cfg_function])
+    add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids['GWD'], attrids.cfg_attrvals[cfg_function])
 
     # The configuration fuses are described in the ['shortval'][60] table, global set/reset is
     # described in the ['shortval'][20] table. Look for cells with type with these tables
@@ -2965,6 +2990,7 @@ def gsr(db, tilemap, args):
                 bits.update(get_shortval_fuses(db, rc.ttyp, cfg_attrs, 'CFG'))
             if bits:
                 btile = tilemap[(row, col)]
+                used_cells.update({(row, col)})
                 for brow, bcol in bits:
                     btile[brow][bcol] = 1
 
@@ -3010,6 +3036,7 @@ def dualmode_pins(db, tilemap, args):
                 clr_bits.update(get_shortval_fuses(db, rc.ttyp, clr_attrs, 'CFG'))
             if clr_bits:
                 btile = tilemap[(row, col)]
+                used_cells.update({(row, col)})
                 for brow, bcol in clr_bits:
                     btile[brow][bcol] = 0
                 for brow, bcol in bits:
@@ -3019,6 +3046,7 @@ def main():
     global device
     global pnr
     global bsram_init_map
+    global used_cells
 
     pil_available = True
     try:
@@ -3031,6 +3059,8 @@ def main():
     parser.add_argument('-o', '--output', default='pack.fs')
     parser.add_argument('-c', '--compress', action='store_true')
     parser.add_argument('-s', '--cst', default = None)
+    parser.add_argument('-e', '--use_empty', default = None)
+    parser.add_argument('-w', '--write_empty', default = None)
     parser.add_argument('--jtag_as_gpio', action = 'store_true')
     parser.add_argument('--sspi_as_gpio', action = 'store_true')
     parser.add_argument('--mspi_as_gpio', action = 'store_true')
@@ -3057,16 +3087,34 @@ def main():
         mods = m.group(2) or ""
         num = m.group(4)
         device = f"{series}{mods}-{num}"
+
     with importlib.resources.path('apycula', f'{device}.pickle') as path:
         with closing(gzip.open(path, 'rb')) as f:
             db = pickle.load(f)
+
+    if not args.sspi_as_gpio and device in {'GW5A-25A'}:
+        # must be always on
+        args.sspi_as_gpio = True
 
     const_nets = {'GND': '$PACKER_GND', 'VCC': '$PACKER_GND'}
 
     _gnd_net = pnr['modules']['top']['netnames'].get(const_nets['GND'], {'bits': []})['bits']
     _vcc_net = pnr['modules']['top']['netnames'].get(const_nets['VCC'], {'bits': []})['bits']
 
-    tilemap = chipdb.tile_bitmap(db, bitmatrix.zeros(db.height, db.width), empty=True)
+    if args.use_empty :
+        with open(args.use_empty, "rb") as f:
+            used_cells = pickle.load(f)
+        print(sorted(used_cells))
+        empty_fs = bslib.read_bitstream('/home/rabbit/var/fpga/25-empty/impl/pnr/project.fs')[0]
+        tilemap = chipdb.tile_bitmap(db, empty_fs, empty=True)
+        for yx in used_cells:
+            for ri in range(len(tilemap[yx])):
+                for ci in range(len(tilemap[yx][0])):
+                    tilemap[yx][ri][ci] = 0
+
+    else:
+        tilemap = chipdb.tile_bitmap(db, bitmatrix.zeros(db.height, db.width), empty=True)
+
     cst = codegen.Constraints()
     pips = get_pips(pnr)
     route(db, tilemap, pips)
@@ -3089,12 +3137,13 @@ def main():
             tile[row][col] = 0
 
     main_map = chipdb.fuse_bitmap(db, tilemap)
+    if pil_available and args.png:
+        bslib.display(args.png, main_map)
+
     if device in {'GW5A-25A'}:
         main_map = bitmatrix.transpose(main_map)
 
     header_footer(db, main_map, args.compress)
-    if pil_available and args.png:
-        bslib.display(args.png, res)
 
     if has_bsram_init:
         if device in {'GW5A-25A'}:
@@ -3105,6 +3154,10 @@ def main():
     if args.cst:
         with open(args.cst, "w") as f:
                 cst.write(f)
+
+    if args.write_empty :
+        with open(args.write_empty, "wb") as f:
+            pickle.dump(used_cells, f)
 
 if __name__ == '__main__':
     main()

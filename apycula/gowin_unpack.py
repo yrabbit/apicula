@@ -216,10 +216,8 @@ def parse_attrvals(tile, logicinfo_table, fuse_table, attrname_table, tableName)
             zero_mask.update(bits)
         else:
             set_mask.update(bits)
-    set_bits =  {(row, col) for row, col in set_mask if tile[row][col] == 1}
+    set_bits = {(row, col) for row, col in set_mask if tile[row][col] == 1}
     neg_bits = {(row, col) for row, col in zero_mask if tile[row][col] == 1}
-    #set_bits = {}
-    #neg_bits = {}
 
     # find candidates from fuse table
     # the set bits are more unique
@@ -464,6 +462,9 @@ def parse_tile_(db, row, col, tile, default=True, noiostd = True):
             continue
         if name.startswith("IOB"):
             idx = name[-1]
+            #XXX
+            if idx != 'A':
+                continue
             attrvals = parse_attrvals(tile, db.logicinfo['IOB'], db.longval[tiledata.ttyp][f'IOB{idx}'], attrids.iob_attrids, "IOB")
             #print(name, row, col, attrvals)
             try: # we can ask for invalid pin here because the IOBs share some stuff
@@ -506,10 +507,10 @@ def parse_tile_(db, row, col, tile, default=True, noiostd = True):
                 bels.setdefault(name, set()).add(mode)
         if name.startswith("BANK"):
             attrvals = parse_attrvals(tile, db.logicinfo['IOB'], _bank_fuse_tables[tiledata.ttyp][name], attrids.iob_attrids, "IOB")
-            #print(name, row, col, attrvals)
+            print(name, row, col, attrvals)
 
             for a, v in attrvals.items():
-                bels.setdefault(name, set()).add(f'{a}={attrids.iob_num2val[v]}')
+                bels.setdefault(name, set()).add(f'{a}={attrids.iob_num2val.get(v, str(v))}')
         if name.startswith("ALU"):
             idx = int(name[3])
             attrvals = parse_attrvals(tile, db.logicinfo['SLICE'], db.shortval[tiledata.ttyp][f'CLS{idx // 2}'], attrids.cls_attrids, "CLS")

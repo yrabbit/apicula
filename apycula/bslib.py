@@ -129,10 +129,9 @@ def read_bitstream(fname):
             frames = max(0, frames-1)
             c = c + 1
 
-        if is5ASeries == False:
-            returnBitmap = bitmatrix.fliplr(bitmap)
-        else:
-            returnBitmap = bitmatrix.transpose(bitmap)
+        returnBitmap = bitmatrix.fliplr(bitmap)
+        if is5ASeries:
+            returnBitmap = bitmatrix.transpose(returnBitmap)
 
         return returnBitmap, hdr, ftr
 

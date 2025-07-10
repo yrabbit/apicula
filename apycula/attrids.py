@@ -56,6 +56,7 @@ iob_attrids = {
         'MIPI_IBUF_DRIVE':       48,
         'MIPI_IBUF_DRIVE_LEVEL': 49,
 
+        'IOB_UNKNOWN50':         50,
         'IOB_UNKNOWN51':         51,
         'IOB_UNKNOWN52':         52,
         'IOB_UNKNOWN55':         55,
