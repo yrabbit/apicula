@@ -246,8 +246,6 @@ def fuse_lookup(d, ttyp, fuse, device):
             print("row too big", ttyp, row, h, col, w, num, h * w)
         if col > w:
             print("col too big", col, w)
-
-
         return row, col
 
 def tile_bitmap(d, bitmap, empty=False):

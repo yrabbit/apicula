@@ -12,7 +12,7 @@ from collections import namedtuple
 from contextlib import closing
 from apycula import codegen
 from apycula import chipdb
-from apycula.chipdb import add_attr_val, get_shortval_fuses, get_longval_fuses, get_bank_fuses, get_long_fuses
+from apycula.chipdb import add_attr_val, get_shortval_fuses, get_longval_fuses, get_bank_fuses, get_bank_io_fuses, get_long_fuses
 from apycula import attrids
 from apycula import bslib
 from apycula import bitmatrix
@@ -2847,7 +2847,7 @@ def place(db, tilemap, bels, cst, args):
 
             for iob_idx, atr in [(idx, in_iob_attrs), ('B', in_iob_b_attrs)]:
                 #XXX GW5 may have A-only
-                if 'IOBB' not in db.longval[tiledata.ttyp]:
+                if iob_idx == 'B' and 'IOBB' not in db.longval[tiledata.ttyp]:
                     break
                 iob_attrs = set()
                 for k, val in atr.items():
@@ -2858,12 +2858,19 @@ def place(db, tilemap, bels, cst, args):
                     else:
                         add_attr_val(db, 'IOB', iob_attrs, attrids.iob_attrids[k], attrids.iob_attrvals[val])
                         if k == 'LVDS_OUT' and val not in {'ENABLE', 'ON'}:
-                            continue
+                            if device not in {'GW5A-25A'}:
+                                continue
                         if k == 'IO_TYPE' and k in in_bank_attrs and in_bank_attrs[k].startswith('LVDS'):
                             continue
                         in_bank_attrs[k] = val
                 #print(f"io{idx}:({row}, {col}):{sorted(iob_attrs)}")
+                iob_attrs.update({147})
                 bits = get_longval_fuses(db, tiledata.ttyp, iob_attrs, f'IOB{iob_idx}')
+
+                print(row, col, bits)
+                #bits.update({(0, 60), (0, 67), (0, 68), (1, 48), (1, 50), (1, 51), (1, 58), (1, 60), (1, 68), (1, 77), (1, 79), (1, 114), (1, 115), (10, 13), (10, 15), (10, 64), (10, 65), (11, 11), (11, 12), (11, 66), (11, 72)})
+
+                print(row, col, bits)
                 tile = tilemap[(row, col)]
                 used_cells.update({(row, col)})
                 for row_, col_ in bits:
@@ -2876,15 +2883,21 @@ def place(db, tilemap, bels, cst, args):
         tiledata = db.grid[brow][bcol]
 
         bank_attrs = set()
+        print(f"bank{int(bank)}:({brow}, {bcol}):{in_bank_attrs}")
         for k, val in in_bank_attrs.items():
             if k not in attrids.iob_attrids:
                 print(f'XXX BANK: add {k} key handle')
             else:
-                if k in {'BANK_VCCIO', 'IO_TYPE', 'LVDS_OUT', 'DRIVE'}:
+                if k in {'BANK_VCCIO', 'IO_TYPE', 'LVDS_OUT', 'DRIVE', 'OPENDRAIN'}:
                     add_attr_val(db, 'IOB', bank_attrs, attrids.iob_attrids[k], attrids.iob_attrvals[val])
 
-        #print(f"bank{int(bank)}:({brow}, {bcol}):{sorted(bank_attrs)}")
+        print(f"bank{int(bank)}:({brow}, {bcol}):{sorted(bank_attrs)}")
+        #if brow == 1 and bcol == 91:
+        #    bank_attrs = {26, 124, 145, 134, 100, 108}
         bits = get_bank_fuses(db, tiledata.ttyp, bank_attrs, 'BANK', int(bank))
+        bits.update(get_bank_io_fuses(db, tiledata.ttyp, bank_attrs))
+        print(bits)
+
         btile = tilemap[(brow, bcol)]
         used_cells.update({(brow, bcol)})
         for row, col in bits:
@@ -2984,12 +2997,17 @@ def gsr(db, tilemap, args):
     for row, rd in enumerate(db.grid):
         for col, rc in enumerate(rd):
             bits = set()
+            #XXX
+            #if row == 36 and col == 91:
+            #    cfg_attrs = {3, 6, 8, 10, 15, 21}
             if rc.ttyp in gsr_type:
                 bits = get_shortval_fuses(db, rc.ttyp, gsr_attrs, 'GSR')
             if rc.ttyp in cfg_type:
                 bits.update(get_shortval_fuses(db, rc.ttyp, cfg_attrs, 'CFG'))
             if bits:
                 btile = tilemap[(row, col)]
+                #if row == 36 and col == 91:
+                #    bits.update({(11, 123), (11, 124), (30, 10), (30, 11), (30, 12), (30, 47), (30, 64), (30, 65), (30, 66), (30, 121), (30, 123), (30, 126), (30, 129), (30, 131), (31, 66)})
                 used_cells.update({(row, col)})
                 for brow, bcol in bits:
                     btile[brow][bcol] = 1
