@@ -1,6 +1,6 @@
 `default_nettype none
 
-module top(output wire led);
-	assign led = 1'b0;
+module top(input wire resetn, output wire led);
+	assign led = resetn;
 endmodule
 

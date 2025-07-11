@@ -2864,7 +2864,10 @@ def place(db, tilemap, bels, cst, args):
                             continue
                         in_bank_attrs[k] = val
                 #print(f"io{idx}:({row}, {col}):{sorted(iob_attrs)}")
-                iob_attrs.update({147})
+                if row == 0 and col == 67:
+                    iob_attrs.update({147})
+                elif row == 0 and col == 2:
+                    iob_attrs.update({190})
                 bits = get_longval_fuses(db, tiledata.ttyp, iob_attrs, f'IOB{iob_idx}')
 
                 print(row, col, bits)
