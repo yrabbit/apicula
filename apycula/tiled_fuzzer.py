@@ -200,30 +200,6 @@ def run_pnr(mod, constr, config):
             #input()
             return None
 
-# The IO blocks in the GW5A family can (and in most cases will) be separated
-# into different cells. This includes not only fuses, but also wires like IBUF
-# output or OBUF input. But externally (as for example for specifying a pin in
-# a CST file) they are in the same cell.
-#
-#For example:
-#
-# IOT3A is located in cell (0, 2) and IOT3B is located in cell (0, 3), but from
-# the IDE point of view it is one cell IOT3 (0, 2).
-#
-# We solve this problem as follows: to minimize the logic in nextpnr, we place
-# A and B in the same IOT3 cell and make himbaechel nodes for the wires so that
-# B's ports are also seen in the IOT3 cell.
-#
-# This will allow nextpnr to do placement and routing, but doesn't account for
-# the fact that the fuses for B need to be set in a different cell. To solve
-# this, we add a descriptor field to each Bel that specifies the offsets to the
-# cell where the fuses should be set.
-# This breaks unpacking, but it is also solvable.
-def create_GW5A_io_bels(db, row, col, ttyp, belname, bel):
-    #
-    print('GW5A IO bels', f'({row}, {col}) {ttyp} {belname}')
-    return
-
 _tbrlre = re.compile(r"IO([TBRL])(\d+)")
 def fse_iob(fse, db, pin_locations, diff_cap_info, locations):
     iob_bels = {}
@@ -356,6 +332,8 @@ if __name__ == "__main__":
     # IOB
     diff_cap_info = pindef.get_diff_cap_info(params['device'], params['package'], True)
     fse_iob(fse, db, pin_locations, diff_cap_info, locations);
+    if chipdb.is_GW5_family(device):
+        chipdb.fill_GW5A_io_bels(db)
 
     pad_locs = pindef.get_pll_pads_locs(params['device'], params['package'])
     chipdb.pll_pads(db, device, pad_locs)

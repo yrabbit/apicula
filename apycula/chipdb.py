@@ -2611,8 +2611,6 @@ def from_fse(device, fse, dat: Datfile):
 
     fse_fill_logic_tables(dev, fse, device)
     dev.grid = [[tiles[ttyp] for ttyp in row] for row in fse['header']['grid'][61]]
-    if is_GW5_family(device):
-        fill_GW5A_io_bels(dev)
     fse_create_clocks(dev, device, dat, fse)
     fse_create_pll_clock_aliases(dev, device)
     fse_create_bottom_io(dev, device)
@@ -2886,22 +2884,80 @@ def create_port_wire(dev, row, col, row_off, col_off, bel, bel_name, port, wire,
 # and then searching in which cell the bits were changed, the offsets depending
 # on the cell type were determined.
 _gw5_fuse_cell_offset = {
-     50: (0, 0), 51: (0, -1), 242: (0, 0), 382: (0, 0), 383: (0, -1), 387: (0, -1),
-    388: (0, 0), 389: (0, -1), 390: (0, 0), 395: (0, -1), 400: (0, -1), 403: (0, 0),
-    410: (0, 0), 411: (0, 0), 420: (0, 0), 421: (0, 0), 422: (0, -1), 423: (0, -1),
-    466: (0, 0)
+        'top': {
+             50: (0, 0), 51: (0, 1), 242: (0, 0), 382: (0, 0), 383: (0, 1), 387: (0, 1),
+            388: (0, 0), 389: (0, 1), 390: (0, 0), 395: (0, 1), 400: (0, 1), 403: (0, 0),
+            410: (0, 0), 411: (0, 0), 420: (0, 0), 421: (0, 0), 422: (0, 1), 423: (0, 1),
+            466: (0, 0)
+            },
+        'bottom': {
+             48: (0, 0), 49: (0, 1), 247: (0, 0), 248: (0, 1), 251: (0, 1), 263: (0, 0),
+             274: (0, 1), 393: (0, 0), 394: (0, 0), 396: (0, 0), 397: (0, 0), 405: (0, 1),
+             407: (0, 0), 436: (0, 1), 437: (0,0), 438: (0, 1), 439: (0, 0),
+            },
+        'left': {
+            57: (0, 0), 74: (1, 0), 243: (0, 0), 244: (1, 0), 257: (0, 0), 258: (0, 0),
+            272: (0, 0), 384: (1, 0),
+            },
+        'right': {
+            54: (0, 0), 220: (0, 0), 245: (0, 0), 246: (1, 0), 260: (0, 0), 385: (1, 0),
+            391: (0, 0), 392: (0, 0), 399: (0, 0), 401: (0, 0), 419: (1, 0)
+            }
 }
 def fill_GW5A_io_bels(dev):
-    seen_ttypes = set()
+    def fix_iobb(off):
+        # for now fix B bel only
+        if 'IOBB' in main_cell.bels:
+            print('GW5 IO bels', f' {ttyp} -> {main_cell.ttyp}')
+            main_cell.bels['IOBB'].fuse_cell_offset = off
+        else:
+            print('GW5 IO bels', f'skip {ttyp} -> {main_cell.ttyp}: no IOBB bel')
 
     # top
-    for rc in dev.grid[0]:
+    for col, rc in enumerate(dev.grid[0]):
         ttyp = rc.ttyp
-        if ttyp in seen_ttypes or ttyp not in _gw5_fuse_cell_offset:
+        if ttyp not in _gw5_fuse_cell_offset['top']:
             continue
-        off = _gw5_fuse_cell_offset[ttyp]
-        #
-    return
+
+        off = _gw5_fuse_cell_offset['top'][ttyp]
+        if off != (0, 0):
+            main_cell = dev.grid[0][col - off[1]]
+            fix_iobb(off)
+
+    # bottom
+    for col, rc in enumerate(dev.grid[0]):
+        ttyp = rc.ttyp
+        if ttyp not in _gw5_fuse_cell_offset['bottom']:
+            continue
+
+        off = _gw5_fuse_cell_offset['botom'][ttyp]
+        if off != (0, 0):
+            main_cell = dev.grid[dev.rows - 1][col - off[1]]
+            fix_iobb(off)
+
+    # left
+    for row in range(dev.rows):
+        rc = dev.grid[row][0]
+        ttyp = rc.ttyp
+        if ttyp not in _gw5_fuse_cell_offset['left']:
+            continue
+
+        off = _gw5_fuse_cell_offset['left'][ttyp]
+        if off != (0, 0):
+            main_cell = dev.grid[row - off[0]][0]
+            fix_iobb(off)
+
+    # right
+    for row in range(dev.rows):
+        rc = dev.grid[row][dev.cols - 1]
+        ttyp = rc.ttyp
+        if ttyp not in _gw5_fuse_cell_offset['right']:
+            continue
+
+        off = _gw5_fuse_cell_offset['right'][ttyp]
+        if off != (0, 0):
+            main_cell = dev.grid[row - off[0]][dev.cols - 1]
+            fix_iobb(off)
 
 def create_GW5A_io_portmap(dat, dev, device, row, col, belname, bel, tile):
     print('GW5A IO portmap', f'({row}, {col}) {tile.ttyp}, bel:{belname}')
