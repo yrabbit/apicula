@@ -200,6 +200,30 @@ def run_pnr(mod, constr, config):
             #input()
             return None
 
+# The IO blocks in the GW5A family can (and in most cases will) be separated
+# into different cells. This includes not only fuses, but also wires like IBUF
+# output or OBUF input. But externally (as for example for specifying a pin in
+# a CST file) they are in the same cell.
+#
+#For example:
+#
+# IOT3A is located in cell (0, 2) and IOT3B is located in cell (0, 3), but from
+# the IDE point of view it is one cell IOT3 (0, 2).
+#
+# We solve this problem as follows: to minimize the logic in nextpnr, we place
+# A and B in the same IOT3 cell and make himbaechel nodes for the wires so that
+# B's ports are also seen in the IOT3 cell.
+#
+# This will allow nextpnr to do placement and routing, but doesn't account for
+# the fact that the fuses for B need to be set in a different cell. To solve
+# this, we add a descriptor field to each Bel that specifies the offsets to the
+# cell where the fuses should be set.
+# This breaks unpacking, but it is also solvable.
+def create_GW5A_io_bels(db, row, col, ttyp, belname, bel):
+    #
+    print('GW5A IO bels', f'({row}, {col}) {ttyp} {belname}')
+    return
+
 _tbrlre = re.compile(r"IO([TBRL])(\d+)")
 def fse_iob(fse, db, pin_locations, diff_cap_info, locations):
     iob_bels = {}
@@ -223,6 +247,7 @@ def fse_iob(fse, db, pin_locations, diff_cap_info, locations):
             bel.is_diff = is_diff
             bel.is_true_lvds = is_true_lvds
             bel.is_diff_p = is_positive
+
             #print(f"type:{ttyp} [{row}][{col}], IOB{bel_name[-1]}, diff:{is_diff}, true lvds:{is_true_lvds}, p:{is_positive}")
     for ttyp, bels in iob_bels.items():
         for row, col in locations[ttyp]:

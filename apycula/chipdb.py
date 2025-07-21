@@ -34,6 +34,8 @@ class Bel:
     # there can be only one mode, modes are exclusive
     modes: Dict[Union[int, str], Set[Coord]] = field(default_factory=dict)
     portmap: Dict[str, str] = field(default_factory=dict)
+    # where to set the fuses for the bel
+    fuse_cell_offset: Coord = field(default_factory=tuple)
 
     @property
     def mode_bits(self):
@@ -172,6 +174,9 @@ class Device:
                     if bel.startswith('BANK'):
                         res.update({ bel[4:] : (row, col) })
         return res
+
+def is_GW5_family(device):
+    return device in {'GW5A-25A'}
 
 # XXX GW1N-4 and GW1NS-4 have next data in dat.portmap['CmuxIns']:
 # 62 [11, 1, 126]
@@ -2606,6 +2611,8 @@ def from_fse(device, fse, dat: Datfile):
 
     fse_fill_logic_tables(dev, fse, device)
     dev.grid = [[tiles[ttyp] for ttyp in row] for row in fse['header']['grid'][61]]
+    if is_GW5_family(device):
+        fill_GW5A_io_bels(dev)
     fse_create_clocks(dev, device, dat, fse)
     fse_create_pll_clock_aliases(dev, device)
     fse_create_bottom_io(dev, device)
@@ -2855,6 +2862,51 @@ def create_port_wire(dev, row, col, row_off, col_off, bel, bel_name, port, wire,
     else:
         bel.portmap[port] = wire
 
+# The IO blocks in the GW5A family can (and in most cases will) be separated
+# into different cells. This includes not only fuses, but also wires like IBUF
+# output or OBUF input. But externally (as for example for specifying a pin in
+# a CST file) they are in the same cell.
+#
+#For example:
+#
+# IOT3A is located in cell (0, 2) and IOT3B is located in cell (0, 3), but from
+# the IDE point of view it is one cell IOT3 (0, 2).
+#
+# We solve this problem as follows: to minimize the logic in nextpnr, we place
+# A and B in the same IOT3 cell and make himbaechel nodes for the wires so that
+# B's ports are also seen in the IOT3 cell.
+#
+# This will allow nextpnr to do placement and routing, but doesn't account for
+# the fact that the fuses for B need to be set in a different cell. To solve
+# this, we add a descriptor field to each Bel that specifies the offsets to the
+# cell where the fuses should be set.
+# This breaks unpacking, but it is also solvable.
+
+# By experimentally placing the IBUF IO by setting constraints in the CST file
+# and then searching in which cell the bits were changed, the offsets depending
+# on the cell type were determined.
+_gw5_fuse_cell_offset = {
+     50: (0, 0), 51: (0, -1), 242: (0, 0), 382: (0, 0), 383: (0, -1), 387: (0, -1),
+    388: (0, 0), 389: (0, -1), 390: (0, 0), 395: (0, -1), 400: (0, -1), 403: (0, 0),
+    410: (0, 0), 411: (0, 0), 420: (0, 0), 421: (0, 0), 422: (0, -1), 423: (0, -1),
+    466: (0, 0)
+}
+def fill_GW5A_io_bels(dev):
+    seen_ttypes = set()
+
+    # top
+    for rc in dev.grid[0]:
+        ttyp = rc.ttyp
+        if ttyp in seen_ttypes or ttyp not in _gw5_fuse_cell_offset:
+            continue
+        off = _gw5_fuse_cell_offset[ttyp]
+        #
+    return
+
+def create_GW5A_io_portmap(dat, dev, device, row, col, belname, bel, tile):
+    print('GW5A IO portmap', f'({row}, {col}) {tile.ttyp}, bel:{belname}')
+    return
+
 def dat_portmap(dat, dev, device):
     for row, row_dat in enumerate(dev.grid):
         for col, tile in enumerate(row_dat):
@@ -2863,6 +2915,9 @@ def dat_portmap(dat, dev, device):
                     if not need_create_multiple_nodes(device, name):
                         continue
                 if name.startswith("IOB"):
+                    if is_GW5_family(device):
+                        create_GW5A_io_portmap(dat, dev, device, row, col, name, bel, tile)
+                        continue
                     if row in dev.simplio_rows:
                         idx = ord(name[-1]) - ord('A')
                         inp = wirenames[dat.portmap['IobufIns'][idx]]
