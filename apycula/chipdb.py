@@ -2960,8 +2960,27 @@ def fill_GW5A_io_bels(dev):
             fix_iobb(off)
 
 def create_GW5A_io_portmap(dat, dev, device, row, col, belname, bel, tile):
-    print('GW5A IO portmap', f'({row}, {col}) {tile.ttyp}, bel:{belname}')
-    return
+    pin = belname[-1]
+    if pin == 'A' or not bel.fuse_cell_offset:
+        inp = wirenames[dat.portmap[f'Iobuf{pin}Out']]
+        bel.portmap['O'] = inp
+        out = wirenames[dat.portmap[f'Iobuf{pin}In']]
+        bel.portmap['I'] = out
+        oe = wirenames[dat.portmap[f'Iobuf{pin}OE']]
+        bel.portmap['OE'] = oe
+    else:
+        inp = wirenames[dat.portmap[f'Iobuf{pin}Out']]
+        nodename = add_node(dev, f'X{col}Y{row}/IOBB_O', "IO_O", row + bel.fuse_cell_offset[0], col + bel.fuse_cell_offset[1], inp)
+        nodename = add_node(dev, nodename, "IO_O", row, col, f'IOBB_{inp}')
+        bel.portmap['O'] = f'IOBB_{inp}'
+        out = wirenames[dat.portmap[f'Iobuf{pin}In']]
+        nodename = add_node(dev, f'X{col}Y{row}/IOBB_I', "IO_I", row + bel.fuse_cell_offset[0], col + bel.fuse_cell_offset[1], out)
+        nodename = add_node(dev, nodename, "IO_I", row, col, f'IOBB_{out}')
+        bel.portmap['I'] = f'IOBB_{out}'
+        oe = wirenames[dat.portmap[f'Iobuf{pin}OE']]
+        nodename = add_node(dev, f'X{col}Y{row}/IOBB_OE', "IO_OE", row + bel.fuse_cell_offset[0], col + bel.fuse_cell_offset[1], oe)
+        nodename = add_node(dev, nodename, "IO_OE", row, col, f'IOBB_{oe}')
+        bel.portmap['OE'] = f'IOBB_{oe}'
 
 def dat_portmap(dat, dev, device):
     for row, row_dat in enumerate(dev.grid):
