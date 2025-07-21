@@ -2846,15 +2846,10 @@ def place(db, tilemap, bels, cst, args):
                 in_iob_b_attrs = in_iob_attrs.copy()
 
             for iob_idx, atr in [(idx, in_iob_attrs), ('B', in_iob_b_attrs)]:
-                #XXX GW5 may have A-only
-                if iob_idx == 'B' and 'IOBB' not in db.longval[tiledata.ttyp]:
-                    break
                 iob_attrs = set()
                 for k, val in atr.items():
                     if k not in attrids.iob_attrids:
                         print(f'XXX IO: add {k} key handle')
-                    #elif k == 'OPENDRAIN' and val == 'OFF' and 'LVDS' not in iob.flags['mode'] and 'IBUF' not in iob.flags['mode']:
-                        #continue
                     else:
                         add_attr_val(db, 'IOB', iob_attrs, attrids.iob_attrids[k], attrids.iob_attrvals[val])
                         if k == 'LVDS_OUT' and val not in {'ENABLE', 'ON'}:
@@ -2863,22 +2858,31 @@ def place(db, tilemap, bels, cst, args):
                         if k == 'IO_TYPE' and k in in_bank_attrs and in_bank_attrs[k].startswith('LVDS'):
                             continue
                         in_bank_attrs[k] = val
-                #print(f"io{idx}:({row}, {col}):{sorted(iob_attrs)}")
-                if row == 0 and col == 67:
-                    iob_attrs.update({147})
-                elif row == 0 and col == 2:
-                    iob_attrs.update({190})
-                bits = get_longval_fuses(db, tiledata.ttyp, iob_attrs, f'IOB{iob_idx}')
+                fuse_row, fuse_col = (row, col)
+                if device not in {'GW5A-25A'}:
+                    bits = get_longval_fuses(db, tiledata.ttyp, iob_attrs, f'IOB{iob_idx}')
+                else:
+                    print(row, col, f'mode:{mode_for_attrs}, idx:{iob_idx}')
+                    if mode_for_attrs == 'OBUF':
+                        iob_attrs.update({147}) # IOB_UNKNOWN51=TRIMUX
+                    elif mode_for_attrs == 'IBUF':
+                        iob_attrs.update({190}) # IOB_UNKNOWN62=263
+                    # fuses may be in another cell
+                    fuse_ttyp = tiledata.ttyp
+                    off = tiledata.bels[f'IOB{iob_idx}'].fuse_cell_offset
+                    if off:
+                        fuse_row += off[0]
+                        fuse_col += off[1]
+                        fuse_ttyp = db.grid[fuse_row][fuse_col].ttyp
+                    bits = get_longval_fuses(db, fuse_ttyp, iob_attrs, f'IOB{iob_idx}')
 
-                print(row, col, bits)
-                #bits.update({(0, 60), (0, 67), (0, 68), (1, 48), (1, 50), (1, 51), (1, 58), (1, 60), (1, 68), (1, 77), (1, 79), (1, 114), (1, 115), (10, 13), (10, 15), (10, 64), (10, 65), (11, 11), (11, 12), (11, 66), (11, 72)})
-
-                print(row, col, bits)
-                tile = tilemap[(row, col)]
-                used_cells.update({(row, col)})
+                tile = tilemap[(fuse_row, fuse_col)]
+                used_cells.update({(fuse_row, fuse_col)})
                 for row_, col_ in bits:
                     tile[row_][col_] = 1
                 if idx == 'B':
+                    break
+                if not lvds_attrs:
                     break
 
         # bank bits
@@ -2886,7 +2890,6 @@ def place(db, tilemap, bels, cst, args):
         tiledata = db.grid[brow][bcol]
 
         bank_attrs = set()
-        print(f"bank{int(bank)}:({brow}, {bcol}):{in_bank_attrs}")
         for k, val in in_bank_attrs.items():
             if k not in attrids.iob_attrids:
                 print(f'XXX BANK: add {k} key handle')
@@ -2894,12 +2897,8 @@ def place(db, tilemap, bels, cst, args):
                 if k in {'BANK_VCCIO', 'IO_TYPE', 'LVDS_OUT', 'DRIVE', 'OPENDRAIN'}:
                     add_attr_val(db, 'IOB', bank_attrs, attrids.iob_attrids[k], attrids.iob_attrvals[val])
 
-        print(f"bank{int(bank)}:({brow}, {bcol}):{sorted(bank_attrs)}")
-        #if brow == 1 and bcol == 91:
-        #    bank_attrs = {26, 124, 145, 134, 100, 108}
         bits = get_bank_fuses(db, tiledata.ttyp, bank_attrs, 'BANK', int(bank))
         bits.update(get_bank_io_fuses(db, tiledata.ttyp, bank_attrs))
-        print(bits)
 
         btile = tilemap[(brow, bcol)]
         used_cells.update({(brow, bcol)})

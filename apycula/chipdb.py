@@ -2690,12 +2690,14 @@ def get_longval_fuses(dev, ttyp, attrs, table_name):
 def get_bank_fuses(dev, ttyp, attrs, table_name, bank_num):
     return get_table_fuses(attrs, {k[1:]:val for k, val in dev.longval[ttyp][table_name].items() if k[0] == bank_num})
 
-# get fuses for attr/val set for bank use whatever table is prenet in the cell: IOBA or IOBB
+# get fuses for attr/val set for bank use whatever table is preset in the cell: IOBA or IOBB
 # returns a bit set
 def get_bank_io_fuses(dev, ttyp, attrs):
     tablename = 'IOBA'
     if tablename not in dev.longval[ttyp]:
         tablename = 'IOBB'
+        if tablename not in dev.longval[ttyp]:
+            return set()
     return get_table_fuses(attrs, dev.longval[ttyp][tablename])
 
 # add the attribute/value pair into an set, which is then passed to
