@@ -2920,7 +2920,7 @@ def from_fse(device, fse, dat: Datfile):
             tile.bels = fse_osc(device, fse, ttyp)
         elif ttyp in bram_ttypes:
             tile.bels = fse_bram(fse)
-        elif ttyp in bram_aux_ttypes:
+        elif ttyp in bram_aux_ttypes and device not in {'GW5A-25A'}:
             tile.bels = fse_bram(fse, True)
         elif ttyp in dsp_ttypes and device not in {'GW5A-25A'}:
             tile.bels = fse_dsp(fse)
@@ -2943,7 +2943,6 @@ def from_fse(device, fse, dat: Datfile):
         dev.tile_types['P'] = set()
         dev.tile_types['M'] = set()
         # XXX
-        dev.tile_types['B'] = set()
         dev.tile_types['D'] = set()
 
     # GW5 series have DFF6 and DFF7, so leave Q6 and Q7 as is
