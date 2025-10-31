@@ -1274,8 +1274,14 @@ def main():
     # Slots have no wires only func fuses
     if extra_slots:
         for slot_idx, slot_bitmap in extra_slots.items():
-            av = parse_attrvals(slot_bitmap, db.rev_logicinfo('PLL'), db.shortval[1024]['PLL'], attrids.pll_attrids, "PLL")
-            print('Slot:', slot_idx, av)
+            if slot_idx in {2, 3, 4, 5, 6, 8}:
+                av = parse_attrvals(slot_bitmap, db.rev_logicinfo('PLL'), db.shortval[1024]['PLL'], attrids.pll_attrids, "PLL")
+                print('Slot:', slot_idx, av)
+            elif slot_idx in {1}:
+                av = parse_attrvals(slot_bitmap, db.rev_logicinfo('ADC'), db.shortval[1026]['ADC'], attrids._dcattrids, "ADC")
+                print('Slot:', slot_idx, av)
+            else:
+                print('Unknown Slot:', slot_idx)
 
     # XXX this PLLs have empty main cell
     if _device in {'GW1N-9C', 'GW1N-9'}:
