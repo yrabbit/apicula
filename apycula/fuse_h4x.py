@@ -112,7 +112,6 @@ def readOneFile(f, tileType, device):
                 t = readTable(f, size, 3, 2)
             else: # GW5A-138B GW5AST-138B GW5AT-138 GW5AT-138B GW5AT-75B GW5A-25A GW5AS-25A
                 typn = "signedlogicinfo"
-                import ipdb; ipdb.set_trace()
                 t = readTable(f, size, 3, 2)
         elif typ in {0x86, 0x87}:
             typn = "signedlogicinfo"

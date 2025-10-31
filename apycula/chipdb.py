@@ -503,6 +503,7 @@ _known_logic_tables = {
             59: 'CFG',
             62: 'OSC',
             63: 'USB',
+            67: 'ADC',
             92: '5A_PCLK_ENABLE',
         }
 
@@ -1346,11 +1347,10 @@ def fse_create_hclk_nodes(dev, device, fse, dat: Datfile):
                                 if src.startswith('HCLK'):
                                     hclks[src].add((row, col, src))
 
-# ADC in GW5A series are placed in slots not in the main grid.
+# ADC in GW5A series are placed in slots AND in the main grid.
 def fse_create_adc(dev, device, fse, dat):
     if device not in {"GW5A-25A"}:
         return
-    # Since the ADC is located in a slot, it doesn't matter which cell to attach it to. Choose an unloaded corner cell.
     row, col = 0, dev.cols - 1
     extra = dev.extra_func.setdefault((row, col), {})
     adc = extra.setdefault('adc', {})
