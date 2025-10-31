@@ -305,6 +305,7 @@ adc_attrvals = {
         'PHASE_180':     1029,
         'ADC':           1030,
         'CLK_CLK':       1031,
+        '1':             1036,
     }
 
 # DSP

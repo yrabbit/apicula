@@ -1278,7 +1278,7 @@ def main():
                 av = parse_attrvals(slot_bitmap, db.rev_logicinfo('PLL'), db.shortval[1024]['PLL'], attrids.pll_attrids, "PLL")
                 print('Slot:', slot_idx, av)
             elif slot_idx in {1}:
-                av = parse_attrvals(slot_bitmap, db.rev_logicinfo('ADC'), db.shortval[1026]['ADC'], attrids._dcattrids, "ADC")
+                av = parse_attrvals(slot_bitmap, db.rev_logicinfo('ADC'), db.shortval[1026]['ADC'], attrids.adc_attrids, "ADC")
                 print('Slot:', slot_idx, av)
             else:
                 print('Unknown Slot:', slot_idx)
