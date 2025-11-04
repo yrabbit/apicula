@@ -321,7 +321,6 @@ def get_dsp_main_cell(db, row, col, typ):
 # With normal gowin_unpack io standard is determined first and it is known.
 # (bels, pips, clock_pips)
 def parse_tile_(db, row, col, tile, default=True, noiostd = True):
-    print(row, col)
     if not _bank_fuse_tables:
         # create bank fuse table
         for ttyp in db.longval.keys():
@@ -351,10 +350,9 @@ def parse_tile_(db, row, col, tile, default=True, noiostd = True):
     clock_pips = {}
     bels = {}
     for name, bel in tiledata.bels.items():
-        print(name)
         if name.startswith("ADC"):
             attrvals = parse_attrvals(tile, db.rev_logicinfo('ADC'), db.shortval[tiledata.ttyp]['ADC'], attrids.adc_attrids, "ADC")
-            print(row, col, name, idx, tiledata.ttyp, attrvals)
+            print(row, col, name, tiledata.ttyp, attrvals)
         if name.startswith("RPLL"):
             idx = _pll_cells.setdefault(get_pll_A(db, row, col, name[4]), len(_pll_cells))
             modes = { f'DEVICE="{_device}"' }
@@ -466,13 +464,21 @@ def parse_tile_(db, row, col, tile, default=True, noiostd = True):
             continue
         if name.startswith("IOB"):
             idx = name[-1]
-            #XXX
-            if idx != 'A':
-                continue
-            attrvals = parse_attrvals(tile, db.rev_logicinfo('IOB'), db.longval[tiledata.ttyp][f'IOB{idx}'], attrids.iob_attrids, "IOB")
-            #print(name, row, col, attrvals)
+            io_row, io_col = row, col
+            io_tile = tile
+            io_ttyp = tiledata.ttyp
+
+            if idx == 'B' and _device == 'GW5A-25A' and tiledata.bels[name].fuse_cell_offset:
+                io_row += tiledata.bels[name].fuse_cell_offset[0]
+                io_col += tiledata.bels[name].fuse_cell_offset[1]
+                io_tiledata = db.grid[io_row][io_col]
+                io_ttyp = io_tiledata.ttyp
+
+            print(name, io_row, io_col, io_ttyp)
+            attrvals = parse_attrvals(io_tile, db.rev_logicinfo('IOB'), db.longval[io_ttyp][f'IOB{idx}'], attrids.iob_attrids, "IOB")
+            print(name, io_row, io_col, attrvals)
             try: # we can ask for invalid pin here because the IOBs share some stuff
-                bank = chipdb.loc2bank(db, row, col)
+                bank = chipdb.loc2bank(db, io_row, io_col)
             except KeyError:
                 bank = None
             if attrvals:
@@ -511,7 +517,7 @@ def parse_tile_(db, row, col, tile, default=True, noiostd = True):
                 bels.setdefault(name, set()).add(mode)
         if name.startswith("BANK"):
             attrvals = parse_attrvals(tile, db.rev_logicinfo('IOB'), _bank_fuse_tables[tiledata.ttyp][name], attrids.iob_attrids, "IOB")
-            print(name, row, col, attrvals)
+            #print(name, row, col, attrvals)
 
             for a, v in attrvals.items():
                 bels.setdefault(name, set()).add(f'{a}={attrids.iob_num2val.get(v, str(v))}')
@@ -1328,6 +1334,7 @@ def main():
         tile2verilog(row, col, bels, pips, clock_pips, mod, cst, db)
 
     fix_plls(db, mod)
+    set_adc_iobuf_attrs(db)
 
     with open(args.output, 'w') as f:
         mod.write(f)

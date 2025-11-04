@@ -552,24 +552,24 @@ _default_plla_internal_attrs = {
 }
 
 _default_adc_attrs = {
-            'CLK_SEL'              : 0,
-            'DIV_CTL'              : 0,
-            'PHASE_SEL'            : 0,
-            'UNK0'                 : 5,
-            'ADC_EN_SEL'           : 0,
-            'IBIAS_CTL'            : 8,
-            'UNK1'                 : 1,
-            'UNK2'                 : 16,
-            'CHOP_EN'              : 1,
-            'GAIN'                 : 4,
-            'CAP_CTL'              : 0,
-            'BUF_EN'               : 0,
-            'CSR_VSEN_CTRL'        : 0,
-            'CSR_ADC_MODE'         : 1,
-            'CSR_SAMPLE_CNT_SEL'   : 0,
-            'CSR_RATE_CHANGE_CTRL' : 0,
-            'CSR_FSCAL'            : 730,
-            'CSR_OFFSET'           : 1180,
+            'CLK_SEL'              : "0",
+            'DIV_CTL'              : "0",
+            'PHASE_SEL'            : "0",
+            'UNK0'                 : "101",
+            'ADC_EN_SEL'           : "0",
+            'IBIAS_CTL'            : "1000",
+            'UNK1'                 : "1",
+            'UNK2'                 : "10000",
+            'CHOP_EN'              : "1",
+            'GAIN'                 : "100",
+            'CAP_CTL'              : "0",
+            'BUF_EN'               : "0",
+            'CSR_VSEN_CTRL'        : "0",
+            'CSR_ADC_MODE'         : "1",
+            'CSR_SAMPLE_CNT_SEL'   : "0",
+            'CSR_RATE_CHANGE_CTRL' : "0",
+            'CSR_FSCAL'            : bin(730),
+            'CSR_OFFSET'           : bin(1180),
 }
 
 def plla_attr_rename(attrs):
@@ -604,7 +604,9 @@ def set_adc_attrs(db, idx, attrs):
     # parse attrs
     adc_attrs = {}
     for attr, vl in adc_inattrs.items():
-        val = int(vl)
+        val = int(vl, 2)
+        if not attr.startswith('BUF_BK'):
+            adc_attrs[attr] = val
         if attr == 'CLK_SEL':
             if val == 1:
                 adc_attrs[attr] = 'CLK_CLK'
@@ -621,9 +623,25 @@ def set_adc_attrs(db, idx, attrs):
             if val == 1:
                 adc_attrs[attr] = 'ADC'
             continue
+        if attr == 'UNK0':
+            if val == 0:
+                adc_attrs[attr] = 'DISABLE'
+            else:
+                adc_attrs[attr] = val
+            continue
         if attr == 'UNK1':
             if val == 1:
                 adc_attrs[attr] = 'OFF'
+            continue
+        if attr == 'UNK2':
+            if val == 0:
+                adc_attrs[attr] = 'DISABLE'
+            continue
+        if attr == 'IBIAS_CTL':
+            if val == 0:
+                adc_attrs[attr] = 'DISABLE'
+            else:
+                adc_attrs[attr] = val
             continue
         if attr == 'CHOP_EN':
             if val == 1:
@@ -644,6 +662,8 @@ def set_adc_attrs(db, idx, attrs):
             for i in range(12):
                 if val & (2**i):
                     adc_attrs[f'BUF_{i}_EN'] = 'ON'
+            del(adc_attrs[attr])
+            continue
         if attr == 'CSR_ADC_MODE':
             if val == 1:
                 adc_attrs[attr] = '1'
@@ -672,6 +692,7 @@ def set_adc_attrs(db, idx, attrs):
             if val in range(452, 841):
                 adc_attrs['CSR_FSCAL1'] = val
             adc_attrs['CSR_FSCAL0'] = val
+            del(adc_attrs[attr])
             continue
         if attr == 'CSR_OFFSET':
             if val == 0:
@@ -681,6 +702,7 @@ def set_adc_attrs(db, idx, attrs):
             continue
 
     fin_attrs = set()
+    print(adc_attrs)
     for attr, val in adc_attrs.items():
         if isinstance(val, str):
             val = attrids.adc_attrvals[val]
@@ -3722,6 +3744,13 @@ def set_const_fuses(db, row, col, tile):
         for bits in db.const[tiledata.ttyp]:
             brow, bcol = bits
             tile[brow][bcol] = 1
+
+def set_adc_iobuf_attrs(db):
+    #XXX iobuf list
+    adc_iolocs = ['X0Y55']
+    #for ioloc in adc_iolocs:
+
+
 
 # set fuse for entire slice
 def set_slice_fuses(db, tilemap, slice_attrvals):
