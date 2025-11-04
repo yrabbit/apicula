@@ -69,7 +69,7 @@ iob_attrids = {
         'IOB_UNKNOWN62':         62,
         'IOB_UNKNOWN66':         66,
         'IOB_UNKNOWN67':         67,
-        'IOB_UNKNOWN68':         68,
+        'IOB_GW5_ADC_IN':        68,
         'IOB_UNKNOWN69':         69,
         'IOB_UNKNOWN70':         70,
         'IOB_UNKNOWN71':         71,
@@ -258,6 +258,10 @@ iob_attrvals = {
             'LVCMOS33OD12':     161,
             'LVCMOS25OD12':     162,
             'LVCMOS18OD12':     163,
+
+            # 5A ADC
+            'ADC_P_PAD':        255,
+            'ADC_N_PAD':        247,
         }
 
 # ADC

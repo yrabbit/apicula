@@ -3745,12 +3745,52 @@ def set_const_fuses(db, row, col, tile):
             brow, bcol = bits
             tile[brow][bcol] = 1
 
-def set_adc_iobuf_attrs(db):
+def set_adc_iobuf_fuses(db, tilemap):
     #XXX iobuf list
     adc_iolocs = ['X0Y55']
-    #for ioloc in adc_iolocs:
+    for ioloc in adc_iolocs:
+        iore = re.compile(r"X(\d+)Y(\d+)")
+        res = iore.fullmatch(ioloc)
+        if not res:
+            raise Exception(f"Bad IOLOC {ioloc} in the ADC src list.")
+        io_row, io_col = res.groups()
+        row = int(io_row)
+        col = int(io_col)
 
+        tiledata = db.grid[row][col]
+        # A
+        attrs = {}
+        attrs['IO_TYPE'] = 'ADC_P_PAD'
+        attrs['IOB_GW5_ADC_IN'] = 'ENABLE'
+        attrs['PULLMODE'] = 'NONE'
 
+        io_attrs = set()
+        for k, val in attrs.items():
+            add_attr_val(db, 'IOB', io_attrs, attrids.iob_attrids[k], attrids.iob_attrvals[val])
+
+        bits = get_longval_fuses(db, tiledata.ttyp, io_attrs, 'IOBA')
+        tile = tilemap[(row, col)]
+        for row_, col_ in bits:
+            tile[row_][col_] = 1
+
+        # B
+        if tiledata.bels['IOBB'].fuse_cell_offset:
+            row += tiledata.bels['IOBB'].fuse_cell_offset[0]
+            col += tiledata.bels['IOBB'].fuse_cell_offset[1]
+            tiledata = db.grid[row][col]
+
+        io_attrs = {}
+        io_attrs['IO_TYPE'] = 'ADC_N_PAD'
+        io_attrs['PADDI'] = 'PADDI'
+
+        io_attrs = set()
+        for k, val in attrs.items():
+            add_attr_val(db, 'IOB', io_attrs, attrids.iob_attrids[k], attrids.iob_attrvals[val])
+
+        bits = get_longval_fuses(db, tiledata.ttyp, io_attrs, 'IOBB')
+        tile = tilemap[(row, col)]
+        for row_, col_ in bits:
+            tile[row_][col_] = 1
 
 # set fuse for entire slice
 def set_slice_fuses(db, tilemap, slice_attrvals):
@@ -3876,6 +3916,8 @@ def main():
         for row, col in {(23, 63)}:
             tile[row][col] = 0
 
+    set_adc_iobuf_fuses(db, tilemap)
+
     for row in range(db.rows):
         for col in range(db.cols):
             set_const_fuses(db, row, col, tilemap[(row, col)])
@@ -3888,6 +3930,7 @@ def main():
         main_map = bitmatrix.transpose(main_map)
 
     header_footer(db, main_map, args.compress)
+
 
     if device in {'GW5A-25A'} and gw5a_bsrams:
         # In the series preceding GW5A, the data for initialising BSRAM was

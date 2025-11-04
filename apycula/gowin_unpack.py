@@ -473,8 +473,9 @@ def parse_tile_(db, row, col, tile, default=True, noiostd = True):
                 io_col += tiledata.bels[name].fuse_cell_offset[1]
                 io_tiledata = db.grid[io_row][io_col]
                 io_ttyp = io_tiledata.ttyp
-
-            print(name, io_row, io_col, io_ttyp)
+            # XXX
+            if idx == 'B' and 'IOBB' not in db.longval[io_ttyp]:
+                continue
             attrvals = parse_attrvals(io_tile, db.rev_logicinfo('IOB'), db.longval[io_ttyp][f'IOB{idx}'], attrids.iob_attrids, "IOB")
             print(name, io_row, io_col, attrvals)
             try: # we can ask for invalid pin here because the IOBs share some stuff
@@ -1334,7 +1335,6 @@ def main():
         tile2verilog(row, col, bels, pips, clock_pips, mod, cst, db)
 
     fix_plls(db, mod)
-    set_adc_iobuf_attrs(db)
 
     with open(args.output, 'w') as f:
         mod.write(f)
