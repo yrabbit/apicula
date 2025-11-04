@@ -1352,6 +1352,7 @@ def fse_create_adc(dev, device, fse, dat):
     if device not in {"GW5A-25A"}:
         return
     row, col = 0, dev.cols - 1
+    dev.grid[row][col].bels['ADC'] = Bel()
     extra = dev.extra_func.setdefault((row, col), {})
     adc = extra.setdefault('adc', {})
     adc['slot_idx'] = 1 # 25A has one adc and it is placed in the slot 1
