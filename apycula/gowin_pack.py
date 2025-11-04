@@ -551,6 +551,27 @@ _default_plla_internal_attrs = {
             'A_CLKFBOUT_PE_FINE' : 0,
 }
 
+_default_adc_attrs = {
+            'CLK_SEL'              : 0,
+            'DIV_CTL'              : 0,
+            'PHASE_SEL'            : 0,
+            'UNK0'                 : 5,
+            'ADC_EN_SEL'           : 0,
+            'IBIAS_CTL'            : 8,
+            'UNK1'                 : 1,
+            'UNK2'                 : 16,
+            'CHOP_EN'              : 1,
+            'GAIN'                 : 4,
+            'CAP_CTL'              : 0,
+            'BUF_EN'               : 0,
+            'CSR_VSEN_CTRL'        : 0,
+            'CSR_ADC_MODE'         : 1,
+            'CSR_SAMPLE_CNT_SEL'   : 0,
+            'CSR_RATE_CHANGE_CTRL' : 0,
+            'CSR_FSCAL'            : 730,
+            'CSR_OFFSET'           : 1180,
+}
+
 def plla_attr_rename(attrs):
     new_attrs = {}
     for attr, val in attrs.items():
@@ -567,6 +588,104 @@ def add_pll_default_attrs(attrs, default_attrs = _default_pll_inattrs):
             continue
         pll_inattrs[k] = v
     return pll_inattrs
+
+def add_adc_default_attrs(attrs, default_attrs = _default_adc_attrs):
+    adc_inattrs = attrs.copy()
+    for k, v in default_attrs.items():
+        if k in adc_inattrs:
+            continue
+        adc_inattrs[k] = v
+    return adc_inattrs
+
+def set_adc_attrs(db, idx, attrs):
+    attrs_upper(attrs)
+    adc_inattrs = add_adc_default_attrs(attrs)
+
+    # parse attrs
+    adc_attrs = {}
+    for attr, vl in adc_inattrs.items():
+        val = int(vl)
+        if attr == 'CLK_SEL':
+            if val == 1:
+                adc_attrs[attr] = 'CLK_CLK'
+            continue
+        if attr == 'DIV_CTL':
+            if val:
+                adc_attrs[attr] = 2**val
+            continue
+        if attr == 'PHASE_SEL':
+            if val:
+                adc_attrs[attr] = 'PHASE_180'
+            continue
+        if attr == 'ADC_EN_SEL':
+            if val == 1:
+                adc_attrs[attr] = 'ADC'
+            continue
+        if attr == 'UNK1':
+            if val == 1:
+                adc_attrs[attr] = 'OFF'
+            continue
+        if attr == 'CHOP_EN':
+            if val == 1:
+                adc_attrs[attr] = 'ON'
+            else:
+                adc_attrs[attr] = 'UNKNOWN'
+            continue
+        if attr == 'GAIN':
+            if val == 0:
+                adc_attrs[attr] = 'DISABLE'
+            else:
+                adc_attrs[attr] = val
+            continue
+        if attr == 'CAP_CTL':
+            adc_attrs[attr] = val
+            continue
+        if attr == 'BUF_EN':
+            for i in range(12):
+                if val & (2**i):
+                    adc_attrs[f'BUF_{i}_EN'] = 'ON'
+        if attr == 'CSR_ADC_MODE':
+            if val == 1:
+                adc_attrs[attr] = '1'
+            else:
+                adc_attrs[attr] = 'UNKNOWN'
+            continue
+        if attr == 'CSR_VSEN_CTRL':
+            if val == 4:
+                adc_attrs[attr] = 'UNK1'
+            elif val == 7:
+                adc_attrs[attr] = 'UNK0'
+            continue
+        if attr == 'CSR_SAMPLE_CNT_SEL':
+            if val > 4:
+               adc_attrs[attr] = 2048
+            else:
+               adc_attrs[attr] = (2**val) * 64
+            continue
+        if attr == 'CSR_RATE_CHANGE_CTRL':
+            if val > 4:
+                adc_attrs[attr] = 80
+            else:
+                adc_attrs[attr] = (2**val) * 4
+            continue
+        if attr == 'CSR_FSCAL':
+            if val in range(452, 841):
+                adc_attrs['CSR_FSCAL1'] = val
+            adc_attrs['CSR_FSCAL0'] = val
+            continue
+        if attr == 'CSR_OFFSET':
+            if val == 0:
+                adc_attrs[attr] = 'DISABLE'
+            else:
+                adc_attrs[attr] = val
+            continue
+
+    fin_attrs = set()
+    for attr, val in adc_attrs.items():
+        if isinstance(val, str):
+            val = attrids.adc_attrvals[val]
+        add_attr_val(db, 'ADC', fin_attrs, attrids.adc_attrids[attr], val)
+    return fin_attrs
 
 # typ - PLL type (RPLL, etc)
 def set_pll_attrs(db, typ, idx, attrs):
@@ -3098,6 +3217,23 @@ def place(db, tilemap, bels, cst, args, slice_attrvals, extra_slots):
             #print(f'({row - 1}, {col - 1}) attrs:{dsp_attrs}, bits:{sorted(dspbits)}')
             for brow, bcol in dspbits:
                 tile[brow][bcol] = 1
+        elif typ.startswith('ADC'):
+            # main grid cell
+            adc_attrs = set_adc_attrs(db, 0, parms)
+            bits = set()
+            if 'ADC' in db.shortval[tiledata.ttyp]:
+                bits = get_shortval_fuses(db, tiledata.ttyp, adc_attrs, 'ADC')
+            print(typ, tiledata.ttyp, bits)
+            for r, c in bits:
+                tile[r][c] = 1
+            # slot
+            bits = get_shortval_fuses(db, 1026, adc_attrs, 'ADC')
+            slot_bitmap = extra_slots.setdefault(db.extra_func[row - 1, col - 1]['adc']['slot_idx'], bitmatrix.zeros(8, 6))
+            print(bits)
+            for r, c in bits:
+                slot_bitmap[r][c] = 1
+            for rd in slot_bitmap:
+                print(rd)
         elif typ.startswith('RPLL'):
             pll_attrs = set_pll_attrs(db, 'RPLL', 0,  parms)
             bits = set()
@@ -3766,3 +3902,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# vim: set et sw=4 ts=4:

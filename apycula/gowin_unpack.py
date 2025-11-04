@@ -321,6 +321,7 @@ def get_dsp_main_cell(db, row, col, typ):
 # With normal gowin_unpack io standard is determined first and it is known.
 # (bels, pips, clock_pips)
 def parse_tile_(db, row, col, tile, default=True, noiostd = True):
+    print(row, col)
     if not _bank_fuse_tables:
         # create bank fuse table
         for ttyp in db.longval.keys():
@@ -350,6 +351,10 @@ def parse_tile_(db, row, col, tile, default=True, noiostd = True):
     clock_pips = {}
     bels = {}
     for name, bel in tiledata.bels.items():
+        print(name)
+        if name.startswith("ADC"):
+            attrvals = parse_attrvals(tile, db.rev_logicinfo('ADC'), db.shortval[tiledata.ttyp]['ADC'], attrids.adc_attrids, "ADC")
+            print(row, col, name, idx, tiledata.ttyp, attrvals)
         if name.startswith("RPLL"):
             idx = _pll_cells.setdefault(get_pll_A(db, row, col, name[4]), len(_pll_cells))
             modes = { f'DEVICE="{_device}"' }
@@ -1278,7 +1283,7 @@ def main():
                 av = parse_attrvals(slot_bitmap, db.rev_logicinfo('PLL'), db.shortval[1024]['PLL'], attrids.pll_attrids, "PLL")
                 print('Slot:', slot_idx, av)
             elif slot_idx in {1}:
-                av = parse_attrvals(slot_bitmap, db.rev_logicinfo('ADC'), db.shortval[1026]['ADC'], attrids._dcattrids, "ADC")
+                av = parse_attrvals(slot_bitmap, db.rev_logicinfo('ADC'), db.shortval[1026]['ADC'], attrids.adc_attrids, "ADC")
                 print('Slot:', slot_idx, av)
             else:
                 print('Unknown Slot:', slot_idx)
