@@ -23,6 +23,7 @@ device = ""
 pnr = None
 bsram_init_map = None
 gw5a_bsrams = []
+adc_iolocs = {} # pos: {}
 
 # Sometimes it is convenient to know where a port is connected to enable
 # special fuses for VCC/VSS cases.
@@ -702,7 +703,7 @@ def set_adc_attrs(db, idx, attrs):
             continue
 
     fin_attrs = set()
-    print(adc_attrs)
+    #print(adc_attrs)
     for attr, val in adc_attrs.items():
         if isinstance(val, str):
             val = attrids.adc_attrvals[val]
@@ -2968,7 +2969,29 @@ def set_dcs_fuses(db, tilemap, dcs_idx, dcs_attrs, spine_idx):
                 for brow, bcol in bits:
                     tile[brow][bcol] = 1
 
+def check_adc_io(db, io_loc):
+    global adc_iolocs
+
+    iore = re.compile(r"(\d+)/X(\d+)Y(\d+)")
+    res = iore.fullmatch(io_loc)
+    if not res:
+        raise Exception(f"Bad IOLOC {ioloc} in the ADC src list.")
+    adc_bus, io_row, io_col = res.groups()
+    row = int(io_row)
+    col = int(io_col)
+    bank = chipdb.loc2bank(db, row, col)
+    if (adc_bus == '0' and bank not in "067") or (adc_bus == '1' and bank not in "2345"):
+        raise Exception(f"Bad IO({row}, {col}) bank {bank} for ADC bus {adc_bus}.")
+
+    for pos, desc in adc_iolocs.items():
+        if desc['bus'] == adc_bus:
+            raise Exception(f"IO at ({row}, {col}) and at ({pos[0]}, {pos[1]}) have same bus {adc_bus}. Only one IO in the one bus allowed.")
+
+    adc = adc_iolocs.setdefault((row, col), {})
+    adc['bus'] = adc_bus
+
 def place(db, tilemap, bels, cst, args, slice_attrvals, extra_slots):
+    global adc_ios
     for typ, row, col, num, parms, attrs, cellname, cell in bels:
         tiledata = db.grid[row-1][col-1]
         tile = tilemap[(row-1, col-1)]
@@ -3240,22 +3263,27 @@ def place(db, tilemap, bels, cst, args, slice_attrvals, extra_slots):
             for brow, bcol in dspbits:
                 tile[brow][bcol] = 1
         elif typ.startswith('ADC'):
+            # extract adc ios
+            for attr, val in attrs.items():
+                if attr.startswith('ADC_IO_'):
+                    check_adc_io(db, val)
+
             # main grid cell
             adc_attrs = set_adc_attrs(db, 0, parms)
             bits = set()
             if 'ADC' in db.shortval[tiledata.ttyp]:
                 bits = get_shortval_fuses(db, tiledata.ttyp, adc_attrs, 'ADC')
-            print(typ, tiledata.ttyp, bits)
+            #print(typ, tiledata.ttyp, bits)
             for r, c in bits:
                 tile[r][c] = 1
             # slot
             bits = get_shortval_fuses(db, 1026, adc_attrs, 'ADC')
             slot_bitmap = extra_slots.setdefault(db.extra_func[row - 1, col - 1]['adc']['slot_idx'], bitmatrix.zeros(8, 6))
-            print(bits)
+            #print(bits)
             for r, c in bits:
                 slot_bitmap[r][c] = 1
-            for rd in slot_bitmap:
-                print(rd)
+            #for rd in slot_bitmap:
+            #    print(rd)
         elif typ.startswith('RPLL'):
             pll_attrs = set_pll_attrs(db, 'RPLL', 0,  parms)
             bits = set()
@@ -3350,6 +3378,10 @@ def place(db, tilemap, bels, cst, args, slice_attrvals, extra_slots):
         vccio = None
         iostd = None
         for iob_name, iob in ios.items():
+            # ADC IOs can't be used as gpio
+            if (iob.pos[0], iob.pos[1]) in adc_iolocs:
+                raise Exception(f"{iob_name} is ADC IO. Can't use it as GPIO.")
+
             # diff io can't be placed at simplified io
             if iob.pos[0] in db.simplio_rows:
                 if iob.flags['mode'].startswith('ELVDS') or iob.flags['mode'].startswith('TLVDS'):
@@ -3746,17 +3778,9 @@ def set_const_fuses(db, row, col, tile):
             tile[brow][bcol] = 1
 
 def set_adc_iobuf_fuses(db, tilemap):
-    #XXX iobuf list
-    adc_iolocs = ['X0Y55']
-    for ioloc in adc_iolocs:
-        iore = re.compile(r"X(\d+)Y(\d+)")
-        res = iore.fullmatch(ioloc)
-        if not res:
-            raise Exception(f"Bad IOLOC {ioloc} in the ADC src list.")
-        io_row, io_col = res.groups()
-        row = int(io_row)
-        col = int(io_col)
-
+    for ioloc in adc_iolocs.keys():
+        row, col = ioloc
+        print("ADC IO:", row, col)
         tiledata = db.grid[row][col]
         # A
         attrs = {}
@@ -3930,7 +3954,6 @@ def main():
         main_map = bitmatrix.transpose(main_map)
 
     header_footer(db, main_map, args.compress)
-
 
     if device in {'GW5A-25A'} and gw5a_bsrams:
         # In the series preceding GW5A, the data for initialising BSRAM was

@@ -477,7 +477,7 @@ def parse_tile_(db, row, col, tile, default=True, noiostd = True):
             if idx == 'B' and 'IOBB' not in db.longval[io_ttyp]:
                 continue
             attrvals = parse_attrvals(io_tile, db.rev_logicinfo('IOB'), db.longval[io_ttyp][f'IOB{idx}'], attrids.iob_attrids, "IOB")
-            print(name, io_row, io_col, attrvals)
+            #print(name, io_row, io_col, attrvals)
             try: # we can ask for invalid pin here because the IOBs share some stuff
                 bank = chipdb.loc2bank(db, io_row, io_col)
             except KeyError:
