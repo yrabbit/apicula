@@ -2455,6 +2455,8 @@ def fse_create_logic2clk(dev, device, dat: Datfile):
             dev.extra_func.setdefault((row, col), {}).setdefault('clock_gates', []).append(wnames.wirenames[wire_idx])
 
 def fse_create_osc(dev, device, fse):
+    if device in {'GW5AST-138C'}:
+        return
     skip_nodes = False
     for row, rd in enumerate(dev.grid):
         for col, rc in enumerate(rd):
@@ -2963,7 +2965,8 @@ def from_fse(device, fse, dat: Datfile):
         if 5 in fse[ttyp]['shortval']:
             tile.bels = fse_luts(fse, ttyp, device)
         elif 51 in fse[ttyp]['shortval']:
-            tile.bels = fse_osc(device, fse, ttyp)
+            if device not in {'GW5AST-138C'}:
+                tile.bels = fse_osc(device, fse, ttyp)
         elif ttyp in bram_ttypes:
             tile.bels = fse_bram(fse)
         elif ttyp in bram_aux_ttypes and device not in {'GW5A-25A'}:
@@ -3083,7 +3086,7 @@ def add_attr_val(dev, logic_table, attrs, attr, val):
         attrs.add(attrval)
 
 def get_pins(device):
-    if device not in {"GW1N-1", "GW1NZ-1", "GW1N-4", "GW1N-9", "GW1NR-9", "GW1N-9C", "GW1NR-9C", "GW1NSR-4C", "GW2A-18", "GW2A-18C", "GW2AR-18C", "GW5A-25A"}:
+    if device not in {"GW1N-1", "GW1NZ-1", "GW1N-4", "GW1N-9", "GW1NR-9", "GW1N-9C", "GW1NR-9C", "GW1NSR-4C", "GW2A-18", "GW2A-18C", "GW2AR-18C", "GW5A-25A", "GW5AST-138C"}:
         raise Exception(f"unsupported device {device}")
     pkgs = pindef.all_packages(device)
     res = {}
@@ -3167,7 +3170,7 @@ def json_pinout(device):
             "GW2A-18C": pins,
             "GW2AR-18C": pins_r
         }, res_bank_pins)
-    elif device =="GW5A-25A": # Fix me
+    elif device =="GW5A-25A":
         pkgs, pins, bank_pins = get_pins("GW5A-25A")
         res = {}
         res.update(pkgs)
@@ -3175,6 +3178,15 @@ def json_pinout(device):
         res_bank_pins.update(bank_pins)
         return (res, {
             "GW5A-25A": pins,
+        }, res_bank_pins)
+    elif device =="GW5AST-138C":
+        pkgs, pins, bank_pins = get_pins("GW5AST-138C")
+        res = {}
+        res.update(pkgs)
+        res_bank_pins = {}
+        res_bank_pins.update(bank_pins)
+        return (res, {
+            "GW5AST-138C": pins,
         }, res_bank_pins)
     else:
         raise Exception("unsupported device")

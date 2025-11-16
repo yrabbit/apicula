@@ -77,6 +77,11 @@ params = {
         "device": "GW5A-25A",
         "partnumber": "GW5A-LV25MG121NES",
     },
+    "GW5AST-138C": {
+        "package": "PBGA484A",
+        "device": "GW5AST-138C",
+        "partnumber": "GW5AST-LV138PG484AC1/I0",
+    },
 }[device]
 
 # utils
@@ -252,16 +257,17 @@ def gen_ftr():
 
 # borrowed from https://github.com/trabucayre/openFPGALoader/blob/master/src/fsparser.cpp
 _chip_id = {
-        'GW1N-1'    : b'\x06\x00\x00\x00\x09\x00\x28\x1b',
-        'GW1NZ-1'   : b'\x06\x00\x00\x00\x01\x00\x68\x1b',
-        'GW1NS-2'   : b'\x06\x00\x00\x00\x03\x00\x08\x1b',
-        'GW1N-4'    : b'\x06\x00\x00\x00\x01\x00\x38\x1b',
-        'GW1NS-4'   : b'\x06\x00\x00\x00\x01\x00\x98\x1b',
-        'GW1N-9'    : b'\x06\x00\x00\x00\x11\x00\x58\x1b',
-        'GW1N-9C'   : b'\x06\x00\x00\x00\x11\x00\x48\x1b',
-        'GW2A-18'   : b'\x06\x00\x00\x00\x00\x00\x08\x1b',
-        'GW2A-18C'  : b'\x06\x00\x00\x00\x00\x00\x08\x1b',
-        'GW5A-25A'  : b'\x06\x00\x00\x00\x00\x01\x28\x1b',
+        'GW1N-1'      : b'\x06\x00\x00\x00\x09\x00\x28\x1b',
+        'GW1NZ-1'     : b'\x06\x00\x00\x00\x01\x00\x68\x1b',
+        'GW1NS-2'     : b'\x06\x00\x00\x00\x03\x00\x08\x1b',
+        'GW1N-4'      : b'\x06\x00\x00\x00\x01\x00\x38\x1b',
+        'GW1NS-4'     : b'\x06\x00\x00\x00\x01\x00\x98\x1b',
+        'GW1N-9'      : b'\x06\x00\x00\x00\x11\x00\x58\x1b',
+        'GW1N-9C'     : b'\x06\x00\x00\x00\x11\x00\x48\x1b',
+        'GW2A-18'     : b'\x06\x00\x00\x00\x00\x00\x08\x1b',
+        'GW2A-18C'    : b'\x06\x00\x00\x00\x00\x00\x08\x1b',
+        'GW5A-25A'    : b'\x06\x00\x00\x00\x00\x01\x28\x1b',
+        'GW5AST-138C' : b'\x06\x00\x00\x00\x00\x01\x28\x1b',
         }
 
 # generate bitsream header
@@ -358,8 +364,12 @@ if __name__ == "__main__":
         bel.portmap['GW9_ALWAYS_LOW1'] = wnames.wirenames[dat.portmap['IologicAIn'][42]]
 
     # GSR
-    if device in {'GW2A-18', 'GW2A-18C', 'GW5A-25A'}:
+    if device in {'GW2A-18', 'GW2A-18C'}:
         db.grid[27][50].bels.setdefault('GSR', chipdb.Bel()).portmap['GSRI'] = 'C4';
+    elif device in {'GW5A-25A'}:
+        db.grid[27][88].bels.setdefault('GSR', chipdb.Bel()).portmap['GSRI'] = 'LSR0';
+    elif device in {'GW5AST-138C'}:
+        db.grid[108][165].bels.setdefault('GSR', chipdb.Bel()).portmap['GSRI'] = 'D7';
     elif device in {'GW1N-1', 'GW1N-4', 'GW1NS-4', 'GW1N-9', 'GW1N-9C', 'GW1NS-2', 'GW1NZ-1'}:
         db.grid[0][0].bels.setdefault('GSR', chipdb.Bel()).portmap['GSRI'] = 'C4';
     else:
