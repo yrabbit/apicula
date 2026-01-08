@@ -2427,10 +2427,60 @@ def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
             rd = dev.grid[row]
             for col, rc in enumerate(rd):
                 for dest, srcs in rc.clock_pips.items():
-                    print(row, col, dest)
-                #    for src in srcs.keys():
-                #        if src in spines and not dest.startswith('GT'):
-                #            add_node(dev, src, "GLOBAL_CLK", row, col, src)
+                    for src in srcs.keys():
+                        if src in spines and not dest.startswith('GT'):
+                            add_node(dev, src, "GLOBAL_CLK", row, col, src)
+
+    # GBx0 <- GBOx
+    taps = {}
+    for spine_pair in range(4): # GB00/GB40, GB10/GB50, GB20/GB60, GB30/GB70
+        tap_start = clock_data['tap_start'][0]
+        tap_col = tap_start[spine_pair]
+        last_col = center_col
+        for col in range(dev.cols):
+            if col == center_col + 1:
+                tap_start = clock_data['tap_start'][1]
+                tap_col = tap_start[spine_pair] + col
+                last_col = dev.cols -1
+            if (col > tap_col + 2) and (tap_col + 4 < last_col):
+                tap_col += 4
+            taps.setdefault(spine_pair, {}).setdefault(tap_col, set()).add(col)
+    import ipdb; ipdb.set_trace()
+    for row in range(dev.rows):
+        for spine_pair, tap_desc in taps.items():
+            for tap_col, cols in tap_desc.items():
+                node0_name = f'X{tap_col}Y{row}/GBO0'
+                dev.nodes.setdefault(node0_name, ("GLOBAL_CLK", set()))[1].add((row, tap_col, 'GBO0'))
+                node1_name = f'X{tap_col}Y{row}/GBO1'
+                dev.nodes.setdefault(node1_name, ("GLOBAL_CLK", set()))[1].add((row, tap_col, 'GBO1'))
+                for col in cols:
+                    dev.nodes.setdefault(node0_name, ("GLOBAL_CLK", set()))[1].add((row, col, f'GB{spine_pair}0'))
+                    dev.nodes.setdefault(node1_name, ("GLOBAL_CLK", set()))[1].add((row, col, f'GB{spine_pair + 4}0'))
+
+    # GTx0 <- center row GTx0
+    """
+    for spine_row, start_row, end_row, qno_l, qno_r in _clock_data[device]['quads']:
+        for spine_pair, tap_desc in taps.items():
+            for tap_col, cols in tap_desc.items():
+                if tap_col < center_col:
+                    quad = qno_l
+                else:
+                    quad = qno_r
+                for col in cols - {center_col}:
+                    node0_name = f'X{col}Y{spine_row}/GT00'
+                    dev.nodes.setdefault(node0_name, ("GLOBAL_CLK", set()))[1].add((spine_row, col, 'GT00'))
+                    node1_name = f'X{col}Y{spine_row}/GT10'
+                    dev.nodes.setdefault(node1_name, ("GLOBAL_CLK", set()))[1].add((spine_row, col, 'GT10'))
+                    for row in range(start_row, end_row):
+                        if row == spine_row:
+                            if col == tap_col:
+                                spine = quad * 8 + spine_pair
+                                dev.nodes.setdefault(f'SPINE{spine}', ("GLOBAL_CLK", set()))[1].add((row, col, f'SPINE{spine}'))
+                                dev.nodes.setdefault(f'SPINE{spine + 4}', ("GLOBAL_CLK", set()))[1].add((row, col, f'SPINE{spine + 4}'))
+                        else:
+                            dev.nodes.setdefault(node0_name, ("GLOBAL_CLK", set()))[1].add((row, col, 'GT00'))
+                            dev.nodes.setdefault(node1_name, ("GLOBAL_CLK", set()))[1].add((row, col, 'GT10'))
+    """
 
 # Segmented wires are those that run along each column of the chip and have
 # taps in each row about 4 cells wide. The height of the segment wires varies
@@ -5076,12 +5126,23 @@ def fse_wire_delays(db, dev):
     #    db.wire_delay[wnames.clknames[i]] = "TAP_BRANCH_PCLK" # XXX
     for i in range(32):
         db.wire_delay[wnames.clknames[i]] = "SPINE_TAP_PCLK"
+        db.wire_delay[mk_clock_wname(dev, wnames.clknames[i], 0)] = "SPINE_TAP_PCLK"
+        db.wire_delay[mk_clock_wname(dev, wnames.clknames[i], 1)] = "SPINE_TAP_PCLK"
     for i in range(81, 105): # clock inputs (PLL outs)
         db.wire_delay[wnames.clknames[i]] = "CENT_SPINE_PCLK"
+        db.wire_delay[mk_clock_wname(dev, wnames.clknames[i], 0)] = "CENT_SPINE_PCLK"
+        db.wire_delay[mk_clock_wname(dev, wnames.clknames[i], 1)] = "CENT_SPINE_PCLK"
     for i in range(121, 129): # clock inputs (pins)
         db.wire_delay[wnames.clknames[i]] = "CENT_SPINE_PCLK"
     for i in range(129, 153): # clock inputs (logic->clock)
         db.wire_delay[wnames.clknames[i]] = "CENT_SPINE_PCLK"
+        db.wire_delay[mk_clock_wname(dev, wnames.clknames[i], 0)] = "CENT_SPINE_PCLK"
+        db.wire_delay[mk_clock_wname(dev, wnames.clknames[i], 1)] = "CENT_SPINE_PCLK"
+    if dev in {'GW5AST-138C'}:
+        for i in range(153, 163): # clock inputs (logic->clock)
+            db.wire_delay[wnames.clknames[i]] = "CENT_SPINE_PCLK"
+            db.wire_delay[mk_clock_wname(dev, wnames.clknames[i], 0)] = "CENT_SPINE_PCLK"
+            db.wire_delay[mk_clock_wname(dev, wnames.clknames[i], 1)] = "CENT_SPINE_PCLK"
     for i in range(1000, 1002): # HCLK bridge muxes
         db.wire_delay[wnames.clknames[i]] = "HclkHbrgMux"
     for i in range(1002, 1010): # HCLK
