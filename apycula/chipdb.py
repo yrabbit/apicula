@@ -293,7 +293,7 @@ def fse_clock_pips_138(fse, ttyp, device):
 
     pips = {}
     # Wires with the same purpose in different halves of the chip have the same
-    # codes, naturally. To combine them in one table, we add the half prefix to
+    # codes, naturally. To combine them in one table, we add the half suffix to
     # the names using the mk_clock_wname function.
     for half in range(2):
         table = clock_MUX_tables[half]
@@ -330,13 +330,13 @@ def fse_clock_pips_138(fse, ttyp, device):
                         raise Exception(f"Spine is connected to wire {destid}. Only 291 or 292 are allowed.")
                     src = mk_clock_wname(device, src, half)
                     dest = {291: 'GT00', 292: 'GT10'}[destid]
-                # the gates from logic to clock must have a prefix
+                # the gates from logic to clock must have a suffix
                 if srcid in range(wnames.clknumbers['TRBDCLK0'], wnames.clknumbers['TRMDCLK1'] + 1):
                     src = mk_clock_wname(device, src, half)
-                # dedicated pins must have a prefix
+                # dedicated pins must have a suffix
                 elif srcid in range(wnames.clknumbers['PCLKT0'], wnames.clknumbers['PCLKR1'] + 1):
                     src = mk_clock_wname(device, src, half)
-                # XXX for now PLL also have a prefix
+                # XXX for now PLL also have a suffix
                 elif srcid in range(wnames.clknumbers['TLPLL0CLK0'], wnames.clknumbers['BRPLL0CLK3'] + 1):
                     src = mk_clock_wname(device, src, half)
                 pips.setdefault(dest, {})[src] = fuses
@@ -2098,7 +2098,7 @@ _clock_data = {
 
 def mk_clock_wname(device, base_name, half = 0):
     if device in {'GW5AST-138C'}:
-        return f'{['TOP', 'BOT'][half]}_{base_name}'
+        return f'{base_name}_{['TOP', 'BOT'][half]}'
     else:
         return base_name
 
