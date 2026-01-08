@@ -60,7 +60,7 @@ class Tile:
     # [‘wire’][2] table, this is not the case in the new IDE.
     # {dst: [({src}, {bits})]}
     alonenode: Dict[str, List[Tuple[Set[str], Set[Coord]]]] = field(default_factory=dict)
-    # for now as nextpnr is still counting on this field
+    # Clocks
     clock_pips: Dict[str, Dict[str, Set[Coord]]] = field(default_factory=dict)
     # fuses to disable the long wire columns. This is the table 'alonenode[6]' in the vendor file
     # {dst: [({src}, {bits})]}
@@ -285,6 +285,64 @@ def fse_pips(fse, ttyp, device, table=_wire_tables['GENERAL'], wn=wnames.wirenam
             pips.setdefault(dest, {})[src] = fuses
 
     return pips
+
+# GW5AST-138C have not one but three tables for clock fuses
+# We will try to combine them all into one
+def fse_clock_pips_138(fse, ttyp, device):
+    clock_MUX_tables = [_wire_tables['CLOCK_MUX_TOP'], _wire_tables['CLOCK_MUX_BOTTOM']]
+
+    pips = {}
+    # Wires with the same purpose in different halves of the chip have the same
+    # codes, naturally. To combine them in one table, we add the half prefix to
+    # the names using the mk_clock_wname function.
+    for half in range(2):
+        table = clock_MUX_tables[half]
+        if table in fse[ttyp]['wire']:
+            for srcid, destid, *fuses in fse[ttyp]['wire'][table]:
+                fuses = {fuse.fuse_lookup(fse, ttyp, f, device) for f in unpad(fuses)}
+                if srcid < 0:
+                    fuses = set()
+                    srcid = -srcid
+                src = wnames.clknames[srcid]
+                dest = wnames.clknames[destid]
+                # XXX skip 6 and 7 for now
+                if srcid in range(wnames.clknumbers['P16A'], wnames.clknumbers['P47D'] + 1):
+                    continue
+                # XXX skip longwires
+                if srcid in range(164, 237):
+                    continue
+                # XXX ignore unknown wires
+                if srcid in range(105, 129):
+                    continue
+                if srcid in range(253, 269):
+                    continue
+
+                # XXX
+                if srcid in {129, 130}:
+                    src = mk_clock_wname(device, src, half)
+
+                # 277 as source is VCC
+                if srcid == 277:
+                    src = 'VCC'
+                # Spines as sources can only have a GT00 (291) and GT10 (292) as sinks
+                if src.startswith('SPINE'):
+                    if destid not in {291, 292}:
+                        raise Exception(f"Spine is connected to wire {destid}. Only 291 or 292 are allowed.")
+                    src = mk_clock_wname(device, src, half)
+                    dest = {291: 'GT00', 292: 'GT10'}[destid]
+                # the gates from logic to clock must have a prefix
+                if srcid in range(wnames.clknumbers['TRBDCLK0'], wnames.clknumbers['TRMDCLK1'] + 1):
+                    src = mk_clock_wname(device, src, half)
+                # dedicated pins must have a prefix
+                elif srcid in range(wnames.clknumbers['PCLKT0'], wnames.clknumbers['PCLKR1'] + 1):
+                    src = mk_clock_wname(device, src, half)
+                # XXX for now PLL also have a prefix
+                elif srcid in range(wnames.clknumbers['TLPLL0CLK0'], wnames.clknumbers['BRPLL0CLK3'] + 1):
+                    src = mk_clock_wname(device, src, half)
+                pips.setdefault(dest, {})[src] = fuses
+
+    return pips
+
 
 # use sources from alonenode to find missing source->sink pairs in pips
 def create_default_pips(tiles):
@@ -2811,7 +2869,7 @@ def fse_create_logic2clk(dev, device, dat: Datfile):
                 add_buf_bel(dev, row, col, wnames.wirenames[wire_idx])
                 # Make list of the clock gates for nextpnr
                 dev.extra_func.setdefault((row, col), {}).setdefault('clock_gates', []).append(wnames.wirenames[wire_idx])
-                print(clkwire_idx, row, col, wire_idx)
+                print(clkwire_idx, row, col, wire_idx, mk_clock_wname(device, wnames.clknames[clkwire_idx], half))
 
 def fse_create_osc(dev, device, fse):
     if device in {'GW5AST-138C'}:
@@ -3321,9 +3379,12 @@ def from_fse(device, fse, dat: Datfile):
         h = fse[ttyp]['height']
         tile = Tile(w, h, ttyp)
         tile.pips = fse_pips(fse, ttyp, device, _wire_tables['GENERAL'], wnames.wirenames)
-        tile.clock_pips = fse_pips(fse, ttyp, device, _wire_tables['CLOCK_MUX'], wnames.clknames)
+        if device in {'GW5AST-138C'}:
+            tile.clock_pips = fse_clock_pips_138(fse, ttyp, device)
+        else:
+            tile.clock_pips = fse_pips(fse, ttyp, device, _wire_tables['CLOCK_MUX'], wnames.clknames)
         tile.alonenode = fse_alonenode(fse, ttyp, device, _wire_tables['ALONE_NODE'])
-        tile.alonenode_6 = fse_alonenode(fse, ttyp, device, 6)
+        tile.alonenode_6 = fse_alonenode(fse, ttyp, device, _wire_tables['ALONE_NODE_6'])
         if 5 in fse[ttyp]['shortval']:
             tile.bels = fse_luts(fse, ttyp, device)
         elif 51 in fse[ttyp]['shortval']:
