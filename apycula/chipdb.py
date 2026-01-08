@@ -2098,7 +2098,7 @@ _clock_data = {
 
 def mk_clock_wname(device, base_name, half = 0):
     if device in {'GW5AST-138C'}:
-        return f'{base_name}_{['TOP', 'BOT'][half]}'
+        return f"{base_name}_{['TOP', 'BOT'][half]}"
     else:
         return base_name
 
