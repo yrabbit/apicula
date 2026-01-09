@@ -292,9 +292,6 @@ def fse_clock_pips_138(fse, ttyp, device):
     clock_MUX_tables = [_wire_tables['CLOCK_MUX_TOP'], _wire_tables['CLOCK_MUX_BOTTOM']]
 
     pips = {}
-    # Wires with the same purpose in different halves of the chip have the same
-    # codes, naturally. To combine them in one table, we add the half suffix to
-    # the names using the mk_clock_wname function.
     for half in range(2):
         table = clock_MUX_tables[half]
         if table in fse[ttyp]['wire']:
@@ -317,10 +314,6 @@ def fse_clock_pips_138(fse, ttyp, device):
                 if srcid in range(253, 269):
                     continue
 
-                # XXX
-                if srcid in {129, 130}:
-                    src = mk_clock_wname(device, src, half)
-
                 # 277 as source is VCC
                 if srcid == 277:
                     src = 'VCC'
@@ -328,17 +321,13 @@ def fse_clock_pips_138(fse, ttyp, device):
                 if src.startswith('SPINE'):
                     if destid not in {291, 292}:
                         raise Exception(f"Spine is connected to wire {destid}. Only 291 or 292 are allowed.")
-                    src = mk_clock_wname(device, src, half)
                     dest = {291: 'GT00', 292: 'GT10'}[destid]
-                # the gates from logic to clock must have a suffix
-                if srcid in range(wnames.clknumbers['TRBDCLK0'], wnames.clknumbers['TRMDCLK1'] + 1):
-                    src = mk_clock_wname(device, src, half)
-                # dedicated pins must have a suffix
-                elif srcid in range(wnames.clknumbers['PCLKT0'], wnames.clknumbers['PCLKR1'] + 1):
-                    src = mk_clock_wname(device, src, half)
-                # XXX for now PLL also have a suffix
-                elif srcid in range(wnames.clknumbers['TLPLL0CLK0'], wnames.clknumbers['BRPLL0CLK3'] + 1):
-                    src = mk_clock_wname(device, src, half)
+                # 159 or BLMDCLK1 - a rare case when one cell contains both
+                # table 91 and table 90 and they have conflicting wire.
+                # ignore for now
+                if srcid == 159:
+                    continue
+
                 pips.setdefault(dest, {})[src] = fuses
 
     return pips
@@ -2462,9 +2451,9 @@ def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
                         add_node(dev, mk_wname(dest, half), "GLOBAL_CLK", row, col, dest)
                         for src in { wire for wire in srcs.keys() if wire not in {'VCC', 'VSS'}}:
                             if src.startswith('PLL'):
-                                add_node(dev, src, "PLL_O", row, col, src)
+                                add_node(dev, mk_wname(src, half), "PLL_O", row, col, src)
                             else:
-                                add_node(dev, src, "GLOBAL_CLK", row, col, src)
+                                add_node(dev, mk_wname(src, half), "GLOBAL_CLK", row, col, src)
 
     # GBx0 <- GBOx
     taps = {}
@@ -2504,8 +2493,8 @@ def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
                         if row == spine_row:
                             if col == tap_col:
                                 spine = quad_index * 8 + spine_pair
-                                dev.nodes.setdefault(mk_clock_wname(device, f'SPINE{spine}', half), ("GLOBAL_CLK", set()))[1].add((row, col, f'SPINE{spine}'))
-                                dev.nodes.setdefault(mk_clock_wname(device, f'SPINE{spine + 4}', half), ("GLOBAL_CLK", set()))[1].add((row, col, f'SPINE{spine + 4}'))
+                                dev.nodes.setdefault(mk_wname(f'SPINE{spine}', half), ("GLOBAL_CLK", set()))[1].add((row, col, f'SPINE{spine}'))
+                                dev.nodes.setdefault(mk_wname(f'SPINE{spine + 4}', half), ("GLOBAL_CLK", set()))[1].add((row, col, f'SPINE{spine + 4}'))
                         else:
                             dev.nodes.setdefault(node0_name, ("GLOBAL_CLK", set()))[1].add((row, col, 'GT00'))
                             dev.nodes.setdefault(node1_name, ("GLOBAL_CLK", set()))[1].add((row, col, 'GT10'))
@@ -2923,12 +2912,12 @@ def get_logic_clock_ins(device, dat: Datfile):
                     (i, dat.gw5aStuff['CMuxTopIns'][i - 80][0] - 1,
                         dat.gw5aStuff['CMuxTopIns'][i - 80][1] - 1,
                         dat.gw5aStuff['CMuxTopIns'][i - 80][2])
-                    for i in range(wnames.clknumbers['TRBDCLK0'], wnames.clknumbers['TRMDCLK1'] + 1)
+                    for i in range(wnames.clknumbers['TRBDCLK0'], wnames.clknumbers['TRMDCLK1'] + 1) if i != wnames.clknumbers['BLMDCLK1']
                 }, {
                     (i, dat.gw5aStuff['CMuxBotIns'][i - 80][0] - 1,
                         dat.gw5aStuff['CMuxBotIns'][i - 80][1] - 1,
                         dat.gw5aStuff['CMuxBotIns'][i - 80][2])
-                    for i in range(wnames.clknumbers['TRBDCLK0'], wnames.clknumbers['TRMDCLK1'] + 1)
+                    for i in range(wnames.clknumbers['TRBDCLK0'], wnames.clknumbers['TRMDCLK1'] + 1) if i != wnames.clknumbers['BLMDCLK1']
                 }]
     # pre 5a
     return [{
