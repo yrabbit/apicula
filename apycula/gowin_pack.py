@@ -3889,7 +3889,7 @@ def route(db, tilemap, pips):
                         tile[brow][bcol] = 1
 
     for row, col, src, dest in pips:
-        if device in {'GW5A-25A'} and is_clock_pip(src, dest):
+        if device in {'GW5A-25A', 'GW5AST-138C'} and is_clock_pip(src, dest):
             set_clock_fuses(row, col, src, dest)
             continue
 
