@@ -2175,7 +2175,6 @@ def fse_create_clocks(dev, device, dat: Datfile, fse):
     for row, rd in enumerate(dev.grid):
         for col, rc in enumerate(rd):
             for dest, srcs in rc.clock_pips.items():
-                print(row, col, dest, srcs)
                 for src in srcs.keys():
                     if src in spines and not dest.startswith('GT'):
                         add_node(dev, src, "GLOBAL_CLK", row, col, src)
@@ -2398,19 +2397,47 @@ def fse_create_clocks(dev, device, dat: Datfile, fse):
 
 def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
     def mk_wname(wire, half):
-        mk_clock_wname(device, wire, half)
+        return mk_clock_wname(device, wire, half)
 
     # top half, bottom half
     spine_rows = [ [10, 28, 46], [64, 82, 100] ]
+    quad_cols = [range(37, 90), range(0, 37), range(91, 145), range(145, 182)]
 
     # Tap columns are classic with an interesting feature - the alternation of
     # columns is not interrupted when moving from WestWest to West or from East
     # to EastEast. There is only a break in the central column.
-    clock_data = {'tap_start': [[2, 1, 0, 3], [3, 2, 1, 0]]}
+    clock_data = {'tap_start': [[2, 1, 0, 3], [3, 2, 1, 0]],
+                  # (half, quad_index, row_range, spine_row)
+                  'quads': {  (0, 1, range(0, 19),   spine_rows[0][0]),
+                              (0, 1, range(19, 37),  spine_rows[0][1]),
+                              (0, 1, range(37, 55),  spine_rows[0][2]),
+                              (1, 1, range(55, 73),  spine_rows[1][0]),
+                              (1, 1, range(73, 91),  spine_rows[1][1]),
+                              (1, 1, range(91, 109), spine_rows[1][2]),
 
+                              (0, 0, range(0, 19),   spine_rows[0][0]),
+                              (0, 0, range(19, 37),  spine_rows[0][1]),
+                              (0, 0, range(37, 55),  spine_rows[0][2]),
+                              (1, 0, range(55, 73),  spine_rows[1][0]),
+                              (1, 0, range(73, 91),  spine_rows[1][1]),
+                              (1, 0, range(91, 109), spine_rows[1][2]),
+
+                              (0, 2, range(0, 19),   spine_rows[0][0]),
+                              (0, 2, range(19, 37),  spine_rows[0][1]),
+                              (0, 2, range(37, 55),  spine_rows[0][2]),
+                              (1, 2, range(55, 73),  spine_rows[1][0]),
+                              (1, 2, range(73, 91),  spine_rows[1][1]),
+                              (1, 2, range(91, 109), spine_rows[1][2]),
+
+                              (0, 3, range(0, 19),   spine_rows[0][0]),
+                              (0, 3, range(19, 37),  spine_rows[0][1]),
+                              (0, 3, range(37, 55),  spine_rows[0][2]),
+                              (1, 3, range(55, 73),  spine_rows[1][0]),
+                              (1, 3, range(73, 91),  spine_rows[1][1]),
+                              (1, 3, range(91, 109), spine_rows[1][2]),
+                        }
+                  }
     center_col = dat.grid.center_x - 1
-
-    spines = {f'SPINE{i}' for i in range(32)}
     center_row = dat.grid.center_y
     row_range = [range(center_row), range(center_row, dev.rows)]
 
@@ -2421,15 +2448,23 @@ def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
         for clk_idx, row, col, wire_idx in clk_desc:
             add_node(dev, mk_wname(wnames.clknames[clk_idx], half), "GLOBAL_CLK", row, col, wnames.wirenames[wire_idx])
             add_buf_bel(dev, row, col, wnames.wirenames[wire_idx])
-            print(clk_idx, row, col, wire_idx)
+            #print(clk_idx, row, col, wire_idx, mk_wname(wnames.clknames[clk_idx], half))
 
         for row in row_range[half]:
             rd = dev.grid[row]
             for col, rc in enumerate(rd):
                 for dest, srcs in rc.clock_pips.items():
                     for src in srcs.keys():
-                        if src in spines and not dest.startswith('GT'):
+                        if src.startswith('SPINE') and not dest.startswith('GT'):
                             add_node(dev, src, "GLOBAL_CLK", row, col, src)
+                    if dest.startswith('SPINE'):
+                        print(row, col, src, dest)
+                        add_node(dev, mk_wname(dest, half), "GLOBAL_CLK", row, col, dest)
+                        for src in { wire for wire in srcs.keys() if wire not in {'VCC', 'VSS'}}:
+                            if src.startswith('PLL'):
+                                add_node(dev, src, "PLL_O", row, col, src)
+                            else:
+                                add_node(dev, src, "GLOBAL_CLK", row, col, src)
 
     # GBx0 <- GBOx
     taps = {}
@@ -2445,7 +2480,6 @@ def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
             if (col > tap_col + 2) and (tap_col + 4 < last_col):
                 tap_col += 4
             taps.setdefault(spine_pair, {}).setdefault(tap_col, set()).add(col)
-    import ipdb; ipdb.set_trace()
     for row in range(dev.rows):
         for spine_pair, tap_desc in taps.items():
             for tap_col, cols in tap_desc.items():
@@ -2458,29 +2492,23 @@ def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
                     dev.nodes.setdefault(node1_name, ("GLOBAL_CLK", set()))[1].add((row, col, f'GB{spine_pair + 4}0'))
 
     # GTx0 <- center row GTx0
-    """
-    for spine_row, start_row, end_row, qno_l, qno_r in _clock_data[device]['quads']:
+    for half, quad_index, row_range, spine_row in clock_data['quads']:
         for spine_pair, tap_desc in taps.items():
             for tap_col, cols in tap_desc.items():
-                if tap_col < center_col:
-                    quad = qno_l
-                else:
-                    quad = qno_r
-                for col in cols - {center_col}:
+                for col in quad_cols[quad_index]:
                     node0_name = f'X{col}Y{spine_row}/GT00'
                     dev.nodes.setdefault(node0_name, ("GLOBAL_CLK", set()))[1].add((spine_row, col, 'GT00'))
                     node1_name = f'X{col}Y{spine_row}/GT10'
                     dev.nodes.setdefault(node1_name, ("GLOBAL_CLK", set()))[1].add((spine_row, col, 'GT10'))
-                    for row in range(start_row, end_row):
+                    for row in row_range:
                         if row == spine_row:
                             if col == tap_col:
-                                spine = quad * 8 + spine_pair
-                                dev.nodes.setdefault(f'SPINE{spine}', ("GLOBAL_CLK", set()))[1].add((row, col, f'SPINE{spine}'))
-                                dev.nodes.setdefault(f'SPINE{spine + 4}', ("GLOBAL_CLK", set()))[1].add((row, col, f'SPINE{spine + 4}'))
+                                spine = quad_index * 8 + spine_pair
+                                dev.nodes.setdefault(mk_clock_wname(device, f'SPINE{spine}', half), ("GLOBAL_CLK", set()))[1].add((row, col, f'SPINE{spine}'))
+                                dev.nodes.setdefault(mk_clock_wname(device, f'SPINE{spine + 4}', half), ("GLOBAL_CLK", set()))[1].add((row, col, f'SPINE{spine + 4}'))
                         else:
                             dev.nodes.setdefault(node0_name, ("GLOBAL_CLK", set()))[1].add((row, col, 'GT00'))
                             dev.nodes.setdefault(node1_name, ("GLOBAL_CLK", set()))[1].add((row, col, 'GT10'))
-    """
 
 # Segmented wires are those that run along each column of the chip and have
 # taps in each row about 4 cells wide. The height of the segment wires varies
