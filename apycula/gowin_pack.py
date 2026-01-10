@@ -3854,6 +3854,9 @@ def route(db, tilemap, pips):
         if device in {'GW5A-25A'}:
             return wnames.clknumbers[src] < wnames.clknumbers['UNK212'] \
                     or wnames.clknumbers[src] in range(wnames.clknumbers['MPLL4CLKOUT0'], wnames.clknumbers['UNK569'] + 1)
+        if device in {'GW5AST-138C'}:
+            return wnames.clknumbers[src] < wnames.clknumbers['UNK269'] \
+                    or wnames.clknumbers[src] >= wnames.clknumbers['UNK309']
         # XXX for future
         return wnames.clknumbers[src] < wnames.clknumbers['P10A']
 
