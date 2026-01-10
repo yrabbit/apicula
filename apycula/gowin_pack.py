@@ -3879,7 +3879,7 @@ def route(db, tilemap, pips):
             allowed_range = range(55) # GW5AST-138C
 
         if row not in allowed_range:
-            allowed_range = range(allowed_range.stop - 1, db.rows)
+            allowed_range = range(allowed_range.stop, db.rows)
 
         spine_enable_table = None
 
