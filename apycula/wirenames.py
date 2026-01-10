@@ -507,10 +507,10 @@ clknames_5ast138c.update({
 clknames_5ast138c.update({n: f"UNK{n}" for n in range(253, 309)})
 
 #clknames_5ast138c.update({n: f"UNK{n}" for n in range(185, 277)})
-#clknames_5ast138c[277] = 'VCC'
+clknames_5ast138c[277] = 'VCC'
 #clknames_5ast138c.update({n: f"UNK{n}" for n in range(278, 281)})
 
-#clknames_5ast138c.update({291: "GT00", 292: "GT10"})
+clknames_5ast138c.update({291: "GT00", 292: "GT10"})
 
 clknames_5ast138c.update({n: f"UNK{n}" for n in range(309, 570)}) # GW5AST-138C need these
 
