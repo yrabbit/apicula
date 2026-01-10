@@ -3888,7 +3888,7 @@ def route(db, tilemap, pips):
             spine_enable_table = f'5A_PCLK_ENABLE_{wnames.clknumbers[dest]:02}'
 
             for row, rd in enumerate(db.grid):
-                if row not in allowed-range:
+                if row not in allowed_range:
                     continue
                 for col, rc in enumerate(rd):
                     bits = set()
