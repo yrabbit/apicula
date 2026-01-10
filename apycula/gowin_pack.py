@@ -3882,7 +3882,8 @@ def route(db, tilemap, pips):
                     if src in rc.clock_pips[dest]:
                         bits = rc.clock_pips[dest][src]
                 if spine_enable_table in db.shortval[rc.ttyp] and (1, 0) in db.shortval[rc.ttyp][spine_enable_table]:
-                    bits.update(db.shortval[rc.ttyp][spine_enable_table][(1, 0)]) # XXX find the meaning
+                    bits.update(db.shortval[rc.ttyp][spine_enable_table][(1, 0)]) # XXX move to attrs?
+                    print("Enable spine by {spine_enable_table} at ({row}, {col})")
                 if bits:
                     tile = tilemap[(row, col)]
                     for brow, bcol in bits:
