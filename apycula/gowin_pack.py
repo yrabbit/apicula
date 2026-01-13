@@ -3960,7 +3960,7 @@ def gsr(db, tilemap, args):
 
     cfg_attrs = set()
     cfg_function = 'F0'
-    if device in {'GW5A-25A'}:
+    if device in {'GW5A-25A', 'GW5AST-138C'}:
         cfg_function = 'F1'
     for k, val in {'GSR': 'USED', 'GOE': cfg_function}.items():
         if k not in attrids.cfg_attrids:
