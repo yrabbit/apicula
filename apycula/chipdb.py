@@ -3138,11 +3138,14 @@ def make_port(dev, row, col, r, c, wire, bel_name, port, wire_type, pins):
     pins[port] = bel.portmap[port]
 
 def fse_create_pincfg(dev, device, dat):
-    if device not in {'GW5A-25A'}:
+    if device not in {'GW5A-25A', 'GW5AST-138C'}:
         return
     # place the bel where a change in routing has been experimentally observed
     # when the I2C pin function is disabled/enabled
-    row, col = (9, 88)
+    if device in {'GW5A-25A'}:
+        row, col = (9, 88)
+    elif device in {'GW5AST-138C'}:
+        row, col = (108, 166)
     dev.extra_func.setdefault((row, col), {}).update({'pincfg': {}})
     extra_func = dev.extra_func[(row, col)]['pincfg']
 
@@ -3152,8 +3155,9 @@ def fse_create_pincfg(dev, device, dat):
         r, c, wire = dat.gw5aStuff['CibFabricNode'][idx]
         make_port(dev, row, col, r, c, wire, 'PINCFG', port, 'PINCFG_IN', ins)
 
-    # special input (not in the DAT file)
-    make_port(dev, row, col, 10, 89, 17, 'PINCFG', 'I2C', 'PINCFG_IN', ins)
+    if device in {'GW5A-25A'}:
+        # special input (not in the DAT file)
+        make_port(dev, row, col, 10, 89, 17, 'PINCFG', 'I2C', 'PINCFG_IN', ins)
 
 def fse_create_emcu(dev, device, dat):
     # Mentions of the NS-2 series are excluded from the latest Gowin
@@ -3425,6 +3429,8 @@ def set_chip_flags(dev, device):
         dev.chip_flags.append("HAS_CIN_MUX")
         dev.chip_flags.append("NEED_BSRAM_RESET_FIX")
         dev.chip_flags.append("NEED_SDP_FIX")
+    if device in {'GW5AST-138C'}:
+        dev.chip_flags.append("NEED_CFGPINS_INVERSION")
 
     if device in {'GW5A-25A'}:
         dev.dcs_prefix = "CLKIN"
