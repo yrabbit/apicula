@@ -3153,7 +3153,8 @@ def fse_create_pincfg(dev, device, dat):
     inputs = [('SSPI', 1), ('UNK0_VCC', 0), ('UNK1_VCC', 2), ('UNK2_VCC', 3), ('UNK3_VCC', 4), ('UNK4_VCC', 5), ]
     for port, idx in inputs:
         r, c, wire = dat.gw5aStuff['CibFabricNode'][idx]
-        make_port(dev, row, col, r, c, wire, 'PINCFG', port, 'PINCFG_IN', ins)
+        if r != 65535:
+            make_port(dev, row, col, r, c, wire, 'PINCFG', port, 'PINCFG_IN', ins)
 
     if device in {'GW5A-25A'}:
         # special input (not in the DAT file)
