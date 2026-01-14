@@ -3426,6 +3426,7 @@ def set_chip_flags(dev, device):
         dev.chip_flags.append("HAS_CLKDIV_HCLK")
     if device in {'GW5A-25A'}:
         dev.chip_flags.append("HAS_PINCFG")
+        dev.chip_flags.append("HAS_I2CCFG")
         dev.chip_flags.append("HAS_DFF67")
         dev.chip_flags.append("HAS_CIN_MUX")
         dev.chip_flags.append("NEED_BSRAM_RESET_FIX")
