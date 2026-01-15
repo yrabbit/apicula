@@ -4014,7 +4014,11 @@ def dualmode_pins(db, tilemap, args):
     if args.reconfign_as_gpio:
         pin_flags['RECONFIG_AS_GPIO'] = 'YES'
     if args.cpu_as_gpio:
-        pin_flags['CPU_AS_GPIO'] = 'YES'
+        if device in {'GW5A-25A'}:
+            pin_flags['CPU_AS_GPIO_25'] = 'YES'
+        elif device in {'GW5AST-138C'}:
+            pin_flags['CPU_AS_GPIO_0'] = 'YES'
+            pin_flags['CPU_AS_GPIO_1'] = 'YES'
     if args.i2c_as_gpio:
         pin_flags['I2C_AS_GPIO'] = 'YES'
 
