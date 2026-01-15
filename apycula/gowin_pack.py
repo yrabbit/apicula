@@ -3960,15 +3960,17 @@ def gsr(db, tilemap, args):
 
     cfg_attrs = set()
     cfg_function = 'F0'
+    cfg_done_function = 'F0'
     if device in {'GW5A-25A', 'GW5AST-138C'}:
         cfg_function = 'F1'
+        cfg_done_function = 'F3'
     for k, val in {'GSR': 'USED', 'GOE': cfg_function}.items():
         if k not in attrids.cfg_attrids:
             print(f'XXX CFG GSR: add {k} key handle')
         else:
             add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids[k], attrids.cfg_attrvals[val])
     add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids['GSR'], attrids.cfg_attrvals[cfg_function])
-    add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids['DONE'], attrids.cfg_attrvals[cfg_function])
+    add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids['DONE'], attrids.cfg_attrvals[cfg_done_function])
     add_attr_val(db, 'CFG', cfg_attrs, attrids.cfg_attrids['GWD'], attrids.cfg_attrvals[cfg_function])
 
     # The configuration fuses are described in the ['shortval'][60] table, global set/reset is
