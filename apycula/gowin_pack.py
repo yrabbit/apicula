@@ -4000,7 +4000,8 @@ def gsr(db, tilemap, args):
 def dualmode_pins(db, tilemap, args):
     pin_flags = {'JTAG_AS_GPIO': 'UNKNOWN', 'SSPI_AS_GPIO': 'UNKNOWN', 'MSPI_AS_GPIO': 'UNKNOWN',
             'DONE_AS_GPIO': 'UNKNOWN', 'RECONFIG_AS_GPIO': 'UNKNOWN', 'READY_AS_GPIO': 'UNKNOWN',
-                 'CPU_AS_GPIO': 'UNKNOWN', 'I2C_AS_GPIO': 'UNKNOWN'}
+                 'CPU_AS_GPIO_25': 'UNKNOWN', 'CPU_AS_GPIO_0': 'UNKNOWN', 'CPU_AS_GPIO_1': 'UNKNOWN',
+                 'I2C_AS_GPIO': 'UNKNOWN'}
     if args.jtag_as_gpio:
         pin_flags['JTAG_AS_GPIO'] = 'YES'
     if args.sspi_as_gpio:
