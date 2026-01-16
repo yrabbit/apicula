@@ -2985,19 +2985,19 @@ def fse_create_spine_select_wires(dev, device):
     dev.spine_select_wires = {}
     if device in {'GW5AST-138C'}:
         top = dev.spine_select_wires.setdefault('top', {})
-        top['SPINE17'] = [(27, 93, 'CLK1')]
-        top['SPINE18'] = [(27, 93, 'CLK0'), (27, 93, 'CLK2')]
-        top['SPINE19'] = [(27, 94, 'CLK0'), (27, 94, 'CLK1')]
-        top['SPINE20'] = [(27, 93, 'A7'), (27, 93, 'A6')]
-        top['SPINE21'] = [(27, 94, 'A6'), (27, 94, 'CLK2')]
-        top['SPINE23'] = [(27, 92, 'A7'), (27, 92, 'A6')]
+        top['SPINE17'] = [(27, 93, 'CLK1', 0)]
+        top['SPINE18'] = [(27, 93, 'CLK0', 0), (27, 93, 'CLK2', 0)]
+        top['SPINE19'] = [(27, 94, 'CLK0', 0), (27, 94, 'CLK1', 0)]
+        top['SPINE20'] = [(27, 93, 'A7', 0), (27, 93, 'A6', 0)]
+        top['SPINE21'] = [(27, 94, 'A6', 0), (27, 94, 'CLK2', 0)]
+        top['SPINE23'] = [(27, 92, 'A7', 0), (27, 92, 'A6', 0)]
         bottom = dev.spine_select_wires.setdefault('bottom', {})
-        bottom['SPINE17'] = [(81, 93, 'CLK1')]
-        bottom['SPINE18'] = [(81, 93, 'CLK0'), (81, 93, 'CLK2')]
-        bottom['SPINE19'] = [(81, 94, 'CLK0'), (81, 94, 'CLK1')]
-        bottom['SPINE20'] = [(81, 93, 'A7'), (81, 93, 'A6')]
-        bottom['SPINE21'] = [(81, 94, 'A6'), (81, 94, 'CLK2')]
-        bottom['SPINE23'] = [(81, 92, 'A7'), (81, 92, 'A6')]
+        bottom['SPINE17'] = [(81, 93, 'CLK1', 0)]
+        bottom['SPINE18'] = [(81, 93, 'CLK0', 0), (81, 93, 'CLK2', 0)]
+        bottom['SPINE19'] = [(81, 94, 'CLK0', 0), (81, 94, 'CLK1', 0)]
+        bottom['SPINE20'] = [(81, 93, 'A7', 0), (81, 93, 'A6', 0)]
+        bottom['SPINE21'] = [(81, 94, 'A6', 0), (81, 94, 'CLK2', 0)]
+        bottom['SPINE23'] = [(81, 92, 'A7', 0), (81, 92, 'A6', 0)]
 
 def fse_create_gsr(dev, device):
     # Since, in the general case, there are several cells that have a
