@@ -152,6 +152,12 @@ class Device:
     # say tile (0, 0) is both IOT1 and IOL1. Here we specify how to interpret the
     # corners.
     corner_tiles_io: Dict[Tuple[int, int], str] = field(default_factory=dict)
+    # GW5AST-138C has an interesting mechanism for clock spines - to use some
+    # of them, it is not enough to set the fuses, you also need to supply VCC
+    # or GND to some kind of MUX. This can only be done in nextpnr, so we pass
+    # a list of spines and MUX inputs, as well as which network to connect to (1/0).
+    # { 'top'/'bottom' : { spine : [(row, col, wire, 1/0), (row, col, wire, 1/0)...]}}
+    spine_select_wires: Dict[str, Dict[str, List[Tuple[int, int, str, int]]]] = field(default_factory=dict)
 
     @property
     def rows(self):
@@ -2975,6 +2981,24 @@ def fse_create_osc(dev, device, fse):
                                 add_node(dev, dest, "GLOBAL_CLK", a_row, a_col, dest)
                 skip_nodes = True
 
+def fse_create_spine_select_wires(dev, device):
+    dev.spine_select_wires = {}
+    if device in {'GW5AST-138C'}:
+        top = dev.spine_select_wires.setdefault('top', {})
+        top['SPINE17'] = [(27, 93, 'CLK1')]
+        top['SPINE18'] = [(27, 93, 'CLK0'), (27, 93, 'CLK2')]
+        top['SPINE19'] = [(27, 94, 'CLK0'), (27, 94, 'CLK1')]
+        top['SPINE20'] = [(27, 93, 'A7'), (27, 93, 'A6')]
+        top['SPINE21'] = [(27, 94, 'A6'), (27, 94, 'CLK2')]
+        top['SPINE23'] = [(27, 92, 'A7'), (27, 92, 'A6')]
+        bottom = dev.spine_select_wires.setdefault('bottom', {})
+        bottom['SPINE17'] = [(81, 93, 'CLK1')]
+        bottom['SPINE18'] = [(81, 93, 'CLK0'), (81, 93, 'CLK2')]
+        bottom['SPINE19'] = [(81, 94, 'CLK0'), (81, 94, 'CLK1')]
+        bottom['SPINE20'] = [(81, 93, 'A7'), (81, 93, 'A6')]
+        bottom['SPINE21'] = [(81, 94, 'A6'), (81, 94, 'CLK2')]
+        bottom['SPINE23'] = [(81, 92, 'A7'), (81, 92, 'A6')]
+
 def fse_create_gsr(dev, device):
     # Since, in the general case, there are several cells that have a
     # ['shortval'][20] table, in this case we do a test example with the GSR
@@ -3482,6 +3506,7 @@ def from_fse(device, fse, dat: Datfile):
     fse_fill_logic_tables(dev, fse, device)
     dev.grid = [[tiles[ttyp] for ttyp in row] for row in fse['header']['grid'][61]]
     fse_create_clocks(dev, device, dat, fse)
+    fse_create_spine_select_wires(dev, device)
     fse_create_pll_clock_aliases(dev, device)
     fse_create_bottom_io(dev, device)
     fse_create_tile_types(dev, device, dat)
