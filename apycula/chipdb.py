@@ -158,6 +158,7 @@ class Device:
     # a list of spines and MUX inputs, as well as which network to connect to (1/0).
     # { 'top'/'bottom' : { spine : [(row, col, wire, 1/0), (row, col, wire, 1/0)...]}}
     spine_select_wires: Dict[str, Dict[str, List[Tuple[int, int, str, int]]]] = field(default_factory=dict)
+    last_top_row: int = field(default=0)
 
     @property
     def rows(self):
@@ -2984,6 +2985,7 @@ def fse_create_osc(dev, device, fse):
 def fse_create_spine_select_wires(dev, device):
     dev.spine_select_wires = {}
     if device in {'GW5AST-138C'}:
+        dev.last_top_row = 54
         top = dev.spine_select_wires.setdefault('top', {})
         top['SPINE17'] = [(27, 93, 'CLK1', 0)]
         top['SPINE18'] = [(27, 93, 'CLK0', 0), (27, 93, 'CLK2', 0)]
@@ -2998,6 +3000,8 @@ def fse_create_spine_select_wires(dev, device):
         bottom['SPINE20'] = [(81, 93, 'A7', 0), (81, 93, 'A6', 0)]
         bottom['SPINE21'] = [(81, 94, 'A6', 0), (81, 94, 'CLK2', 0)]
         bottom['SPINE23'] = [(81, 92, 'A7', 0), (81, 92, 'A6', 0)]
+    else:
+        dev.last_top_row = dev.rows - 1
 
 def fse_create_gsr(dev, device):
     # Since, in the general case, there are several cells that have a
