@@ -2988,14 +2988,11 @@ def fse_create_logic2clk(dev, device, dat: Datfile):
         print(f"Create logic to clock gates. Half:{half}")
         for clkwire_idx, row, col, wire_idx in clk_desc:
             if row != -2:
-                if dev.grid[row][col].ttyp in bridge_tile_types_138:
-                    add_node(dev, mk_clock_wname(device, wnames.wirenames[wire_idx], half), "GLOBAL_CLK", row, col, wnames.wirenames[wire_idx])
-                else:
-                    add_node(dev, mk_clock_wname(device, wnames.clknames[clkwire_idx], half), "GLOBAL_CLK", row, col, wnames.wirenames[wire_idx])
+                add_node(dev, mk_clock_wname(device, wnames.clknames[clkwire_idx], half), "GLOBAL_CLK", row, col, wnames.wirenames[wire_idx])
+                print(clkwire_idx, row, col, wire_idx, mk_clock_wname(device, wnames.clknames[clkwire_idx], half))
                 add_buf_bel(dev, row, col, wnames.wirenames[wire_idx])
                 # Make list of the clock gates for nextpnr
                 dev.extra_func.setdefault((row, col), {}).setdefault('clock_gates', []).append(wnames.wirenames[wire_idx])
-                print(clkwire_idx, row, col, wire_idx, mk_clock_wname(device, wnames.clknames[clkwire_idx], half))
 
 def fse_create_osc(dev, device, fse):
     if device in {'GW5AST-138C'}:
