@@ -218,6 +218,9 @@ def set_corners_io(db, device):
         db.corner_tiles_io[db.rows - 1, db.cols - 1] = 'B'
 
 
+# This is clock bridge in GW5AST-138C
+bridge_tile_types_138 = {80, 81, 82, 83, 84, 85}
+
 # XXX GW1N-4 and GW1NS-4 have next data in dat.portmap['CmuxIns']:
 # 62 [11, 1, 126]
 # 63 [11, 1, 126]
@@ -329,6 +332,18 @@ def fse_clock_pips_138(fse, ttyp, device):
                     if destid not in {291, 292}:
                         raise Exception(f"Spine is connected to wire {destid}. Only 291 or 292 are allowed.")
                     dest = {291: 'GT00', 292: 'GT10'}[destid]
+
+                # spines as dest can only have Bridge as source
+                if dest.startswith('SPINE'):
+                    if ttyp not in bridge_tile_types_138:
+                        if not src.startswith('CBRIDGEOUT'):
+                            continue
+                    else:
+                        # bridge spines may get signal from logic->gates and these gates must have suffix
+                        if srcid not in range(139, 163):
+                            continue
+                        src = mk_clock_wname(device, src, half)
+
                 # 159 or BLMDCLK1 - a rare case when one cell contains both
                 # table 91 and table 90 and they have conflicting wire.
                 # ignore for now
@@ -337,6 +352,30 @@ def fse_clock_pips_138(fse, ttyp, device):
 
                 pips.setdefault(dest, {})[src] = fuses
 
+    if _wire_tables['CLOCK_MUX'] in fse[ttyp]['wire']:
+        for srcid, destid, *fuses in fse[ttyp]['wire'][_wire_tables['CLOCK_MUX']]:
+            fuses = {fuse.fuse_lookup(fse, ttyp, f, device) for f in unpad(fuses)}
+            if srcid < 0:
+                fuses = set()
+                srcid = -srcid
+            src = wnames.clknames[srcid]
+            dest = wnames.clknames[destid]
+            # XXX skip 6 and 7 for now
+            if srcid in range(wnames.clknumbers['P16A'], wnames.clknumbers['P47D'] + 1):
+                continue
+            # XXX skip longwires
+            if srcid in range(164, 237):
+                continue
+            # XXX ignore unknown wires
+            if srcid in range(105, 129):
+                continue
+            if srcid in range(253, 269):
+                continue
+
+            # 277 as source is VCC
+            if srcid == 277:
+                src = 'VCC'
+            pips.setdefault(dest, {})[src] = fuses
     return pips
 
 
@@ -2103,6 +2142,7 @@ def get_clock_ins(device, dat: Datfile):
         return {} # In this series, there is no way to directly use the GCLK pins bypassing HCLK.
     elif device in {'GW5AST-138C'}:
         # return 2 dictionaries: for top and for bottom halves
+
         return [{
                 (i, dat.gw5aStuff['CMuxTopIns'][i - 80][0] - 1, dat.gw5aStuff['CMuxTopIns'][i - 80][1] - 1,
                     dat.gw5aStuff['CMuxTopIns'][i - 80][2])
@@ -2390,12 +2430,22 @@ def fse_create_clocks(dev, device, dat: Datfile, fse):
 #                  +- Y100 -----------------------------------------
 #
 #
-
+# The bridge between the two halves stands apart.
+# For simplicity, at the initial stage, we will organise the clocks as follows:
+#  - the halves receive a signal only from the bridge, i.e. the sources will only be
+#    CBRIDGEOUT_TOP0,1,6 and CBRIDGEOUT_BOTTOM0,1,6 (these wires are present in
+#    both halves, i.e. 6 in each.)
+#  - the bridge only accepts signals from the logic->clock gates. Until the PLL
+#    appears, this will not worsen the situation in any way - in Tangmega138k,
+#    the external generator is soldered to ordinary non-specialised IO anyway, so
+#    the gates will be used regardless.
+#  - the possibility of directly connecting logic->clock gates to half spines
+#    is temporarily disabled.
 def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
     def mk_wname(wire, half):
         return mk_clock_wname(device, wire, half)
 
-    # top half, bottom half
+    # top half, bottom half and bridge tile types
     spine_rows = [ [10, 28, 46], [64, 82, 100] ]
     quad_cols = [range(37, 90), range(0, 37), range(91, 145), range(145, 182)]
 
@@ -2441,10 +2491,10 @@ def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
     for half in range(2):
         clk_desc = get_clock_ins(device, dat)[half]
         print(f"Create clock wires. Half:{half}")
-        for clk_idx, row, col, wire_idx in clk_desc:
-            add_node(dev, mk_wname(wnames.clknames[clk_idx], half), "GLOBAL_CLK", row, col, wnames.wirenames[wire_idx])
-            add_buf_bel(dev, row, col, wnames.wirenames[wire_idx])
-            #print(clk_idx, row, col, wire_idx, mk_wname(wnames.clknames[clk_idx], half))
+        #for clk_idx, row, col, wire_idx in clk_desc:
+        #    add_node(dev, mk_wname(wnames.clknames[clk_idx], half), "GLOBAL_CLK", row, col, wnames.wirenames[wire_idx])
+        #    add_buf_bel(dev, row, col, wnames.wirenames[wire_idx])
+        #    #print(clk_idx, row, col, wire_idx, mk_wname(wnames.clknames[clk_idx], half))
 
         for row in row_range[half]:
             rd = dev.grid[row]
@@ -2454,13 +2504,14 @@ def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
                         if src.startswith('SPINE') and not dest.startswith('GT'):
                             add_node(dev, src, "GLOBAL_CLK", row, col, src)
                     if dest.startswith('SPINE'):
-                        print(row, col, src, dest)
+                        print(row, col, dev.grid[row][col].ttyp, dest)
                         add_node(dev, mk_wname(dest, half), "GLOBAL_CLK", row, col, dest)
                         for src in { wire for wire in srcs.keys() if wire not in {'VCC', 'VSS'}}:
                             if src.startswith('PLL'):
                                 add_node(dev, mk_wname(src, half), "PLL_O", row, col, src)
                             else:
                                 add_node(dev, mk_wname(src, half), "GLOBAL_CLK", row, col, src)
+                                print("  << in ", row, col, dev.grid[row][col].ttyp, mk_wname(src, half))
 
     # GBx0 <- GBOx
     taps = {}
