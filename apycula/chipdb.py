@@ -343,12 +343,7 @@ def fse_clock_pips_138(fse, ttyp, device):
                         if srcid not in range(139, 163):
                             continue
                         src = mk_clock_wname(device, src, half)
-
-                # 159 or BLMDCLK1 - a rare case when one cell contains both
-                # table 91 and table 90 and they have conflicting wire.
-                # ignore for now
-                if srcid == 159:
-                    continue
+                        print(ttyp, half, dest, src)
 
                 pips.setdefault(dest, {})[src] = fuses
 
@@ -2510,7 +2505,10 @@ def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
                             if src.startswith('PLL'):
                                 add_node(dev, mk_wname(src, half), "PLL_O", row, col, src)
                             else:
-                                add_node(dev, mk_wname(src, half), "GLOBAL_CLK", row, col, src)
+                                if rc.ttyp in bridge_tile_types_138:
+                                    add_node(dev, src, "GLOBAL_CLK", row, col, src)
+                                else:
+                                    add_node(dev, mk_wname(src, half), "GLOBAL_CLK", row, col, src)
                                 print("  << in ", row, col, dev.grid[row][col].ttyp, mk_wname(src, half))
 
     # GBx0 <- GBOx
@@ -2970,12 +2968,12 @@ def get_logic_clock_ins(device, dat: Datfile):
                     (i, dat.gw5aStuff['CMuxTopIns'][i - 80][0] - 1,
                         dat.gw5aStuff['CMuxTopIns'][i - 80][1] - 1,
                         dat.gw5aStuff['CMuxTopIns'][i - 80][2])
-                    for i in range(wnames.clknumbers['TRBDCLK0'], wnames.clknumbers['TRMDCLK1'] + 1) if i != wnames.clknumbers['BLMDCLK1']
+                    for i in range(wnames.clknumbers['TRBDCLK0'], wnames.clknumbers['TRMDCLK1'] + 1)
                 }, {
                     (i, dat.gw5aStuff['CMuxBotIns'][i - 80][0] - 1,
                         dat.gw5aStuff['CMuxBotIns'][i - 80][1] - 1,
                         dat.gw5aStuff['CMuxBotIns'][i - 80][2])
-                    for i in range(wnames.clknumbers['TRBDCLK0'], wnames.clknumbers['TRMDCLK1'] + 1) if i != wnames.clknumbers['BLMDCLK1']
+                    for i in range(wnames.clknumbers['TRBDCLK0'], wnames.clknumbers['TRMDCLK1'] + 1)
                 }]
     # pre 5a
     return [{
@@ -2990,7 +2988,10 @@ def fse_create_logic2clk(dev, device, dat: Datfile):
         print(f"Create logic to clock gates. Half:{half}")
         for clkwire_idx, row, col, wire_idx in clk_desc:
             if row != -2:
-                add_node(dev, mk_clock_wname(device, wnames.clknames[clkwire_idx], half), "GLOBAL_CLK", row, col, wnames.wirenames[wire_idx])
+                if dev.grid[row][col].ttyp in bridge_tile_types_138:
+                    add_node(dev, mk_clock_wname(device, wnames.wirenames[wire_idx], half), "GLOBAL_CLK", row, col, wnames.wirenames[wire_idx])
+                else:
+                    add_node(dev, mk_clock_wname(device, wnames.clknames[clkwire_idx], half), "GLOBAL_CLK", row, col, wnames.wirenames[wire_idx])
                 add_buf_bel(dev, row, col, wnames.wirenames[wire_idx])
                 # Make list of the clock gates for nextpnr
                 dev.extra_func.setdefault((row, col), {}).setdefault('clock_gates', []).append(wnames.wirenames[wire_idx])
