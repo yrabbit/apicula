@@ -343,7 +343,6 @@ def fse_clock_pips_138(fse, ttyp, device):
                         if srcid not in range(139, 163):
                             continue
                         src = mk_clock_wname(device, src, half)
-                        print(ttyp, half, dest, src)
 
                 pips.setdefault(dest, {})[src] = fuses
 
@@ -2428,8 +2427,8 @@ def fse_create_clocks(dev, device, dat: Datfile, fse):
 # The bridge between the two halves stands apart.
 # For simplicity, at the initial stage, we will organise the clocks as follows:
 #  - the halves receive a signal only from the bridge, i.e. the sources will only be
-#    CBRIDGEOUT_TOP0,1,6 and CBRIDGEOUT_BOTTOM0,1,6 (these wires are present in
-#    both halves, i.e. 6 in each.)
+#    CBRIDGEOUT_TOP and CBRIDGEOUT_BOTTOM (these wires are present in
+#    both halves)
 #  - the bridge only accepts signals from the logic->clock gates. Until the PLL
 #    appears, this will not worsen the situation in any way - in Tangmega138k,
 #    the external generator is soldered to ordinary non-specialised IO anyway, so
@@ -2439,6 +2438,17 @@ def fse_create_clocks(dev, device, dat: Datfile, fse):
 def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
     def mk_wname(wire, half):
         return mk_clock_wname(device, wire, half)
+
+    def spine_to_bridgeout(spine):
+        idx = wnames.clknumbers[spine]
+        if idx >= wnames.clknumbers['SPINE16']:
+            idx -= wnames.clknumbers['SPINE16']
+            half = 'BOTTOM'
+        else:
+            idx -= wnames.clknumbers['SPINE8']
+            half = 'TOP'
+        return half, idx
+
 
     # top half, bottom half and bridge tile types
     spine_rows = [ [10, 28, 46], [64, 82, 100] ]
@@ -2499,8 +2509,15 @@ def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
                         if src.startswith('SPINE') and not dest.startswith('GT'):
                             add_node(dev, src, "GLOBAL_CLK", row, col, src)
                     if dest.startswith('SPINE'):
-                        print(row, col, dev.grid[row][col].ttyp, dest)
-                        add_node(dev, mk_wname(dest, half), "GLOBAL_CLK", row, col, dest)
+                        # spines in clock bridge cells may only lead to bridge outs
+                        if rc.ttyp in bridge_tile_types_138:
+                            top_bottom, idx = spine_to_bridgeout(dest)
+                            bridge_out_node = f'CBRIDGEOUT_{top_bottom}{idx}'
+                            print(row, col, dev.grid[row][col].ttyp, dest, 'BRIDGE', bridge_out_node)
+                            add_node(dev, bridge_out_node, "GLOBAL_CLK", row, col, dest)
+                        else:
+                            print(row, col, dev.grid[row][col].ttyp, dest)
+                            add_node(dev, mk_wname(dest, half), "GLOBAL_CLK", row, col, dest)
                         for src in { wire for wire in srcs.keys() if wire not in {'VCC', 'VSS'}}:
                             if src.startswith('PLL'):
                                 add_node(dev, mk_wname(src, half), "PLL_O", row, col, src)
@@ -2508,7 +2525,10 @@ def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
                                 if rc.ttyp in bridge_tile_types_138:
                                     add_node(dev, src, "GLOBAL_CLK", row, col, src)
                                 else:
-                                    add_node(dev, mk_wname(src, half), "GLOBAL_CLK", row, col, src)
+                                    if src.startswith('CBRIDGEOUT'):
+                                        add_node(dev, src, "GLOBAL_CLK", row, col, src)
+                                    else:
+                                        add_node(dev, mk_wname(src, half), "GLOBAL_CLK", row, col, src)
                                 print("  << in ", row, col, dev.grid[row][col].ttyp, mk_wname(src, half))
 
     # GBx0 <- GBOx
@@ -3036,19 +3056,19 @@ def fse_create_spine_select_wires(dev, device):
     if device in {'GW5AST-138C'}:
         dev.last_top_row = 54
         top = dev.spine_select_wires.setdefault('top', {})
-        top['SPINE17'] = [(27, 93, 'CLK1', 0)]
-        top['SPINE18'] = [(27, 93, 'CLK0', 0), (27, 93, 'CLK2', 0)]
-        top['SPINE19'] = [(27, 94, 'CLK0', 0), (27, 94, 'CLK1', 0)]
-        top['SPINE20'] = [(27, 93, 'A7', 0), (27, 93, 'A6', 0)]
-        top['SPINE21'] = [(27, 94, 'A6', 0), (27, 94, 'CLK2', 0)]
-        top['SPINE23'] = [(27, 92, 'A7', 0), (27, 92, 'A6', 0)]
+        top['SPINE17'] = [(27, 93, 'CLK1', 1)]
+        top['SPINE18'] = [(27, 93, 'CLK0', 1), (27, 93, 'CLK2', 1)]
+        top['SPINE19'] = [(27, 94, 'CLK0', 1), (27, 94, 'CLK1', 1)]
+        top['SPINE20'] = [(27, 93, 'A7', 1), (27, 93, 'A6', 1)]
+        top['SPINE21'] = [(27, 94, 'A6', 1), (27, 94, 'CLK2', 1)]
+        top['SPINE23'] = [(27, 92, 'A7', 1), (27, 92, 'A6', 1)]
         bottom = dev.spine_select_wires.setdefault('bottom', {})
-        bottom['SPINE17'] = [(81, 93, 'CLK1', 0)]
-        bottom['SPINE18'] = [(81, 93, 'CLK0', 0), (81, 93, 'CLK2', 0)]
-        bottom['SPINE19'] = [(81, 94, 'CLK0', 0), (81, 94, 'CLK1', 0)]
-        bottom['SPINE20'] = [(81, 93, 'A7', 0), (81, 93, 'A6', 0)]
-        bottom['SPINE21'] = [(81, 94, 'A6', 0), (81, 94, 'CLK2', 0)]
-        bottom['SPINE23'] = [(81, 92, 'A7', 0), (81, 92, 'A6', 0)]
+        bottom['SPINE17'] = [(81, 93, 'CLK1', 1)]
+        bottom['SPINE18'] = [(81, 93, 'CLK0', 1), (81, 93, 'CLK2', 1)]
+        bottom['SPINE19'] = [(81, 94, 'CLK0', 1), (81, 94, 'CLK1', 1)]
+        bottom['SPINE20'] = [(81, 93, 'A7', 1), (81, 93, 'A6', 1)]
+        bottom['SPINE21'] = [(81, 94, 'A6', 1), (81, 94, 'CLK2', 1)]
+        bottom['SPINE23'] = [(81, 92, 'A7', 1), (81, 92, 'A6', 1)]
     else:
         dev.last_top_row = dev.rows - 1
 
