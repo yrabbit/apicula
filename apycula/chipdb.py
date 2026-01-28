@@ -309,7 +309,6 @@ def fse_clock_pips_138(fse, ttyp, device):
         spine_idx = int(dest[5:]) % 8
         return src[-1] == { True: "02136574", False: "30214657"}[top][spine_idx]
 
-
     pips = {}
     for half in range(2):
         table = clock_MUX_tables[half]
@@ -488,7 +487,7 @@ def fse_luts(fse, ttyp, device):
     # main fuse: enable two ALUs in the slice
     # shortval(25/26/27) [1, 0, fuses]
     for cls, fuse_idx in enumerate([25, 26, 27, 28]):
-        if fuse_idx == 28 and device not in {'GW5A-25A'}:
+        if fuse_idx == 28 and device not in {'GW5A-25A', 'GW5AST-138C'}:
             continue
         data = fse[ttyp]['shortval'][fuse_idx]
         for i in range(2):
