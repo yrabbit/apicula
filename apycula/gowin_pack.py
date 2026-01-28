@@ -3865,6 +3865,8 @@ def do_hclk_banks(db, row, col, src, dest):
 def route(db, tilemap, pips):
     # The mux for clock wires can be "spread" across several cells. Here we determine whether pip is such a candidate.
     def is_clock_pip(src, dest):
+        if src[8:].startswith('_BOT') or src[8:].startswith('_TOP'):
+            return True
         if src not in wnames.clknumbers:
             return False
         if dest not in wnames.clknumbers:
@@ -3884,44 +3886,53 @@ def route(db, tilemap, pips):
 
     if device in {'GW5AST-138C'}:
         clock_bridge_ttypes = range(80, 86) # XXX clock mux bridge cells
-        clock_bridge_cols = {col for col in db.cols() for row in db.rows() if db.grid[row][col].ttyp in lock_bridge_ttypes}
+        clock_bridge_cols = {col for col in range(db.cols) for row in range(db.rows) if db.grid[row][col].ttyp in clock_bridge_ttypes}
+        clock_bridge_rows = {54}
 
-    def set_clock_fuses(row, col, src, dest):
+    def set_clock_fuses(row_, col_, src, dest):
         # SPINE->{GT00, GT10} must be set in the cell only
         if dest in {'GT00', 'GT10'}:
-            bits = db.grid[row - 1][col - 1].clock_pips[dest][src]
-            tile = tilemap[(row - 1, col - 1)]
+            bits = db.grid[row_ - 1][col_ - 1].clock_pips[dest][src]
+            tile = tilemap[(row_ - 1, col_ - 1)]
             for brow, bcol in bits:
                 tile[brow][bcol] = 1
             return
 
         # we need to separate top and bottom halves of the 138k clocks
+        # area - top, bottom or clock bridge - 'T', 'B', 'C'
+        area = 'T'
         allowed_rows = range(db.rows)
         allowed_cols = range(db.cols)
         if device in {'GW5AST-138C'}:
             allowed_rows = range(55) # GW5AST-138C
 
-            if row not in allowed_rows:
-                allowed_rows = range(allowed_range.stop, db.rows)
-            elif db.grid[row][col].ttyp in clock_bridge_ttypes:
+            if row_ - 1 not in allowed_rows:
+                allowed_rows = range(allowed_rows.stop, db.rows)
+                area = 'B'
+            elif db.grid[row_ - 1][col_ - 1].ttyp in clock_bridge_ttypes:
+                allowed_rows = clock_bridge_rows
                 allowed_cols = clock_bridge_cols
+                area = 'C'
 
         spine_enable_table = None
 
-        if dest.startswith('SPINE') and dest not in used_spines:
-            used_spines.update({dest})
+        if dest.startswith('SPINE') and (area, dest) not in used_spines:
+            used_spines.update({(area, dest)})
             spine_enable_table = f'5A_PCLK_ENABLE_{wnames.clknumbers[dest]:02}'
 
             for row, rd in enumerate(db.grid):
-                if row in allowed_rows and col in allowed_cols:
+                if row in allowed_rows:
                     for col, rc in enumerate(rd):
+                        if col in allowed_cols:
+                            if device in {'GW5AST-138C'} and area == 'T' and row in clock_bridge_rows and col in clock_bridge_cols:
+                                continue
                         bits = set()
                         if dest in rc.clock_pips:
                             if src in rc.clock_pips[dest]:
                                 bits = rc.clock_pips[dest][src]
                         if spine_enable_table in db.shortval[rc.ttyp] and (1, 0) in db.shortval[rc.ttyp][spine_enable_table]:
                             bits.update(db.shortval[rc.ttyp][spine_enable_table][(1, 0)]) # XXX move to attrs?
-                            print(f"Enable spine by {spine_enable_table} at ({row}, {col})")
+                            print(f"Enable spine {dest} <- {src} ({row_}, {col_}) by {spine_enable_table} at ({row}, {col})")
                         if bits:
                             tile = tilemap[(row, col)]
                             for brow, bcol in bits:
