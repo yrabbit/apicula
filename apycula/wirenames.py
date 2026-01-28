@@ -444,10 +444,9 @@ clknames_5ast138c.update({n: f"LWT{n - 32}" for n in range(32, 40)})
 clknames_5ast138c.update({n: f"LWB{n - 40}" for n in range(40, 48)})
 # Apparently the names of the 8 primary clock wires comprise the quadrant
 # number and the number of the actual clock wire: P34 stands for primary clock
-# #4, 3rd quadrant. The quadrants are numbered counterclockwise:
-# 2        1
-#   center
-# 3        4
+# #4, 3rd quadrant. The quadrants are numbered as:
+# 2        1         center       3        4
+# 2        1         center       3        4
 # in addition, chips with two quadrants have quadrant numbers 3 and 4, not 1
 # and 2 as you might expect.
 # Wires 6 and 7 are the outputs of the dynamic 4-input MUX, the assumed

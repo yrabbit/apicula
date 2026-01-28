@@ -301,6 +301,15 @@ def fse_pips(fse, ttyp, device, table=_wire_tables['GENERAL'], wn=wnames.wirenam
 def fse_clock_pips_138(fse, ttyp, device):
     clock_MUX_tables = [_wire_tables['CLOCK_MUX_TOP'], _wire_tables['CLOCK_MUX_BOTTOM']]
 
+    # It is unclear why, but not all outputs of the central bridge work when
+    # connected to the backbone halves. We leave only those that have proven to
+    # be functional.
+    def is_allowed_spine_input(src, dest):
+        top = src[11:].startswith('TOP')
+        spine_idx = int(dest[5:]) % 8
+        return src[-1] == { True: "02136574", False: "30214657"}[top][spine_idx]
+
+
     pips = {}
     for half in range(2):
         table = clock_MUX_tables[half]
@@ -336,7 +345,7 @@ def fse_clock_pips_138(fse, ttyp, device):
                 # spines as dest can only have Bridge as source
                 if dest.startswith('SPINE'):
                     if ttyp not in bridge_tile_types_138:
-                        if not src.startswith('CBRIDGEOUT'):
+                        if not src.startswith('CBRIDGEOUT') or not is_allowed_spine_input(src, dest):
                             continue
                     else:
                         # bridge spines may get signal from logic->gates and these gates must have suffix
@@ -2442,13 +2451,12 @@ def fse_create_5a138_clocks(dev, device, dat: Datfile, fse):
     def spine_to_bridgeout(spine):
         idx = wnames.clknumbers[spine]
         if idx >= wnames.clknumbers['SPINE16']:
-            idx -= wnames.clknumbers['SPINE16']
             half = 'BOTTOM'
+            idx -= wnames.clknumbers['SPINE16']
         else:
-            idx -= wnames.clknumbers['SPINE8']
             half = 'TOP'
+            idx -= wnames.clknumbers['SPINE8']
         return half, idx
-
 
     # top half, bottom half and bridge tile types
     spine_rows = [ [10, 28, 46], [64, 82, 100] ]
