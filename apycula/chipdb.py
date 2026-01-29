@@ -2991,6 +2991,8 @@ def get_logic_clock_ins(device, dat: Datfile):
                     for i in range(wnames.clknumbers['TRBDCLK0'], wnames.clknumbers['TRMDCLK1'] + 1)
                 }]
     elif device in {'GW5AST-138C'}:
+        return [{}, {(160, 108, 91, 125)}] # XXX for now only one gate: BRMDCLK1
+        """
         return [{
                     (i, dat.gw5aStuff['CMuxTopIns'][i - 80][0] - 1,
                         dat.gw5aStuff['CMuxTopIns'][i - 80][1] - 1,
@@ -3002,6 +3004,7 @@ def get_logic_clock_ins(device, dat: Datfile):
                         dat.gw5aStuff['CMuxBotIns'][i - 80][2])
                     for i in range(wnames.clknumbers['TRBDCLK0'], wnames.clknumbers['TRMDCLK1'] + 1)
                 }]
+        """
     # pre 5a
     return [{
                 (i, dat.cmux_ins[i - 80][0] - 1,
@@ -3537,6 +3540,7 @@ def set_chip_flags(dev, device):
         dev.chip_flags.append("NEED_SDP_FIX")
     if device in {'GW5AST-138C'}:
         dev.chip_flags.append("HAS_PINCFG")
+        dev.chip_flags.append("HAS_CIN_MUX")
         dev.chip_flags.append("NEED_CFGPINS_INVERSION")
 
     if device in {'GW5A-25A'}:
