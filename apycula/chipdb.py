@@ -3540,6 +3540,7 @@ def set_chip_flags(dev, device):
         dev.chip_flags.append("NEED_SDP_FIX")
     if device in {'GW5AST-138C'}:
         dev.chip_flags.append("HAS_PINCFG")
+        dev.chip_flags.append("HAS_DFF67")
         dev.chip_flags.append("HAS_CIN_MUX")
         dev.chip_flags.append("NEED_CFGPINS_INVERSION")
 
@@ -3607,7 +3608,7 @@ def from_fse(device, fse, dat: Datfile):
         dev.tile_types['D'] = set()
 
     # GW5 series have DFF6 and DFF7, so leave Q6 and Q7 as is
-    if device not in {'GW5A-25A'}:
+    if device not in {'GW5A-25A', 'GW5AST-138C'}:
         create_vcc_pips(dev, tiles)
     create_default_pips(tiles)
 
