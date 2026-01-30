@@ -13,7 +13,8 @@ all: \
 	bsram-pROM-primer25k.fs bsram-pROMX9-primer25k.fs bsram-SP-primer25k.fs bsram-SPX9-primer25k.fs \
 	bsram-SDPB-primer25k.fs bsram-SDPX9B-primer25k.fs bsram-SDPB32-primer25k.fs \
 	femto-riscv-15-primer25k.fs femto-riscv-16-primer25k.fs femto-riscv-18-primer25k.fs \
-	adc-temp-primer25k.fs adc-loc-left-primer25k.fs adc-glo-right-primer25k.fs
+	adc-temp-primer25k.fs adc-loc-left-primer25k.fs adc-glo-right-primer25k.fs attosoc-primer25k.fs \
+	attosoc-tangmega138k.fs
 
 clean: 
 	rm -f *.json *.fs *-unpacked.v
@@ -48,4 +49,15 @@ attosoc-primer25k.json: attosoc-primer25k-synth.json primer25k.cst
 
 attosoc-primer25k-synth.json: attosoc/attosoc.v attosoc/picorv32.v
 	$(YOSYS) -D INV_BTN=1 -p "read_verilog $^; synth_gowin -json $@ -nolutram -strict-gw5a-dffs -family gw5a ${YOSYS_FLAGS}"
+
+# ============================================================
+# TangMega138k
+%-tangmega138k.fs: %-tangmega138k.json
+	gowin_pack --cpu_as_gpio -d GW5AST-138C -o $@ $<
+
+attosoc-tangmega138k.json: attosoc-tangmega138k-synth.json tangmega138k.cst
+	$(NEXTPNR) $(DEBUG) --top attosoc --json $< --write $@ --device GW5AST-LV138PG484AC1/I0 --vopt cst=tangmega138k.cst
+
+attosoc-tangmega138k-synth.json: attosoc/attosoc.v attosoc/picorv32.v
+	$(YOSYS) -D INV_BTN=1 -p "read_verilog $^; synth_gowin -json $@ -strict-gw5a-dffs -family gw5a ${YOSYS_FLAGS}"
 
