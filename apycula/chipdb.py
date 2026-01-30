@@ -550,7 +550,7 @@ def fse_luts(fse, ttyp, device):
 
     # main fuse: enable shadow SRAM in the slice
     # shortval(28) [2, 0, fuses]
-    #XXX no SRAM for GW5A for now
+    #XXX no SRAM for GW5A-25A for now
     if device not in {'GW5A-25A'} and 28 in fse[ttyp]['shortval']:
         for i in range(6):
             bel = luts.setdefault(f"DFF{i}", Bel())
