@@ -546,3 +546,27 @@ blinky-pll-runber-synth.json: pll/GW1N-4-dyn.vh blinky-pll.v
 
 %-primer20k-unpacked.v: %-primer20k.fs
 	gowin_unpack -d GW2A-18 -o $@ $^
+
+# ============================================================
+# Multiboot
+.PHONY: tangnano20k-multiboot
+
+tangnano20k-multiboot: \
+	blinky-tangnano20k.json \
+	shift-tangnano20k.json
+	gowin_pack -c -d GW2A-18C \
+	  	--multiboot_address 0x200000 \
+		-o blinky-tangnano20k-multiboot.fs \
+		blinky-tangnano20k.json
+
+	gowin_pack -c -d GW2A-18C \
+	  	--multiboot_address 0x000000 \
+		-o shift-tangnano20k-multiboot.fs \
+		shift-tangnano20k.json
+
+	openFPGALoader -b tangnano20k -f \
+		blinky-tangnano20k-multiboot.fs
+
+	openFPGALoader -b tangnano20k -f \
+		--offset 0x200000 \
+		shift-tangnano20k-multiboot.fs
