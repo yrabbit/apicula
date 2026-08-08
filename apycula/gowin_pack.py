@@ -4592,6 +4592,17 @@ def set_slice_fuses(db, tilemap, slice_attrvals):
             for brow, bcol in bits:
                 tile[brow][bcol] = 1
 
+def set_multiboot_address(header, address):
+    if not 0 <= address <= 0xffffffff:
+        raise ValueError('Multiboot address must fit in 32 bits')
+
+    for command in header:
+        if command[0] == 0xd2:
+            command[4:8] = address.to_bytes(4, 'big')
+            return
+
+    raise ValueError('Bitstream header does not contain a multiboot address command')
+
 def main():
     global device
     global pnr
@@ -4618,6 +4629,12 @@ def main():
     parser.add_argument('--reconfign_as_gpio', action = 'store_true')
     parser.add_argument('--cpu_as_gpio', action = 'store_true')
     parser.add_argument('--i2c_as_gpio', action = 'store_true')
+    parser.add_argument(
+        '--multiboot_address',
+        type=lambda value: int(value, 0),
+        default=None,
+        help='SPI flash address of the next bitstream for multiboot'
+    )
     if pil_available:
         parser.add_argument('--png')
 
@@ -4717,6 +4734,9 @@ def main():
         main_map = bitmatrix.transpose(main_map)
 
     header_footer(db, main_map, args.compress)
+
+    if args.multiboot_address is not None:
+        set_multiboot_address(db.cmd_hdr, args.multiboot_address)
 
     if device in {'GW5A-25A', 'GW5AST-138C'} and gw5a_bsrams:
         # In the series preceding GW5A, the data for initialising BSRAM was
