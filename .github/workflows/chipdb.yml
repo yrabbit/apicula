@@ -76,4 +76,4 @@ jobs:
     with:
       name: stable
       yosys: v0.68
-      nextpnr: nextpnr-0.10
+      nextpnr: nextpnr-0.11
