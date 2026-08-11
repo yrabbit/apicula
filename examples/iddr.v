@@ -3,6 +3,7 @@ module top(input wire clk,
 	input wire rst_i, 
 	input wire fclk_i,
 	input wire data_i,
+	input wire iem_i,
 	output wire [7:0]q_o);
 
 	assign q_o[2] = !rst_i;
@@ -16,7 +17,7 @@ module top(input wire clk,
 	defparam id.Q1_INIT=1'b0;
 
 	IEM iem0(
-		.D(data_i),
+		.D(iem_i),
 		.CLK(fclk_i),
 		.MCLK(clk),
 		.LAG(q_o[5]),

@@ -3,6 +3,7 @@ module top(input wire clk,
 	input wire rst_i, 
 	input wire fclk_i,
 	input wire data_i,
+	input wire iem_i,
 	output wire pclk_o,
 	output wire [7:0]q_o);
 
@@ -22,8 +23,8 @@ module top(input wire clk,
 	defparam ides.LSREN="true";
 
 	IEM iem0(
-        .D(data_i),
-        .CLK(pclk_o),
+        .D(iem_i),
+        .CLK(fclk_i),
         .MCLK(clk),
         .LAG(q_o[5]),
         .LEAD(q_o[6]),

@@ -38,6 +38,8 @@ IO_PORT "led[5]" IO_TYPE=LVCMOS33;
 // ides
 IO_LOC  "fclk_i" 45;
 IO_PORT "fclk_i" IO_TYPE=LVCMOS33;
+IO_LOC  "iem_i"  42;
+IO_PORT "iem_i"  IO_TYPE=LVCMOS33;
 IO_LOC  "data_i" 41;
 IO_PORT "data_i" IO_TYPE=LVCMOS33;
 IO_LOC  "q_o[0]" 32;

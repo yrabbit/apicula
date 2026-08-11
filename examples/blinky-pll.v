@@ -7,6 +7,8 @@ module top (
 
 wire clk_w;
 
+wire GND = 1'b0;
+
 rPLL pll(
 	    .CLKOUT(clk_w),
 		.CLKIN(clk),

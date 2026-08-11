@@ -181,8 +181,7 @@ def write_gw5_bsram_init_map(f, crcdat, calc, gw5a_bsram_init_map, gw5a_bsrams):
     used_blocks = 0
     block_seq = {}   # start col of block sequence: number of blocks
     last_block_seq = None
-    for bsram in gw5a_bsrams:
-        col, _, _, _, _ = bsram
+    for col in gw5a_bsrams():
         if col != last_col:
             used_blocks += 1
             if col - last_col != 3:         # 3 cells for one BSRAM, if the columns are 3 cells apart
@@ -256,8 +255,7 @@ def write_gw5_138_bsram_init_map(f, crcdat, calc, gw5a_bsram_init_map, gw5a_bsra
     used_blocks = 0
     block_seq = {}   # start col of block sequence: number of blocks
     last_block_seq = None
-    for bsram in gw5a_bsrams:
-        col, _, _, _, _ = bsram
+    for col in gw5a_bsrams():
         if col != last_col:
             used_blocks += 1
             if col - last_col != 3:         # 3 cells for one BSRAM, if the columns are 3 cells apart

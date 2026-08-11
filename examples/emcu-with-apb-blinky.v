@@ -4,7 +4,7 @@
 * The LED on the board should blink and its state should be reported through
 * UART. 
 * Attention: flashing is performed with firmware as follows:
-* openFPGALoader -f -b tangnano4k --mcufw=emcu-firmware/apb-blinky.bin emcu-apb-blinky-tangnano4k.fs
+* openFPGALoader -f -b tangnano4k --mcufw=emcu-firmware/apb_blinky.bin emcu-with-apb-blinky-tangnano4k.fs
 *
 */
 
