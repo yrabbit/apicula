@@ -5,6 +5,7 @@
 module top (
     input clk,
 	input key_i,
+	output [`LEDS_NR-1:0] led,
     output elvds_p,
     output elvds_n
 );
@@ -24,6 +25,8 @@ always @(posedge clk)
 // Combinational code (boolean logic)
 assign ctr_d = ctr_q + 1'b1;
 assign i_tick = |ctr_q[24:23];
+
+assign led = i_tick;
 
 ODDR oddr_0(
 	.D0(1'b0),

@@ -31,6 +31,7 @@ IO_LOC "fclk_o"   50;
 
 // ides
 IO_LOC "fclk_i" 43;
+IO_LOC "iem_i"  44;
 IO_LOC "data_i" 46;
 IO_LOC "q_o[0]" 121;
 IO_LOC "q_o[1]" 42;
@@ -42,12 +43,16 @@ IO_LOC "q_o[6]" 115;
 IO_LOC "q_o[7]" 113;
 
 // emulated lvds pins
-IO_LOC "elvds_p" 44;
-IO_LOC "elvds_n" 45;
+IO_LOC  "elvds_p" 44;
+IO_PORT "elvds_p" IO_TYPE=LVDS25E;
+IO_LOC  "elvds_n" 45;
+IO_PORT "elvds_n" IO_TYPE=LVDS25E;
 
 // true LVDS pins
-IO_LOC "tlvds_p" 42;
-IO_LOC "tlvds_n" 43;
+IO_LOC  "tlvds_p" 42;
+IO_PORT "tlvds_p" IO_TYPE=LVDS25;
+IO_LOC  "tlvds_n" 43;
+IO_PORT "tlvds_n" IO_TYPE=LVDS25;
 
 // RGB LCD
 IO_LOC "LCD_CLK"  110;
