@@ -970,7 +970,7 @@ class Device:
             self.io_banks[bank_idx] = BankDesc(x, y)
 
         self.default_ibuf_attrs = [('PADDI', 'PADDI'), ('HYSTERESIS', 'NONE'), ('PULLMODE', 'UP'), ('SLEWRATE', 'SLOW'),
-                 ('DRIVE', '0'), ('CLAMP', 'ON'), ('OPENDRAIN', 'OFF'), ('DIFFRESISTOR', 'OFF'),
+                 ('DRIVE', '0'), ('CLAMP', 'OFF'), ('OPENDRAIN', 'OFF'), ('DIFFRESISTOR', 'OFF'),
                  ('VREF', 'OFF'), ('LVDS_OUT', 'OFF')]
         self.default_obuf_attrs = [('ODMUX_1', '1'), ('PULLMODE', 'UP'), ('SLEWRATE', 'FAST'),
                  ('DRIVE', '8'), ('HYSTERESIS', 'NONE'), ('CLAMP', 'OFF'),
@@ -1728,7 +1728,8 @@ class Device:
             bits = self.chipdb.get_bank_fuses(bank_desc.x, bank_desc.y, av, bank)
             bits.update(self.chipdb.get_bank_io_fuses(bank_desc.x, bank_desc.y, av))
             if bank == 1:
-                bits = [(4, 63), (9, 62), (11, 62)]
+                #bits = [(4, 63), (9, 62), (11, 62)]
+                bits = [(10, 62), (11, 62), (12, 62), (13, 62)]
             if bits:
                 fuses.append(CellFuseBits(bank_desc.x, bank_desc.y, bits))
         return fuses
@@ -4468,6 +4469,10 @@ class GW1N(Device):
 
         fuses = []
         bits = self.chipdb.get_iob_fuses(x, y, av, idx_str)
+        if x == 41 and y == 0:
+            bits = [(0, 16), (0, 48), (1, 18), (1, 20), (1, 38), (1, 41), (2, 23), (2, 34), (2, 36), (2, 41), (3, 5), (3, 14), (3, 16), (3, 18), (3, 24), (3, 26), (3, 34), (3, 39), (3, 42), (3, 43), (3, 53)]
+        elif x in [37, 38, 40] and y == 0:
+            bits = [(0, 3), (0, 16), (0, 22), (0, 34), (0, 35), (0, 43), (0, 48), (1, 0), (1, 18), (1, 20), (1, 24), (1, 26), (1, 32), (1, 38), (1, 41), (1, 55), (2, 4), (2, 14), (2, 23), (2, 34), (2, 36), (2, 41), (3, 5), (3, 14), (3, 16), (3, 18), (3, 24), (3, 26), (3, 34), (3, 39), (3, 42), (3, 43), (3, 53)]
         if bits:
             fuses.append(CellFuseBits(x, y, bits))
         return fuses
