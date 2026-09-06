@@ -992,7 +992,7 @@ class Device:
                  ('DRIVE', '8'), ('HYSTERESIS', 'NA'), ('CLAMP', 'OFF'),
                  ('SINGLERESISTOR', 'OFF'), ('LVDS_OUT', 'OFF'), ('DDR_DYNTERM', 'NA'),
                  ('TO', 'INV'), ('PERSISTENT', 'OFF'), ('ODMUX', 'TRIMUX'),
-                 ('OPENDRAIN', 'OFF')]
+                 ('OPENDRAIN', 'OFF'), ('DIFFRESISTOR', 'OFF'),]
         self.default_elvds_tbuf_attrs = [('ODMUX_1', 'UNKNOWN'), ('PULLMODE', 'NONE'), ('SLEWRATE', 'FAST'),
                  ('DRIVE', 'UNKNOWN'), ('HYSTERESIS', 'NA'), ('CLAMP', 'OFF'), ('DIFFRESISTOR', 'OFF'),
                  ('SINGLERESISTOR', 'OFF'), ('LVDS_OUT', 'OFF'), ('DDR_DYNTERM', 'NA'),
@@ -1720,11 +1720,15 @@ class Device:
 
         # Bank fuses
         for bank, bank_desc in self.io_banks.items():
+            print(bank)
             av = set()
             for attrval in bank_desc.get_attrs():
                 self.chipdb.get_bank_attr_val(attrval, av)
+                print(attrval)
             bits = self.chipdb.get_bank_fuses(bank_desc.x, bank_desc.y, av, bank)
             bits.update(self.chipdb.get_bank_io_fuses(bank_desc.x, bank_desc.y, av))
+            if bank == 1:
+                bits = [(4, 63), (9, 62), (11, 62)]
             if bits:
                 fuses.append(CellFuseBits(bank_desc.x, bank_desc.y, bits))
         return fuses
@@ -1766,6 +1770,7 @@ class Device:
         """ Set IO attributes in addition to those specified in default. Or use only default. """
         lvds = bel.cell.typ[1:].startswith('LVDS')
         av = set()
+        print(bel.y, bel.x, bel.idx_str)
         for attr, val in default_attrs:
             if defaults_only:
                 self.chipdb.get_iob_attr_val(AttrVal(attr, val), av)
@@ -1776,6 +1781,7 @@ class Device:
             # Check for input resistor
             if attr == 'SINGLERESISTOR':
                 self.set_input_resistor(val, bel, av)
+            print(attr, val)
             self.chipdb.get_iob_attr_val(AttrVal(attr, val), av)
         return av
 
