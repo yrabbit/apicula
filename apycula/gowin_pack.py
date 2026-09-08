@@ -1787,7 +1787,6 @@ class Device:
             # Check for input resistor
             if attr == 'SINGLERESISTOR':
                 self.set_input_resistor(val, bel, av)
-            print(attr, val)
             self.chipdb.get_iob_attr_val(AttrVal(attr, val), av)
         return av
 
@@ -1916,19 +1915,13 @@ class Device:
         av = self.set_io_attrvals(bel, self.default_tlvds_obuf_attrs, force_attrs = {'DRIVE': '0', 'BANK_VCCIO': self.get_lvds_bank_vccio()})
         fuses = []
         io_type = bel.cell.attrs.get('IO_TYPE')
-        """
         if io_type:
             self.chipdb.get_iob_attr_val(AttrVal("IO_TYPE", io_type), av)
         else:
             self.chipdb.get_iob_attr_val(AttrVal("IO_TYPE", self.get_default_tlvds_io_type()), av)
-        """
-        self.chipdb.get_iob_attr_val(AttrVal("IO_TYPE", "LVDS25"), av)
-        #if bel.idx_str == 'A':
-        #    self.chipdb.get_iob_attr_val(AttrVal("LVDS_OUT", "ON"), av)
-        self.chipdb.get_iob_attr_val(AttrVal("LVDS_OUT", "ON"), av)
-        #self.chipdb.get_iob_attr_val(AttrVal("BANK_VCCIO", bank_desc.bank_vccio), av)
-        self.chipdb.get_iob_attr_val(AttrVal("BANK_VCCIO", "1.2"), av)
-        print(av)
+        if bel.idx_str == 'A':
+            self.chipdb.get_iob_attr_val(AttrVal("LVDS_OUT", "ON"), av)
+        self.chipdb.get_iob_attr_val(AttrVal("BANK_VCCIO", bank_desc.bank_vccio), av)
         fuses += self.get_iob_fuses(bel.x, bel.y, bel.idx_str, av)
         return fuses
 
@@ -2456,8 +2449,8 @@ class Device:
         self.chipdb.get_pll_attr_val(AttrVal('SRSTEN', 'DISABLE'), av)
         self.chipdb.get_pll_attr_val(AttrVal('PWDEN', 'ENABLE'), av)
         self.chipdb.get_pll_attr_val(AttrVal('RSTEN', 'ENABLE'), av)
-        #self.chipdb.get_pll_attr_val(AttrVal('VCOBIAS_EN_D', 'ENABLE'), av)
-        #self.chipdb.get_pll_attr_val(AttrVal('VCOBIAS_EN_U', 'ENABLE'), av)
+        self.chipdb.get_pll_attr_val(AttrVal('VCOBIAS_EN_D', 'ENABLE'), av)
+        self.chipdb.get_pll_attr_val(AttrVal('VCOBIAS_EN_U', 'ENABLE'), av)
 
         return av
 
@@ -4479,13 +4472,6 @@ class GW1N(Device):
 
         fuses = []
         bits = self.chipdb.get_iob_fuses(x, y, av, idx_str)
-        """
-        if x == 41 and y == 0:
-            pass
-            #bits = [(0, 16), (0, 48), (1, 18), (1, 20), (1, 38), (1, 41), (2, 23), (2, 34), (2, 36), (2, 41), (3, 5), (3, 14), (3, 16), (3, 18), (3, 24), (3, 26), (3, 34), (3, 39), (3, 42), (3, 43), (3, 53)]
-        elif x in [37, 38, 40] and y == 0:
-            bits = [(0, 3), (0, 16), (0, 22), (0, 34), (0, 35), (0, 43), (0, 48), (1, 0), (1, 18), (1, 20), (1, 24), (1, 26), (1, 32), (1, 38), (1, 41), (1, 55), (2, 4), (2, 14), (2, 23), (2, 34), (2, 36), (2, 41), (3, 5), (3, 14), (3, 16), (3, 18), (3, 24), (3, 26), (3, 34), (3, 39), (3, 42), (3, 43), (3, 53)]
-        """
         if bits:
             fuses.append(CellFuseBits(x, y, bits))
         return fuses
