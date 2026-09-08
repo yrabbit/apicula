@@ -1773,6 +1773,7 @@ class Device:
 
     def set_io_attrvals(self, bel: IoBelDesc, default_attrs: list[tuple[str, str]], defaults_only = False, force_attrs: dict[str, str] = dict()) -> set[int]:
         """ Set IO attributes in addition to those specified in default. Or use only default. """
+        print(bel.x, bel.y, force_attrs)
         av = set()
         for attr, val in default_attrs:
             if defaults_only:
@@ -1783,10 +1784,13 @@ class Device:
                 val = override_val
             force_val = force_attrs.get(attr)
             if force_val:
-                val = force_val
+                continue
             # Check for input resistor
             if attr == 'SINGLERESISTOR':
                 self.set_input_resistor(val, bel, av)
+            self.chipdb.get_iob_attr_val(AttrVal(attr, val), av)
+
+        for attr, val in force_attrs.items():
             self.chipdb.get_iob_attr_val(AttrVal(attr, val), av)
         return av
 
@@ -1962,7 +1966,7 @@ class Device:
     def process_ELVDS_OBUF(self, bank_desc: BankDesc, bel: IoBelDesc) -> list[CellFuseBits]:
         self.check_elvds_placement(bel)
 
-        av = self.set_io_attrvals(bel, self.default_elvds_obuf_attrs, force_attrs = {'DRIVE': '0', 'BANK_VCCIO': self.get_lvds_bank_vccio()})
+        av = self.set_io_attrvals(bel, self.default_elvds_obuf_attrs, force_attrs = {'DRIVE': '8', 'BANK_VCCIO': self.get_lvds_bank_vccio()})
         fuses = []
         io_type = bel.cell.attrs.get('IO_TYPE')
         if io_type:
@@ -1970,6 +1974,7 @@ class Device:
         else:
             self.chipdb.get_iob_attr_val(AttrVal("IO_TYPE", self.get_default_elvds_io_type()), av)
         fuses += self.get_iob_fuses(bel.x, bel.y, bel.idx_str, av)
+        print(bel.x, bel.y, av)
         return fuses
 
     def process_ELVDS_TBUF(self, bank_desc: BankDesc, bel: IoBelDesc) -> list[CellFuseBits]:
