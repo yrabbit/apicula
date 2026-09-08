@@ -4051,7 +4051,9 @@ def place(db, tilemap, bels, cst, args, slice_attrvals, extra_slots):
                         in_bank_attrs[k] = val
                 fuse_row, fuse_col = (row, col)
                 if device not in {'GW5A-25A', 'GW5AST-138C'}:
+                    print(row, col, iob_idx, iob_attrs)
                     bits = get_longval_fuses(db, tiledata.ttyp, iob_attrs, f'IOB{iob_idx}')
+                    print(bits)
                 else:
                     #print(row, col, f'mode:{mode_for_attrs}, idx:{iob_idx}, {atr} = {iob_attrs}')
                     if mode_for_attrs in {'OBUF', 'IOBUF', 'TBUF'}:
@@ -4094,9 +4096,10 @@ def place(db, tilemap, bels, cst, args, slice_attrvals, extra_slots):
                 if k in {'BANK_VCCIO', 'IO_TYPE', 'LVDS_OUT', 'DRIVE', 'OPENDRAIN', 'PULL_STRENGTH'}:
                     add_attr_val(db, 'IOB', bank_attrs, attrids.iob_attrids[k], attrids.iob_attrvals[val])
 
-        #print('bank', brow, bcol, bank_attrs)
         bits = get_bank_fuses(db, tiledata.ttyp, bank_attrs, 'BANK', bank)
+        print('bank', brow, bcol, bank_attrs, bits)
         bits.update(get_bank_io_fuses(db, tiledata.ttyp, bank_attrs))
+        print('bank', brow, bcol, bank_attrs, bits)
 
         btile = tilemap[(brow, bcol)]
         for row, col in bits:
