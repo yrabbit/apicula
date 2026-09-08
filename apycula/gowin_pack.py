@@ -1905,7 +1905,6 @@ class Device:
             self.chipdb.get_iob_attr_val(AttrVal("IO_TYPE", self.get_default_tlvds_io_type()), av)
         if bel.idx_str == 'A':
             self.chipdb.get_iob_attr_val(AttrVal("LVDS_OUT", "ON"), av)
-        self.chipdb.get_iob_attr_val(AttrVal("BANK_VCCIO", bank_desc.bank_vccio), av)
         fuses += self.get_iob_fuses(bel.x, bel.y, bel.idx_str, av)
         return fuses
 
@@ -1921,14 +1920,13 @@ class Device:
             self.chipdb.get_iob_attr_val(AttrVal("IO_TYPE", self.get_default_tlvds_io_type()), av)
         if bel.idx_str == 'A':
             self.chipdb.get_iob_attr_val(AttrVal("LVDS_OUT", "ON"), av)
-        self.chipdb.get_iob_attr_val(AttrVal("BANK_VCCIO", bank_desc.bank_vccio), av)
         fuses += self.get_iob_fuses(bel.x, bel.y, bel.idx_str, av)
         return fuses
 
     def process_TLVDS_IOBUF(self, bank_desc: BankDesc, bel: IoBelDesc) -> list[CellFuseBits]:
         self.check_tlvds_placement(bel)
 
-        av = self.set_io_attrvals(bel, self.default_tlvds_iobuf_attrs)
+        av = self.set_io_attrvals(bel, self.default_tlvds_iobuf_attrs, force_attrs = {'DRIVE': '0', 'BANK_VCCIO': self.get_lvds_bank_vccio()})
         fuses = []
         io_type = bel.cell.attrs.get('IO_TYPE')
         if io_type:
@@ -1937,7 +1935,6 @@ class Device:
             self.chipdb.get_iob_attr_val(AttrVal("IO_TYPE", self.get_default_tlvds_io_type()), av)
         if bel.idx_str == 'A':
             self.chipdb.get_iob_attr_val(AttrVal("LVDS_OUT", "ON"), av)
-        self.chipdb.get_iob_attr_val(AttrVal("BANK_VCCIO", bank_desc.bank_vccio), av)
         self.set_iobuf_attrs(bel, av)
 
         fuses += self.get_iob_fuses(bel.x, bel.y, bel.idx_str, av)
